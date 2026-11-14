@@ -2,8 +2,8 @@
 
 use crate::kit::Act;
 use crate::world::{Happened, Refused};
-use crate::Prof;
-use astro_core::GameEvent;
+use crate::{Music, Prof};
+use ja_core::GameEvent;
 use bevy::audio::Volume;
 use bevy::prelude::*;
 use std::collections::HashMap;
@@ -16,7 +16,7 @@ pub struct Play(pub &'static str);
 struct Lib(HashMap<&'static str, Handle<AudioSource>>);
 
 #[derive(Component)]
-struct Music;
+struct MusicTrack;
 
 const NAMES: &[&str] = &["click", "coin", "good", "bad", "alarm", "radio", "badge", "repair", "pickup", "step", "launch", "wind", "music"];
 
@@ -35,15 +35,14 @@ fn from_events(mut ev: EventReader<Happened>, mut refused: EventReader<Refused>,
     for Happened(e) in ev.read() {
         let s = match e {
             GameEvent::Flare { .. } | GameEvent::DustStorm => "alarm",
-            GameEvent::ModuleBroken(_) | GameEvent::Leak(_) => "bad",
-            GameEvent::HarvestReady | GameEvent::Repaired(_) | GameEvent::Supported | GameEvent::FlareEnded => "good",
-            GameEvent::CargoLanding => "launch",
-            GameEvent::CrewNeedsSupport(_) | GameEvent::ForecastArrived(_) | GameEvent::NewSol(_) => "radio",
-            GameEvent::Picked(_) => "pickup",
+            GameEvent::ModuleBroken(_) | GameEvent::Leak(_) | GameEvent::LowOxygen | GameEvent::BatteryEmpty => "bad",
+            GameEvent::HarvestReady | GameEvent::Repaired(_) | GameEvent::Cleaned(_) | GameEvent::Supported(_) | GameEvent::FlareEnded | GameEvent::FeelingRight(_) | GameEvent::Harvested { .. } | GameEvent::CargoUnloaded { .. } => "good",
+            GameEvent::CargoLanding { .. } => "launch",
+            GameEvent::CrewNeedsSupport(_) | GameEvent::ForecastArrived(_) | GameEvent::NewSol(_) | GameEvent::SignalLost | GameEvent::Night | GameEvent::Discovery(_) => "radio",
+            GameEvent::Collected { .. } => "pickup",
             GameEvent::SamplesDelivered { .. } => "coin",
-            GameEvent::BadgeEarned(_) => "badge",
-            GameEvent::Built(_) | GameEvent::Demolished => "repair",
-            GameEvent::FeelingChecked { .. } => "click",
+            GameEvent::Built { .. } | GameEvent::Demolished { .. } => "repair",
+            GameEvent::Sheltered { .. } | GameEvent::LeftShelter { .. } | GameEvent::FeelingTryAgain(_) | GameEvent::DustGone | GameEvent::ForecastSent { .. } => "click",
             GameEvent::MissionEnded(r) => {
                 if r.won { "badge" } else { "launch" }
             }
@@ -72,13 +71,13 @@ fn play(mut commands: Commands, mut ev: EventReader<Play>, lib: Res<Lib>, prof: 
     }
 }
 
-fn music(mut commands: Commands, prof: Res<Prof>, lib: Res<Lib>, q: Query<Entity, With<Music>>) {
+fn music(mut commands: Commands, on: Res<Music>, lib: Res<Lib>, q: Query<Entity, With<MusicTrack>>) {
     let playing = !q.is_empty();
-    if prof.0.music && !playing {
+    if on.0 && !playing {
         if let Some(h) = lib.0.get("music") {
-            commands.spawn((AudioPlayer::new(h.clone()), PlaybackSettings::LOOP.with_volume(Volume::Linear(0.35)), Music));
+            commands.spawn((AudioPlayer::new(h.clone()), PlaybackSettings::LOOP.with_volume(Volume::Linear(0.35)), MusicTrack));
         }
-    } else if !prof.0.music && playing {
+    } else if !on.0 && playing {
         for e in &q {
             commands.entity(e).despawn();
         }

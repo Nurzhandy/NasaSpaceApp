@@ -1,5 +1,5 @@
 //! Junior Astronaut: Outpost — 2D pixel-art desktop game (part B of docs/PLAN_2D.md).
-//! Everything visible and audible lives here; the rules come from `astro_core`.
+//! Everything visible and audible lives here; the rules come from `ja-core` (part A).
 
 mod art;
 mod audio;
@@ -13,9 +13,10 @@ mod tour;
 mod windows;
 mod world;
 
-use astro_core::{GameApi, MapId, Profile, Weather};
 use bevy::prelude::*;
 use bevy::window::{PresentMode, WindowResolution};
+use ja_core::progress::Rewards;
+use ja_core::{progress, weather, Game, Lang, MapId, MissionConfig, MissionResult, Profile, Weather};
 use std::sync::{mpsc, Mutex};
 
 /// One cell of the base grid on screen: 16 px art × 3.
@@ -52,38 +53,44 @@ impl Default for Setup {
     }
 }
 
-/// The running mission (rules from `astro_core`).
+/// The running mission (rules from `ja-core`).
 #[derive(Resource)]
-pub struct Sim(pub astro_core::Game);
+pub struct Sim(pub Game);
 
 /// Time multiplier (the screenshot tour fast-forwards with it).
 #[derive(Resource)]
 pub struct Speed(pub f32);
 
-/// Profile wrapper so systems can mark it dirty and save.
+/// Player profile (saved by `ja_core::progress`).
 #[derive(Resource)]
 pub struct Prof(pub Profile);
 impl Prof {
-    pub fn lang(&self) -> astro_core::Lang {
-        if self.0.lang_en { astro_core::Lang::En } else { astro_core::Lang::Ru }
+    pub fn lang(&self) -> Lang {
+        self.0.lang
+    }
+    pub fn save(&self) {
+        progress::save(&self.0);
     }
 }
 
-/// Space weather: archive at start, replaced if the live fetch succeeds.
+/// Music on/off (presentation setting, not part of the saved profile).
+#[derive(Resource)]
+pub struct Music(pub bool);
+
+/// Space weather: the archive at start, replaced by whatever the background fetch returns.
 #[derive(Resource)]
 pub struct Sky {
     pub weather: Weather,
     pub loading: bool,
 }
 #[derive(Resource)]
-struct SkyRx(Mutex<mpsc::Receiver<Option<Weather>>>);
+struct SkyRx(Mutex<mpsc::Receiver<Weather>>);
 
-/// Last mission result for the debrief screen.
+/// Last mission for the debrief screen.
 #[derive(Resource, Clone)]
 pub struct LastResult {
-    pub result: astro_core::MissionResult,
-    pub new_badges: Vec<&'static str>,
-    pub new_map: Option<MapId>,
+    pub result: MissionResult,
+    pub rewards: Rewards,
     pub reflected: bool,
 }
 
@@ -95,6 +102,7 @@ pub enum Set {
 }
 
 fn main() {
+    let profile = progress::load();
     App::new()
         .add_plugins(
             DefaultPlugins
@@ -111,7 +119,8 @@ fn main() {
                 .set(AssetPlugin { file_path: assets_dir(), meta_check: bevy::asset::AssetMetaCheck::Never, ..default() }),
         )
         .insert_resource(ClearColor(Color::srgb(0.03, 0.03, 0.09)))
-        .insert_resource(Prof(Profile::load()))
+        .insert_resource(Prof(profile))
+        .insert_resource(Music(true))
         .insert_resource(Sky { weather: Weather::archive(), loading: true })
         .insert_resource(Speed(1.0))
         .init_resource::<Setup>()
@@ -126,23 +135,19 @@ fn main() {
         .run();
 }
 
-/// Finds `assets/` next to the executable (release archive) or at the workspace root (cargo run).
+/// Finds `assets/` next to the executable (release archive), inside a macOS .app bundle,
+/// or at the workspace root (cargo run).
 fn assets_dir() -> String {
     if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
-            let p = dir.join("assets");
-            if p.join("sprites").exists() {
-                return p.to_string_lossy().into_owned();
-            }
-            // macOS .app bundle: Contents/MacOS/game → Contents/Resources/assets
-            let p = dir.join("../Resources/assets");
-            if p.join("sprites").exists() {
-                return p.to_string_lossy().into_owned();
+            for p in [dir.join("assets"), dir.join("../Resources/assets")] {
+                if p.join("sprites").exists() {
+                    return p.to_string_lossy().into_owned();
+                }
             }
         }
     }
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets");
-    root.to_string_lossy().into_owned()
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets").to_string_lossy().into_owned()
 }
 
 #[derive(Component)]
@@ -152,23 +157,17 @@ fn spawn_camera(mut commands: Commands) {
     commands.spawn((Camera2d, MainCam, Msaa::Off));
 }
 
-fn start_weather(mut commands: Commands) {
-    let (tx, rx) = mpsc::channel();
+fn start_weather(mut commands: Commands, prof: Res<Prof>) {
+    let rx = weather::spawn_fetch(weather::api_key(&prof.0.nasa_key));
     commands.insert_resource(SkyRx(Mutex::new(rx)));
-    let key = std::env::var("NASA_API_KEY").ok().filter(|k| !k.trim().is_empty()).unwrap_or_else(|| "DEMO_KEY".into());
-    std::thread::spawn(move || {
-        let _ = tx.send(astro_core::weather::fetch(&key).ok());
-    });
 }
 
 fn poll_weather(rx: Option<Res<SkyRx>>, mut sky: ResMut<Sky>) {
     let Some(rx) = rx else { return };
     let Ok(r) = rx.0.lock() else { return };
     if let Ok(w) = r.try_recv() {
-        if let Some(w) = w {
-            if w.live && !w.events.is_empty() {
-                sky.weather = w;
-            }
+        if !w.events.is_empty() {
+            sky.weather = w;
         }
         sky.loading = false;
     }
@@ -176,6 +175,6 @@ fn poll_weather(rx: Option<Res<SkyRx>>, mut sky: ResMut<Sky>) {
 
 fn start_mission(mut commands: Commands, setup: Res<Setup>, prof: Res<Prof>, sky: Res<Sky>) {
     let seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos() as u64).unwrap_or(7);
-    let cfg = astro_core::MissionConfig { map: setup.map, cadet: prof.0.cadet, coop: setup.coop, live: setup.live && sky.weather.live, seed };
-    commands.insert_resource(Sim(astro_core::Game::new(cfg, &sky.weather)));
+    let cfg = MissionConfig { map: setup.map, cadet: prof.0.cadet, coop: setup.coop, live: setup.live, seed };
+    commands.insert_resource(Sim(Game::new(cfg, &sky.weather)));
 }

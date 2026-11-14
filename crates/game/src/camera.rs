@@ -2,8 +2,8 @@
 
 use crate::player::Player;
 use crate::world::to_world;
-use crate::{AppState, MainCam, Set, Sim, CELL};
-use astro_core::GameApi;
+use crate::{AppState, MainCam, Set, CELL};
+use ja_core::game::WORLD_R;
 use bevy::prelude::*;
 
 pub struct CameraPlugin;
@@ -22,17 +22,15 @@ fn ortho(p: &mut Projection) -> Option<&mut OrthographicProjection> {
     }
 }
 
-fn snap(mut cam: Query<&mut Transform, With<MainCam>>, sim: Option<Res<Sim>>) {
-    if let (Ok(mut t), Some(sim)) = (cam.single_mut(), sim) {
-        let st = sim.0.state();
-        let c = to_world(st.base_x as f32, st.base_y as f32 - 2.0);
+fn snap(mut cam: Query<&mut Transform, With<MainCam>>) {
+    if let Ok(mut t) = cam.single_mut() {
+        let c = to_world(0.5, 1.5);
         t.translation = Vec3::new(c.x, c.y, t.translation.z);
     }
 }
 
-fn follow(time: Res<Time>, sim: Res<Sim>, players: Query<&Player>, mut cam: Query<(&mut Transform, &mut Projection), With<MainCam>>, windows: Query<&Window>) {
+fn follow(time: Res<Time>, players: Query<&Player>, mut cam: Query<(&mut Transform, &mut Projection), With<MainCam>>, windows: Query<&Window>) {
     let Ok((mut t, mut proj)) = cam.single_mut() else { return };
-    let st = sim.0.state();
     let pts: Vec<Vec2> = players.iter().map(|p| to_world(p.pos.x, p.pos.y + 0.8)).collect();
     if pts.is_empty() {
         return;
@@ -47,8 +45,9 @@ fn follow(time: Res<Time>, sim: Res<Sim>, players: Query<&Player>, mut cam: Quer
         o.scale += (want_scale - o.scale) * k;
         // keep the view inside the map (with a little margin)
         let half = Vec2::new(ww, wh) * o.scale / 2.0;
-        let lo = Vec2::new(-4.0 * CELL, -4.0 * CELL) + half;
-        let hi = Vec2::new((st.world_w + 4) as f32 * CELL, (st.world_h + 4) as f32 * CELL) - half;
+        let edge = (WORLD_R + 4.0) * CELL;
+        let lo = Vec2::splat(-edge) + half;
+        let hi = Vec2::splat(edge) - half;
         let target = Vec2::new(if lo.x < hi.x { center.x.clamp(lo.x, hi.x) } else { (lo.x + hi.x) / 2.0 }, if lo.y < hi.y { center.y.clamp(lo.y, hi.y) } else { (lo.y + hi.y) / 2.0 });
         let cur = t.translation.truncate();
         let n = cur + (target - cur) * k;

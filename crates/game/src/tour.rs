@@ -1,6 +1,6 @@
 //! B9 — screenshot tour for the README and judges.
 //!
-//! `JA_SHOTS=docs/screenshots_2d JA2D_PROFILE=/tmp/ja_tour.json cargo run -p game --release`
+//! `JA_SHOTS=docs/screenshots_2d JA_PROFILE=/tmp/ja_tour.json cargo run -p game --release`
 //! walks through menus, a Moon mission (power, build mode, a flare, pause, beacon), the debrief
 //! and co-op, saving PNGs, then quits.
 
@@ -8,7 +8,7 @@ use crate::build::BuildMode;
 use crate::kit::{Act, Action};
 use crate::windows::{Modal, Win};
 use crate::{AppState, Prof, Setup, Speed};
-use astro_core::MapId;
+use ja_core::MapId;
 use bevy::prelude::*;
 use bevy::render::view::screenshot::{save_to_disk, Screenshot};
 use std::path::PathBuf;

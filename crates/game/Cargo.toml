@@ -11,5 +11,5 @@ name = "game"
 path = "src/main.rs"
 
 [dependencies]
-astro_core = { path = "../core" }
+ja-core = { path = "../core" }
 bevy = { version = "0.16.1", features = ["wav"] }

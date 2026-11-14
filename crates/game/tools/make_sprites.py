@@ -479,6 +479,33 @@ def app_icon():
     im.resize((256, 256), Image.NEAREST).save(os.path.join(OUT_DIR, "app_icon.png"))
 
 
+def rtg():
+    im = new(32, 32)
+    d = ImageDraw.Draw(im)
+    d.ellipse((4, 24, 28, 31), fill=(0, 0, 0, 60))
+    for i in range(5):
+        x = 6 + i * 5
+        d.rectangle((x, 6, x + 2, 26), fill=DARK)
+    d.rounded_rectangle((10, 3, 22, 28), radius=4, fill=LIGHT)
+    d.ellipse((12, 10, 20, 18), fill=YELLOW)
+    d.polygon([(16, 14), (13, 11), (19, 11)], fill=OUT)
+    d.polygon([(16, 14), (12, 16), (14, 18)], fill=OUT)
+    d.polygon([(16, 14), (20, 16), (18, 18)], fill=OUT)
+    save(outline(im), "rtg.png")
+
+
+def ore():
+    im = new(16, 16)
+    d = ImageDraw.Draw(im)
+    d.ellipse((2, 12, 14, 15), fill=(0, 0, 0, 60))
+    d.polygon([(2, 13), (3, 7), (7, 4), (11, 6), (14, 12)], fill=(120, 110, 105, 255))
+    d.polygon([(9, 13), (11, 9), (14, 12)], fill=(95, 88, 84, 255))
+    for (x, y) in ((5, 8), (8, 6), (10, 10), (6, 11)):
+        d.point((x, y), fill=(255, 180, 70, 255))
+        d.point((x + 1, y), fill=(255, 220, 120, 255))
+    save(outline(im), "ore.png")
+
+
 if __name__ == "__main__":
     astronaut_sheets()
     hats()
@@ -497,5 +524,7 @@ if __name__ == "__main__":
     sites()
     rover()
     cargo()
+    rtg()
+    ore()
     app_icon()
     print("sprites:", sorted(os.listdir(OUT_DIR)))

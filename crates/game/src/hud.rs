@@ -5,7 +5,7 @@ use crate::art::Art;
 use crate::kit::{self, Act, Action, C_BAD, C_BLUE, C_GOOD, C_LINE, C_MUTED, C_TEXT, C_WARN};
 use crate::world::{Happened, Refused};
 use crate::{AppState, Prof, Set, Sim};
-use astro_core::{i18n, GameApi, GameEvent};
+use ja_core::{i18n, GameEvent, Tone};
 use bevy::prelude::*;
 
 #[derive(Clone, Copy, PartialEq, Eq, Component)]
@@ -170,7 +170,7 @@ fn spawn(mut commands: Commands, art: Res<Art>, prof: Res<Prof>, sim: Res<Sim>) 
                 p.spawn(kit::row(5.0)).with_children(|r| {
                     kit::icon(r, &art, ic, 22.0);
                     kit::text(r, k, &art.head, 15.0, kit::C_ACCENT);
-                    kit::text(r, l.t(ru, en), &art.body, 15.0, C_MUTED);
+                    kit::text(r, l.pick(ru, en), &art.body, 15.0, C_MUTED);
                 });
             }
         });
@@ -179,24 +179,26 @@ fn spawn(mut commands: Commands, art: Res<Art>, prof: Res<Prof>, sim: Res<Sim>) 
         .spawn((Node { position_type: PositionType::Absolute, top: Val::Percent(30.0), left: Val::Percent(50.0), margin: UiRect::left(Val::Px(-220.0)), width: Val::Px(440.0), flex_direction: FlexDirection::Column, align_items: AlignItems::Center, row_gap: Val::Px(8.0), padding: UiRect::all(Val::Px(14.0)), ..default() }, BackgroundColor(Color::srgba(0.04, 0.05, 0.14, 0.85)), BorderRadius::all(Val::Px(8.0)), Visibility::Hidden, GlobalZIndex(8), ShelterNote, sc))
         .with_children(|p| {
             kit::icon(p, &art, "house", 64.0);
-            p.spawn((Text::new(l.t("Ты в жилом модуле. Радиация в 7 раз меньше.", "You’re in the habitat. Radiation is 7× lower.")), TextFont { font: art.body.clone(), font_size: 20.0, ..default() }, TextColor(C_TEXT), TextLayout::new_with_justify(JustifyText::Center)));
+            p.spawn((Text::new(l.pick("Ты в жилом модуле. Радиация в 7 раз меньше.", "You’re in the habitat. Radiation is 7× lower.")), TextFont { font: art.body.clone(), font_size: 20.0, ..default() }, TextColor(C_TEXT), TextLayout::new_with_justify(JustifyText::Center)));
         });
 }
 
 fn collect(mut ev: EventReader<Happened>, mut refused: EventReader<Refused>, mut alerts: ResMut<Alerts>, prof: Res<Prof>, mut commands: Commands, art: Res<Art>, toasts: Query<Entity, With<Toast>>) {
     let l = prof.lang();
     for Happened(e) in ev.read() {
-        if matches!(e, GameEvent::ForecastArrived(_) | GameEvent::Flare { .. }) {
+        // the flare has its own banner and forecasts go to the radio box
+        if matches!(e, GameEvent::ForecastArrived(_) | GameEvent::ForecastSent { .. } | GameEvent::Flare { .. } | GameEvent::MissionEnded(_)) {
             continue;
         }
-        if let Some((icon, text)) = i18n::event(e, l) {
-            let color = match e {
-                GameEvent::Flare { .. } => C_BAD,
-                GameEvent::ModuleBroken(_) | GameEvent::Leak(_) | GameEvent::DustStorm => C_WARN,
-                GameEvent::Built(_) | GameEvent::Repaired(_) | GameEvent::SamplesDelivered { .. } | GameEvent::Supported | GameEvent::HarvestReady => C_GOOD,
-                _ => C_BLUE,
+        if let Some(m) = i18n::event_msg(e) {
+            let color = match m.tone {
+                Tone::Danger => C_BAD,
+                Tone::Warn => C_WARN,
+                Tone::Good => C_GOOD,
+                Tone::Badge => kit::C_ACCENT,
+                Tone::Info => C_BLUE,
             };
-            alerts.list.push(Alert { icon, text, color, ttl: if matches!(e, GameEvent::Flare { .. }) { 9.0 } else { 5.0 } });
+            alerts.list.push(Alert { icon: m.icon, text: m.text(l).to_string(), color, ttl: if m.tone == Tone::Danger { 8.0 } else { 5.0 } });
             if alerts.list.len() > 4 {
                 alerts.list.remove(0);
             }
@@ -207,7 +209,7 @@ fn collect(mut ev: EventReader<Happened>, mut refused: EventReader<Refused>, mut
         for e in &toasts {
             commands.entity(e).despawn();
         }
-        let msg = i18n::refusal(why, l);
+        let msg = i18n::refusal_msg(*why).text(l).to_string();
         commands
             .spawn((Node { position_type: PositionType::Absolute, bottom: Val::Px(210.0), left: Val::Percent(50.0), width: Val::Px(520.0), margin: UiRect::left(Val::Px(-260.0)), justify_content: JustifyContent::Center, ..default() }, GlobalZIndex(25), Toast(2.5), StateScoped(AppState::Playing)))
             .with_children(|p| {
@@ -227,7 +229,7 @@ fn bars(sim: Res<Sim>, time: Res<Time>, mut fills: Query<(&Fill, &mut Node, &mut
             Stat::O2 => (st.o2, false, false),
             Stat::Food => (st.food, false, false),
             Stat::Dose => (st.dose, true, false),
-            Stat::Battery => (st.battery / st.battery_max.max(1.0) * 100.0, false, true),
+            Stat::Battery => (st.battery / st.battery_cap.max(1.0) * 100.0, false, true),
             Stat::Science => ((st.science / st.goal.max(1.0)) * 100.0, false, true),
         };
         n.width = Val::Percent(v.clamp(0.0, 100.0));
@@ -246,7 +248,7 @@ fn bars(sim: Res<Sim>, time: Res<Time>, mut fills: Query<(&Fill, &mut Node, &mut
             Stat::O2 => format!("{:.0}%", st.o2),
             Stat::Food => format!("{:.0}%", st.food),
             Stat::Dose => format!("{:.0}%", st.dose),
-            Stat::Battery => format!("{:.0}/{:.0}", st.battery, st.battery_max),
+            Stat::Battery => format!("{:.0}/{:.0}", st.battery, st.battery_cap),
             Stat::Science => format!("{:.0}/{:.0}", st.science, st.goal),
         };
     }
@@ -258,7 +260,7 @@ fn bars(sim: Res<Sim>, time: Res<Time>, mut fills: Query<(&Fill, &mut Node, &mut
         t.0 = carried.to_string();
     }
     for mut i in &mut mood {
-        i.image = art.icon(if st.crew_mood.is_some() { "f_worried" } else if st.morale >= 70.0 { "f_happy" } else if st.morale >= 40.0 { "smile" } else if st.morale >= 25.0 { "neutral" } else { "frown" });
+        i.image = art.icon(if st.mood.is_some() { "f_worried" } else if st.morale >= 70.0 { "f_happy" } else if st.morale >= 40.0 { "smile" } else if st.morale >= 25.0 { "neutral" } else { "frown" });
     }
 }
 
@@ -266,17 +268,18 @@ fn clock(sim: Res<Sim>, prof: Res<Prof>, art: Res<Art>, mut t: Query<&mut Text, 
     let st = sim.0.state();
     let l = prof.lang();
     for mut x in &mut t {
-        x.0 = format!("{} {}/{}", l.t("СОЛ", "SOL"), st.sol, st.sols);
+        x.0 = format!("{} {}/{}", l.pick("СОЛ", "SOL"), st.sol, st.sols);
     }
+    let supply = st.supply.max(0.0).floor() as u32;
     for (mut x, mut c) in &mut p {
-        x.0 = format!("{}/{}", st.power_used, st.power_gen);
-        c.0 = if st.power_used > st.power_gen { if st.battery > 0.0 { C_WARN } else { C_BAD } } else { C_GOOD };
+        x.0 = format!("{}/{}", st.demand, supply);
+        c.0 = if st.demand > supply { if st.battery >= 1.0 { C_WARN } else { C_BAD } } else { C_GOOD };
     }
     for mut i in &mut ic {
-        i.image = art.icon(if st.flare.is_some() { "flash" } else if st.night || st.daylight < 0.05 { "night" } else if st.dust_storm { "tornado" } else { "sun" });
+        i.image = art.icon(if st.flare.is_some() { "flash" } else if st.is_night() || st.daylight() < 0.05 { "night" } else if st.dust_left > 0 { "tornado" } else { "sun" });
     }
     for mut n in &mut bar {
-        n.width = Val::Percent(st.day_t.clamp(0.0, 1.0) * 100.0);
+        n.width = Val::Percent(st.t.clamp(0.0, 1.0) * 100.0);
     }
 }
 
@@ -288,11 +291,13 @@ fn flare(sim: Res<Sim>, prof: Res<Prof>, mut b: Query<&mut Visibility, With<Flar
     }
     if let Some(f) = &st.flare {
         for mut x in &mut t {
-            let tag = if f.live { "LIVE · NASA DONKI".to_string() } else { l.t("АРХИВ · NASA DONKI", "ARCHIVE · NASA DONKI").to_string() };
-            x.0 = format!("{}\n{} ({}) · {}", l.t("ВСПЫШКА! Беги в жилой модуль или под щит", "FLARE! Get into the habitat or under the shield"), l.t(&f.label_ru, &f.label_en), f.date, tag);
+            let tag = if f.live { "LIVE · NASA DONKI".to_string() } else { l.pick("АРХИВ · NASA DONKI", "ARCHIVE · NASA DONKI").to_string() };
+            let call = i18n::event_msg(&GameEvent::Flare { label_ru: f.event.label_ru.clone(), label_en: f.event.label_en.clone(), date: f.event.date.clone(), live: f.live }).map(|m| m.text(l).to_string()).unwrap_or_default();
+            // ja-core's message already names the real DONKI event and its LIVE/archive tag
+            x.0 = if call.is_empty() { format!("{} ({}) · {tag}", l.pick(&f.event.label_ru, &f.event.label_en), f.event.date) } else { call };
         }
         for mut n in &mut bar {
-            n.width = Val::Percent(f.left.clamp(0.0, 1.0) * 100.0);
+            n.width = Val::Percent((f.t_left / f.duration.max(0.001)).clamp(0.0, 1.0) * 100.0);
         }
     }
 }
@@ -301,13 +306,19 @@ fn radio(sim: Res<Sim>, prof: Res<Prof>, art: Res<Art>, mut b: Query<&mut Visibi
     let st = sim.0.state();
     let l = prof.lang();
     for mut v in &mut b {
-        *v = if st.radio.is_some() || st.silence { Visibility::Visible } else { Visibility::Hidden };
+        *v = if st.mc.is_some() || st.forecast.is_some() { Visibility::Visible } else { Visibility::Hidden };
     }
-    let (icon, text) = match &st.radio {
-        _ if st.silence => ("antenna_bars", l.t("…тишина: Солнце глушит связь", "…silence: the Sun blocks the radio").to_string()),
-        Some(r) if r.arrives_in > 0.0 => ("antenna_bars", format!("{} {:.1} {}", l.t("Сигнал летит с Земли…", "Signal travelling from Earth…"), r.arrives_in, l.t("с", "s"))),
-        Some(r) => (r.icon, format!("{}: {}", l.t("ЦУП", "Mission Control"), l.t(&r.text_ru, &r.text_en))),
-        None => ("radio", String::new()),
+    let (icon, text) = match (&st.mc, st.forecast) {
+        (Some(mc), _) if st.elapsed < mc.arrive_at => ("antenna_bars", format!("{} {:.1} {}", l.pick("Сигнал летит с Земли…", "Signal travelling from Earth…"), mc.arrive_at - st.elapsed, l.pick("с", "s"))),
+        (Some(mc), _) => {
+            let m = i18n::forecast_msg(mc.forecast);
+            (m.icon, format!("{}: {}", l.pick("ЦУП", "Mission Control"), m.text(l)))
+        }
+        (None, Some(f)) => {
+            let m = i18n::forecast_msg(f);
+            (m.icon, format!("{}: {}", l.pick("ЦУП", "Mission Control"), m.text(l)))
+        }
+        (None, None) => ("radio", String::new()),
     };
     for mut x in &mut i {
         x.image = art.icon(icon);
@@ -354,7 +365,7 @@ fn toasts(mut commands: Commands, time: Res<Time>, mut q: Query<(Entity, &mut To
 
 fn shelter_note(sim: Res<Sim>, mut q: Query<&mut Visibility, With<ShelterNote>>) {
     let st = sim.0.state();
-    let show = !st.coop && st.players.first().map(|p| p.in_shelter).unwrap_or(false);
+    let show = !st.coop && st.players.first().map(|p| p.inside).unwrap_or(false);
     for mut v in &mut q {
         *v = if show { Visibility::Visible } else { Visibility::Hidden };
     }

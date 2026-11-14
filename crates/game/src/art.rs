@@ -1,7 +1,8 @@
 //! Loads sprites, atlases, icons and fonts; holds the presentation-only colors
 //! (skins, map palettes) because `astro_core` stores no colors.
 
-use astro_core::{MapId, ModuleKind};
+use ja_core::data::{skins, SkinSlot};
+use ja_core::{MapId, ModuleKind, SiteKind};
 use bevy::prelude::*;
 use std::collections::HashMap;
 
@@ -27,7 +28,7 @@ impl Art {
 
 const SPRITES: &[&str] = &[
     "antenna", "arrow", "astronaut", "astronaut_visor", "battery", "bubble", "cargo", "crater", "dot", "flame", "ghost", "greenhouse", "greenhouse_ripe", "habitat", "hats", "ice", "lab", "leak", "oxygen",
-    "rock_big", "rock_small", "rover", "sample_0", "sample_1", "shield", "solar", "solar_dusty", "spark", "tiles_earth", "tiles_europa", "tiles_mars", "tiles_moon", "tiles_orbit", "wreck", "app_icon",
+    "rock_big", "rock_small", "rover", "sample_0", "sample_1", "shield", "solar", "solar_dusty", "spark", "tiles_earth", "tiles_europa", "tiles_mars", "tiles_moon", "tiles_orbit", "wreck", "app_icon", "rtg", "ore",
 ];
 
 pub const ICONS: &[&str] = &[
@@ -57,11 +58,40 @@ pub fn module_sprite(kind: ModuleKind) -> &'static str {
         ModuleKind::Habitat => "habitat",
         ModuleKind::Solar => "solar",
         ModuleKind::Battery => "battery",
-        ModuleKind::Oxygen => "oxygen",
+        ModuleKind::Rtg => "rtg",
+        ModuleKind::OxygenGen => "oxygen",
         ModuleKind::Greenhouse => "greenhouse",
         ModuleKind::Shield => "shield",
         ModuleKind::Lab => "lab",
         ModuleKind::Antenna => "antenna",
+    }
+}
+
+/// Native pixel size of a module sprite.
+pub fn module_px(kind: ModuleKind) -> Vec2 {
+    match kind {
+        ModuleKind::Habitat => Vec2::new(48.0, 48.0),
+        ModuleKind::Greenhouse => Vec2::new(48.0, 32.0),
+        ModuleKind::Battery => Vec2::new(16.0, 16.0),
+        ModuleKind::Antenna => Vec2::new(16.0, 32.0),
+        _ => Vec2::new(32.0, 32.0),
+    }
+}
+
+/// On-screen size of a module: as wide as its footprint, height keeps the art's aspect ratio
+/// (tall things like the antenna stick up above their cell).
+pub fn module_size(kind: ModuleKind, w: i32) -> Vec2 {
+    let px = module_px(kind);
+    let width = w as f32 * crate::CELL;
+    Vec2::new(width, width * px.y / px.x)
+}
+
+pub fn site_sprite(kind: SiteKind) -> &'static str {
+    match kind {
+        SiteKind::Sample => "sample_0",
+        SiteKind::Ore => "ore",
+        SiteKind::Wreck => "wreck",
+        SiteKind::Ice => "ice",
     }
 }
 
@@ -86,26 +116,14 @@ pub fn rock_tint(map: MapId) -> Color {
     }
 }
 
-pub fn suit_color(id: &str) -> Color {
-    match id {
-        "orange" => Color::srgb(1.0, 0.58, 0.28),
-        "blue" => Color::srgb(0.45, 0.65, 1.0),
-        "purple" => Color::srgb(0.7, 0.52, 1.0),
-        "mint" => Color::srgb(0.45, 0.92, 0.78),
-        "gold" => Color::srgb(1.0, 0.86, 0.35),
-        "pink" => Color::srgb(1.0, 0.6, 0.82),
-        _ => Color::WHITE,
-    }
+fn skin_color(slot: SkinSlot, id: &str) -> Color {
+    skins(slot).iter().find(|s| s.id == id).map(|s| Color::srgb(s.color[0], s.color[1], s.color[2])).unwrap_or(Color::WHITE)
 }
-
+pub fn suit_color(id: &str) -> Color {
+    skin_color(SkinSlot::Suit, id)
+}
 pub fn visor_color(id: &str) -> Color {
-    match id {
-        "gold" => Color::srgb(1.0, 0.78, 0.25),
-        "pink" => Color::srgb(1.0, 0.55, 0.85),
-        "green" => Color::srgb(0.4, 1.0, 0.6),
-        "dark" => Color::srgb(0.25, 0.25, 0.38),
-        _ => Color::srgb(0.45, 0.8, 1.0),
-    }
+    skin_color(SkinSlot::Visor, id)
 }
 
 /// Index in hats.png, or None.

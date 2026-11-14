@@ -3,8 +3,8 @@
 
 use crate::art::Art;
 use crate::{AppState, Set};
-use astro_core::profile::SkinCat;
-use astro_core::{MapId, ModuleId};
+use ja_core::data::SkinSlot;
+use ja_core::{MapId, ModuleId};
 use bevy::prelude::*;
 
 pub const C_BG: Color = Color::srgba(0.07, 0.08, 0.2, 0.94);
@@ -33,7 +33,7 @@ pub enum Action {
     ToggleMusic,
     ToggleAge,
     ShopTab(u8),
-    Skin(SkinCat, usize),
+    Skin(SkinSlot, usize),
     Power(ModuleId, i8),
     Close,
     Harvest(bool),
