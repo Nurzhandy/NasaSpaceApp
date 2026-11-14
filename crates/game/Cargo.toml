@@ -1,0 +1,15 @@
+[package]
+name = "game"
+version = "0.1.0"
+edition = "2021"
+description = "Junior Astronaut: Outpost — 2D pixel-art desktop game (Bevy). Part B."
+license = "MIT"
+default-run = "game"
+
+[[bin]]
+name = "game"
+path = "src/main.rs"
+
+[dependencies]
+astro_core = { path = "../core" }
+bevy = { version = "0.16.1", features = ["wav"] }

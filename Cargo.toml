@@ -5,6 +5,11 @@ edition = "2021"
 description = "Junior Astronaut: Outpost — a 3D game about running a Moon/Mars base with real NASA data (NASA Space Apps 2026)"
 license = "MIT"
 
+[workspace]
+# 3D version stays as the root package; the 2D game lives in crates/ (see docs/PLAN_2D.md)
+members = [".", "crates/core", "crates/game"]
+default-members = ["crates/game"]
+
 [dependencies]
 bevy = { version = "0.16.1", features = ["wav"] }
 serde = { version = "1", features = ["derive"] }
