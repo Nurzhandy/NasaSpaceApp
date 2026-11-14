@@ -1,0 +1,30 @@
+[package]
+name = "junior_astronaut"
+version = "0.1.0"
+edition = "2021"
+description = "Junior Astronaut: Outpost — a 3D game about running a Moon/Mars base with real NASA data (NASA Space Apps 2026)"
+license = "MIT"
+
+[dependencies]
+bevy = "0.16.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+ureq = "2.10"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+web-sys = { version = "0.3", features = ["Window", "Storage"] }
+
+# Fast dev builds: optimize dependencies (Bevy) but keep our crate quick to compile
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 4
+strip = true
