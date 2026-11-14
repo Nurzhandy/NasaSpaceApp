@@ -24,6 +24,8 @@ pub const C_PRIMARY: Color = Color::srgb(1.0, 0.62, 0.22);
 pub enum Action {
     Go(AppState),
     Play(bool),
+    /// continue the saved mission
+    Continue,
     PickMap(MapId),
     Launch,
     SetPlan(u8),

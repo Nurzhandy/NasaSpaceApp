@@ -83,8 +83,8 @@ impl Plugin for WindowsPlugin {
     }
 }
 
-fn first_tutorial(prof: Res<Prof>, mut modal: ResMut<Modal>) {
-    if prof.0.missions == 0 {
+fn first_tutorial(prof: Res<Prof>, resume: Res<crate::save::Resume>, mut modal: ResMut<Modal>) {
+    if prof.0.missions == 0 && !resume.0 {
         modal.open(Win::Tutorial(0), 0);
     } else {
         modal.close();
@@ -209,7 +209,7 @@ fn pause_world(modal: Res<Modal>, mut sim: ResMut<Sim>, mut paused: ResMut<Pause
     };
     if paused.0 != p || sim.0.state().paused != p {
         paused.0 = p;
-        sim.0.set_paused(p);
+        sim.set_paused(p);
     }
     busy.0 = modal.is_open();
 }

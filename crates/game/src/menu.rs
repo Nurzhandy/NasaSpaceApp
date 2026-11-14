@@ -4,6 +4,7 @@
 use crate::art::{self, Art};
 use crate::audio::Play;
 use crate::kit::{self, Act, Action, C_ACCENT, C_BAD, C_BLUE, C_GOOD, C_LINE, C_MUTED, C_TEXT, C_WARN};
+use crate::save::{Resume, SavedMission};
 use crate::{AppState, LastResult, Music, Prof, Setup, Sky, CELL, PX};
 use ja_core::data::{map, skins, SkinSlot, BADGES, MAPS, SOURCES};
 use ja_core::progress::ShopOutcome;
@@ -58,10 +59,15 @@ fn global_toggles(mut acts: EventReader<Act>, mut prof: ResMut<Prof>, mut music:
     }
 }
 
-fn handle(mut acts: EventReader<Act>, mut setup: ResMut<Setup>, mut prof: ResMut<Prof>, mut next: ResMut<NextState<AppState>>, mut last: Option<ResMut<LastResult>>, mut play: EventWriter<Play>) {
+fn handle(mut acts: EventReader<Act>, mut resume: ResMut<Resume>, mut setup: ResMut<Setup>, mut prof: ResMut<Prof>, mut next: ResMut<NextState<AppState>>, mut last: Option<ResMut<LastResult>>, mut play: EventWriter<Play>) {
     for Act(a) in acts.read() {
         match *a {
             Action::Go(s) => next.set(s),
+            Action::Continue => {
+                resume.0 = true;
+                play.write(Play("launch"));
+                next.set(AppState::Playing);
+            }
             Action::Play(coop) => {
                 setup.coop = coop;
                 next.set(AppState::Maps);
@@ -160,9 +166,9 @@ fn walker(time: Res<Time>, mut q: Query<(&mut Walker, &mut Transform, &mut Sprit
     }
 }
 
-fn build_page(mut commands: Commands, state: Res<State<AppState>>, setup: Res<Setup>, prof: Res<Prof>, music: Res<Music>, sky: Res<Sky>, art: Res<Art>, last: Option<Res<LastResult>>, mut built: ResMut<Built>, old: Query<Entity, With<Page>>, mut focus: ResMut<kit::Focus>) {
+fn build_page(mut commands: Commands, state: Res<State<AppState>>, setup: Res<Setup>, prof: Res<Prof>, music: Res<Music>, saved: Res<SavedMission>, sky: Res<Sky>, art: Res<Art>, last: Option<Res<LastResult>>, mut built: ResMut<Built>, old: Query<Entity, With<Page>>, mut focus: ResMut<kit::Focus>) {
     let st = *state.get();
-    let key = (st, setup.refresh, prof.0.lang == Lang::En, sky.loading, format!("{}{}{}{}{}{}", prof.0.stars, prof.0.suit, prof.0.visor, prof.0.hat, prof.0.sound as u8 + music.0 as u8 * 2, prof.0.cadet));
+    let key = (st, setup.refresh, prof.0.lang == Lang::En, sky.loading, format!("{}{}{}{}{}{}", prof.0.stars, prof.0.suit, prof.0.visor, prof.0.hat, prof.0.sound as u8 + music.0 as u8 * 2, prof.0.cadet) + &format!("{:?}", saved.0));
     if built.key.as_ref() == Some(&key) {
         return;
     }
@@ -180,7 +186,7 @@ fn build_page(mut commands: Commands, state: Res<State<AppState>>, setup: Res<Se
         .with_children(|p| {
             topbar(p, &art, &prof, l, st);
             match st {
-                AppState::Menu => main_menu(p, &art, &prof, music.0, l, &sky),
+                AppState::Menu => main_menu(p, &art, &prof, music.0, &saved, l, &sky),
                 AppState::Maps => maps(p, &art, &prof, l, &setup),
                 AppState::Briefing => briefing(p, &art, l, &setup, &sky),
                 AppState::Shop => shop(p, &art, &prof, l, &setup),
@@ -230,7 +236,7 @@ fn avatar(p: &mut ChildSpawnerCommands, art: &Art, prof: &Prof, scale: f32) {
     });
 }
 
-fn main_menu(p: &mut ChildSpawnerCommands, art: &Art, prof: &Prof, music: bool, l: Lang, sky: &Sky) {
+fn main_menu(p: &mut ChildSpawnerCommands, art: &Art, prof: &Prof, music: bool, saved: &SavedMission, l: Lang, sky: &Sky) {
     p.spawn(Node { flex_grow: 1.0, flex_direction: FlexDirection::Row, padding: UiRect::all(Val::Px(26.0)), column_gap: Val::Px(30.0), ..default() }).with_children(|row| {
         row.spawn(kit::col(14.0)).insert(Node { width: Val::Px(620.0), flex_direction: FlexDirection::Column, row_gap: Val::Px(14.0), ..default() }).with_children(|c| {
             kit::wrap_text(c, l.pick("Построй базу на Луне и Марсе", "Build a base on the Moon and Mars"), &art.head, 38.0, C_TEXT, 600.0);
@@ -240,21 +246,49 @@ fn main_menu(p: &mut ChildSpawnerCommands, art: &Art, prof: &Prof, music: bool, 
                 }
                 kit::text(r, l.pick("— энергии на всё не хватит", "— there’s not enough power for all"), &art.body, 19.0, C_MUTED);
             });
+            if let Some((m, sol, sols, coop)) = saved.0 {
+                // the saved mission comes first: one big green button
+                let md = map(m);
+                let bg = Color::srgb(0.18, 0.62, 0.42);
+                c.spawn((
+                    Button,
+                    kit::UiAction(Action::Continue),
+                    kit::Focusable(0),
+                    Node { width: Val::Px(530.0), flex_direction: FlexDirection::Row, align_items: AlignItems::Center, column_gap: Val::Px(14.0), padding: UiRect::axes(Val::Px(18.0), Val::Px(12.0)), border: UiRect::all(Val::Px(4.0)), ..default() },
+                    BackgroundColor(bg),
+                    kit::Base(bg),
+                    BorderColor(C_LINE),
+                    BorderRadius::all(Val::Px(10.0)),
+                ))
+                .with_children(|b| {
+                    kit::icon(b, art, "play", 48.0);
+                    b.spawn(kit::col(2.0)).with_children(|t| {
+                        kit::text(t, l.pick("Продолжить миссию", "Continue mission"), &art.head, 26.0, C_TEXT);
+                        t.spawn(kit::row(6.0)).with_children(|x| {
+                            kit::icon(x, art, md.icon, 22.0);
+                            kit::text(x, format!("{} · {} {}/{}", l.pick(md.name_ru, md.name_en), l.pick("сол", "sol"), sol, sols), &art.body, 18.0, C_TEXT);
+                            if coop {
+                                kit::icon(x, art, "coop", 22.0);
+                            }
+                        });
+                    });
+                });
+            }
             c.spawn(kit::row(12.0)).with_children(|r| {
-                kit::tile(r, art, Action::Play(false), 0, "astronaut", l.pick("Играть", "Play"), 170.0, Color::srgb(0.9, 0.42, 0.22));
-                kit::tile(r, art, Action::Play(true), 1, "coop", l.pick("Вдвоём", "2 players"), 170.0, Color::srgb(0.26, 0.48, 0.92));
-                kit::tile(r, art, Action::Go(AppState::Shop), 2, "shop", l.pick("Магазин", "Shop"), 150.0, kit::C_PANEL);
+                kit::tile(r, art, Action::Play(false), 1, "astronaut", l.pick("Играть", "Play"), 170.0, Color::srgb(0.9, 0.42, 0.22));
+                kit::tile(r, art, Action::Play(true), 2, "coop", l.pick("Вдвоём", "2 players"), 170.0, Color::srgb(0.26, 0.48, 0.92));
+                kit::tile(r, art, Action::Go(AppState::Shop), 3, "shop", l.pick("Магазин", "Shop"), 150.0, kit::C_PANEL);
             });
             c.spawn(kit::row(12.0)).with_children(|r| {
-                kit::tile(r, art, Action::Go(AppState::Badges), 3, "medal", l.pick("Нашивки", "Patches"), 150.0, kit::C_PANEL);
-                kit::tile(r, art, Action::Go(AppState::Info), 4, "book", l.pick("Данные NASA", "NASA data"), 150.0, kit::C_PANEL);
-                kit::tile(r, art, Action::ToggleAge, 5, if prof.0.cadet { "seedling" } else { "rocket" }, if prof.0.cadet { l.pick("Кадет 7–9", "Cadet 7–9") } else { l.pick("Пилот 10–12", "Pilot 10–12") }, 150.0, kit::C_PANEL);
+                kit::tile(r, art, Action::Go(AppState::Badges), 4, "medal", l.pick("Нашивки", "Patches"), 150.0, kit::C_PANEL);
+                kit::tile(r, art, Action::Go(AppState::Info), 5, "book", l.pick("Данные NASA", "NASA data"), 150.0, kit::C_PANEL);
+                kit::tile(r, art, Action::ToggleAge, 6, if prof.0.cadet { "seedling" } else { "rocket" }, if prof.0.cadet { l.pick("Кадет 7–9", "Cadet 7–9") } else { l.pick("Пилот 10–12", "Pilot 10–12") }, 150.0, kit::C_PANEL);
             });
             c.spawn(kit::row(8.0)).with_children(|r| {
-                kit::button(r, art, Action::ToggleLang, 6, "globe", if prof.0.lang == Lang::En { "EN" } else { "RU" }, false);
-                kit::button(r, art, Action::ToggleSound, 7, if prof.0.sound { "sound" } else { "mute" }, "", false);
-                kit::button(r, art, Action::ToggleMusic, 8, if music { "s_music" } else { "mute" }, "", false);
-                kit::button(r, art, Action::Quit, 9, "exit", "", false);
+                kit::button(r, art, Action::ToggleLang, 7, "globe", if prof.0.lang == Lang::En { "EN" } else { "RU" }, false);
+                kit::button(r, art, Action::ToggleSound, 8, if prof.0.sound { "sound" } else { "mute" }, "", false);
+                kit::button(r, art, Action::ToggleMusic, 9, if music { "s_music" } else { "mute" }, "", false);
+                kit::button(r, art, Action::Quit, 10, "exit", "", false);
             });
         });
         row.spawn(kit::col(14.0)).insert(Node { flex_direction: FlexDirection::Column, row_gap: Val::Px(14.0), align_items: AlignItems::Center, ..default() }).with_children(|c| {

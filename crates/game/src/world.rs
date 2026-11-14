@@ -101,7 +101,7 @@ pub fn depth(y_cells: f32) -> f32 {
 
 /// Runs a command, emitting events or a refusal. Returns true on success.
 pub fn run(sim: &mut Sim, player: u8, cmd: Command, ok: &mut EventWriter<Happened>, no: &mut EventWriter<Refused>) -> bool {
-    match sim.0.apply(player, cmd) {
+    match sim.apply(player, cmd) {
         Ok(evs) => {
             for e in evs {
                 ok.write(Happened(e));
@@ -216,7 +216,7 @@ fn tick_rules(time: Res<Time>, speed: Res<Speed>, paused: Res<Paused>, mut sim: 
     // big steps are split so the rules stay stable when fast-forwarding
     let steps = (dt / 0.1).ceil().max(1.0) as u32;
     for _ in 0..steps {
-        for e in sim.0.tick(dt / steps as f32) {
+        for e in sim.tick(dt / steps as f32) {
             out.write(Happened(e));
         }
     }

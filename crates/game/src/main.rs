@@ -9,6 +9,7 @@ mod hud;
 mod kit;
 mod menu;
 mod player;
+mod save;
 mod tour;
 mod windows;
 mod world;
@@ -16,7 +17,8 @@ mod world;
 use bevy::prelude::*;
 use bevy::window::{PresentMode, WindowResolution};
 use ja_core::progress::Rewards;
-use ja_core::{progress, weather, Game, Lang, MapId, MissionConfig, MissionResult, Profile, Weather};
+use ja_core::{progress, weather, Lang, MapId, MissionConfig, MissionResult, Profile, Weather};
+
 use std::sync::{mpsc, Mutex};
 
 /// One cell of the base grid on screen: 16 px art × 3.
@@ -53,9 +55,11 @@ impl Default for Setup {
     }
 }
 
-/// The running mission (rules from `ja-core`).
+/// The running mission: the rules (`ja-core`) plus a recording of every call, used to save
+/// and continue the mission later (see `save.rs`). Read state via `sim.0.state()`; change it
+/// only through `Sim::apply / tick / set_player_pos / set_paused` so the recording stays complete.
 #[derive(Resource)]
-pub struct Sim(pub Game);
+pub struct Sim(pub ja_core::Game, pub save::Recording);
 
 /// Time multiplier (the screenshot tour fast-forwards with it).
 #[derive(Resource)]
@@ -129,9 +133,8 @@ fn main() {
         .configure_sets(Update, (Set::Input, Set::Logic, Set::View).chain())
         .add_systems(Startup, (art::load, start_weather, spawn_camera))
         .add_systems(Update, poll_weather)
-        .add_plugins((kit::KitPlugin, audio::AudioFx, menu::MenuPlugin, world::WorldPlugin, player::PlayerPlugin, camera::CameraPlugin, build::BuildPlugin, hud::HudPlugin, windows::WindowsPlugin, tour::TourPlugin))
+        .add_plugins((kit::KitPlugin, audio::AudioFx, menu::MenuPlugin, world::WorldPlugin, player::PlayerPlugin, camera::CameraPlugin, build::BuildPlugin, hud::HudPlugin, windows::WindowsPlugin, tour::TourPlugin, save::SavePlugin))
         .add_systems(OnEnter(AppState::Playing), start_mission)
-        .add_systems(OnExit(AppState::Playing), |mut c: Commands| c.remove_resource::<Sim>())
         .run();
 }
 
@@ -173,8 +176,8 @@ fn poll_weather(rx: Option<Res<SkyRx>>, mut sky: ResMut<Sky>) {
     }
 }
 
-fn start_mission(mut commands: Commands, setup: Res<Setup>, prof: Res<Prof>, sky: Res<Sky>) {
+fn start_mission(mut commands: Commands, mut setup: ResMut<Setup>, prof: Res<Prof>, sky: Res<Sky>, resume: Res<save::Resume>) {
     let seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos() as u64).unwrap_or(7);
     let cfg = MissionConfig { map: setup.map, cadet: prof.0.cadet, coop: setup.coop, live: setup.live, seed };
-    commands.insert_resource(Sim(Game::new(cfg, &sky.weather)));
+    save::begin(&mut commands, &mut setup, resume.0, cfg, &sky.weather);
 }

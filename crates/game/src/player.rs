@@ -158,7 +158,7 @@ fn walk(time: Res<Time>, inputs: Res<Inputs>, modal: Res<Modal>, colliders: Res<
             p.anim = 0.0;
         }
         let pos = p.pos;
-        sim.0.set_player_pos(p.idx, pos.x, pos.y);
+        sim.set_player_pos(p.idx, pos.x, pos.y);
     }
     if moved_any {
         *step_t -= dt;

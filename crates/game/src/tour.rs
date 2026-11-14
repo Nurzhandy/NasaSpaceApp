@@ -90,6 +90,38 @@ const STEPS: &[Do] = &[
     Do::Quit,
 ];
 
+/// `JA_TOUR=save`: play a bit, leave to the menu, press "Continue" (checks saving end-to-end).
+const SAVE_STEPS: &[Do] = &[
+    Do::Wait(2.0),
+    Do::Act(Action::Play(false)),
+    Do::Wait(0.6),
+    Do::Act(Action::PickMap(MapId::Moon)),
+    Do::Wait(0.6),
+    Do::Act(Action::Launch),
+    Do::Wait(1.0),
+    Do::Close,
+    Do::Speed(30.0),
+    Do::Wait(3.0),
+    Do::Speed(1.0),
+    Do::Build(true),
+    Do::Wait(0.5),
+    Do::Build(false),
+    Do::Wait(1.0),
+    Do::Shot("s1_before_exit"),
+    Do::Act(Action::ExitMission),
+    Do::Wait(1.5),
+    Do::Shot("s2_menu_continue"),
+    Do::Act(Action::Continue),
+    Do::Wait(2.0),
+    Do::Shot("s3_after_continue"),
+    Do::Wait(1.0),
+    Do::Quit,
+];
+
+fn steps() -> &'static [Do] {
+    if std::env::var("JA_TOUR").map(|v| v == "save").unwrap_or(false) { SAVE_STEPS } else { STEPS }
+}
+
 pub struct TourPlugin;
 impl Plugin for TourPlugin {
     fn build(&self, app: &mut App) {
@@ -118,7 +150,7 @@ fn run(
     mut setup: ResMut<Setup>,
     mut exit: EventWriter<AppExit>,
 ) {
-    let Some(step) = STEPS.get(tour.step) else { return };
+    let Some(step) = steps().get(tour.step) else { return };
     tour.t += time.delta_secs();
     let advance = match step {
         Do::Wait(s) => tour.t >= *s,
