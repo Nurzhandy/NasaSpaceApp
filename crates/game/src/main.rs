@@ -4,6 +4,10 @@
 mod art;
 mod audio;
 mod build;
+mod dialog_ui;
+mod minigames;
+mod ship;
+mod touch_panel;
 mod camera;
 mod hud;
 mod kit;
@@ -38,6 +42,8 @@ pub enum AppState {
     Info,
     /// network game: create or join (net.rs)
     Lobby,
+    /// the flight to the Moon (part A, ship/)
+    Ship,
     Playing,
     Debrief,
 }
@@ -137,14 +143,14 @@ fn main() {
         .configure_sets(Update, (Set::Input, Set::Logic, Set::View).chain())
         .add_systems(Startup, (art::load, start_weather, spawn_camera))
         .add_systems(Update, poll_weather)
-        .add_plugins((kit::KitPlugin, audio::AudioFx, menu::MenuPlugin, world::WorldPlugin, player::PlayerPlugin, camera::CameraPlugin, build::BuildPlugin, hud::HudPlugin, windows::WindowsPlugin, tour::TourPlugin, save::SavePlugin, story::StoryPlugin, net::NetPlugin))
+        .add_plugins((kit::KitPlugin, audio::AudioFx, menu::MenuPlugin, world::WorldPlugin, player::PlayerPlugin, camera::CameraPlugin, build::BuildPlugin, hud::HudPlugin, windows::WindowsPlugin, tour::TourPlugin, save::SavePlugin, story::StoryPlugin, net::NetPlugin, ship::ShipPlugin, ship::ShipTestPlugin))
         .add_systems(OnEnter(AppState::Playing), start_mission)
         .run();
 }
 
 /// Finds `assets/` next to the executable (release archive), inside a macOS .app bundle,
 /// or at the workspace root (cargo run).
-fn assets_dir() -> String {
+pub fn assets_dir() -> String {
     if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
             for p in [dir.join("assets"), dir.join("../Resources/assets")] {

@@ -1,0 +1,7 @@
+{ "id": "mars", "icon": "mars", "playable": false, "draft": true,
+  "name": { "ru": "Марс", "kk": null, "en": "Mars" },
+  "gravity": { "ru": "0,38 g (3,7 м/с²)", "kk": null, "en": "0.38 g (3.7 m/s²)" },
+  "temperature": { "ru": "в среднем около −60 °C", "kk": null, "en": "about −60 °C on average" },
+  "atmosphere": { "ru": "очень тонкая, в основном CO₂; бывают пылевые бури на всю планету", "kk": null, "en": "very thin, mostly CO₂; planet-wide dust storms happen" },
+  "surface": { "junior": { "ru": "Красная пыль, древние русла рек и самый высокий вулкан — Олимп.", "kk": null, "en": "Red dust, ancient riverbeds and the tallest volcano — Olympus Mons." } },
+  "history": { "junior": { "ru": "Марсоход Perseverance собирает образцы в кратере Езеро.", "kk": null, "en": "The Perseverance rover collects samples in Jezero Crater." } } }

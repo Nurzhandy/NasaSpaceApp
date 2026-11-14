@@ -1,0 +1,9 @@
+{ "id": "moon", "icon": "moon", "playable": true, "draft": true,
+  "name": { "ru": "Луна", "kk": null, "en": "The Moon" },
+  "gravity": { "ru": "0,17 g (1,62 м/с²)", "kk": null, "en": "0.17 g (1.62 m/s²)" },
+  "temperature": { "ru": "от −130 °C ночью до +120 °C днём; в тёмных кратерах у полюса до −230 °C", "kk": null, "en": "from −130 °C at night to +120 °C by day; down to −230 °C in dark polar craters" },
+  "atmosphere": { "ru": "почти нет — поэтому нет ветра и защиты от метеоритов", "kk": null, "en": "almost none — so no wind and no shield from meteorites" },
+  "surface": { "junior": { "ru": "Серая пыль, камни и кратеры. У южного полюса может быть лёд.", "kk": null, "en": "Grey dust, rocks and craters. There may be ice near the south pole." },
+               "advanced": { "ru": "Реголит — острая пыль, которая липнет ко всему. В постоянно тёмных кратерах у полюса LCROSS нашёл водяной лёд (2009).", "kk": null, "en": "Regolith is sharp dust that sticks to everything. LCROSS found water ice in permanently dark polar craters (2009)." } },
+  "history": { "junior": { "ru": "В 1969 году люди впервые прошли по Луне (Аполлон‑11).", "kk": null, "en": "In 1969 people first walked on the Moon (Apollo 11)." },
+               "advanced": { "ru": "Аполлоны 11–17 (1969–1972) привезли 382 кг грунта. Программа «Артемида» готовит возвращение к южному полюсу.", "kk": null, "en": "Apollo 11–17 (1969–1972) brought back 382 kg of samples. Artemis is preparing a return to the south pole." } } }

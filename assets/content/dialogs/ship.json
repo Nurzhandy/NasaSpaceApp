@@ -1,0 +1,40 @@
+[
+  { "id": "d1_briefing", "trigger": { "on": "day_start", "id": 1 }, "draft": true,
+    "nodes": [
+      { "id": "a", "npc": "capcom", "next": "b",
+        "text": { "junior": { "ru": "«Аврора», это ЦУП. Через четыре дня вы будете у Луны. Слушайте задания и смотрите на панель слева.", "kk": null, "en": "Aurora, this is Mission Control. In four days you'll be at the Moon. Listen for tasks and watch the panel on the left." } } },
+      { "id": "b", "npc": "aya",
+        "text": { "junior": { "ru": "Командир, как будем работать?", "kk": null, "en": "Commander, how shall we work?" } },
+        "choices": [
+          { "text": { "ru": "Проверяем всё дважды", "kk": null, "en": "Check everything twice" }, "next": "c", "set_flag": "careful" },
+          { "text": { "ru": "Быстро и вместе", "kk": null, "en": "Fast and together" }, "next": "c", "set_flag": "team" } ] },
+      { "id": "c", "npc": "timur",
+        "text": { "junior": { "ru": "Принято! Начинаем с опроса «Go / No-Go».", "kk": null, "en": "Copy that! We start with the Go / No-Go poll." } } } ] },
+  { "id": "d2_morning", "trigger": { "on": "day_start", "id": 2 }, "draft": true,
+    "nodes": [
+      { "id": "a", "npc": "timur",
+        "text": { "junior": { "ru": "Доброе утро! Двигатель выключен, а мы летим. Сегодня — зарядка, обед и звёзды.", "kk": null, "en": "Good morning! The engine is off, yet we fly. Today: workout, lunch and stars." },
+                  "advanced": { "ru": "Доброе утро! Летим по инерции, Земля тянет нас назад, скорость падает. Сегодня — коррекция курса.", "kk": null, "en": "Good morning! We coast by inertia, Earth pulls us back, speed drops. Today: a course correction." } } } ] },
+  { "id": "d3_careful", "trigger": { "on": "day_start", "id": 3 }, "require_flag": "careful", "draft": true,
+    "nodes": [
+      { "id": "a", "npc": "aya",
+        "text": { "junior": { "ru": "Ты сказал(а) — проверять дважды. Сегодня это пригодится: мы далеко от дома.", "kk": null, "en": "You said “check twice”. Today it will help: we are far from home." } } } ] },
+  { "id": "d3_team", "trigger": { "on": "day_start", "id": 3 }, "require_flag": "team", "draft": true,
+    "nodes": [
+      { "id": "a", "npc": "beep",
+        "text": { "junior": { "ru": "Бип! Работаем вместе — значит, помогаем друг другу, если кто-то не успевает.", "kk": null, "en": "Beep! Working together means helping whoever is falling behind." } } } ] },
+  { "id": "after_co2", "trigger": { "on": "task_done", "id": "co2_filter" }, "draft": true,
+    "nodes": [
+      { "id": "a", "npc": "capcom",
+        "text": { "junior": { "ru": "Отлично! В 1970 году экипаж Аполлона‑13 так же спасся: собрал фильтр из шланга, картона и скотча.", "kk": null, "en": "Great job! In 1970 the Apollo 13 crew saved themselves the same way: a filter from a hose, cardboard and tape." } } } ] },
+  { "id": "after_toilet", "trigger": { "on": "task_done", "id": "toilet_fan" }, "draft": true,
+    "nodes": [
+      { "id": "a", "npc": "aya",
+        "text": { "junior": { "ru": "Ура, туалет работает! На «Артемиде II» он тоже ломался — инженеры шутили, что он главная звезда полёта.", "kk": null, "en": "Hooray, the toilet works! It broke on Artemis II too — engineers joked it was the star of the mission." } } } ] },
+  { "id": "d4_farside", "trigger": { "on": "day_start", "id": 4 }, "draft": true,
+    "nodes": [
+      { "id": "a", "npc": "capcom", "next": "b",
+        "text": { "junior": { "ru": "Скоро вы зайдёте за Луну, и связь пропадёт. Дальше — сами. Мы верим в вас!", "kk": null, "en": "Soon you'll go behind the Moon and lose radio. From there you're on your own. We believe in you!" } } },
+      { "id": "b", "npc": "timur",
+        "text": { "junior": { "ru": "Тишина в эфире… Ну что, выходим на орбиту?", "kk": null, "en": "Radio silence… Shall we get into orbit?" } } } ] }
+]

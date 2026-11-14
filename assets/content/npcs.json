@@ -1,0 +1,6 @@
+[
+  { "id": "capcom", "icon": "radio", "name": { "ru": "ЦУП", "kk": null, "en": "Mission Control" }, "role": { "ru": "Центр управления полётом, Хьюстон", "kk": null, "en": "Mission Control Center, Houston" } },
+  { "id": "aya", "icon": "teacher", "name": { "ru": "Ая", "kk": null, "en": "Aya" }, "role": { "ru": "Бортинженер", "kk": null, "en": "Flight engineer" } },
+  { "id": "timur", "icon": "astronaut", "name": { "ru": "Тимур", "kk": null, "en": "Timur" }, "role": { "ru": "Пилот", "kk": null, "en": "Pilot" } },
+  { "id": "beep", "icon": "robot", "name": { "ru": "БИП", "kk": null, "en": "BEEP" }, "role": { "ru": "Робот-помощник", "kk": null, "en": "Helper robot" } }
+]

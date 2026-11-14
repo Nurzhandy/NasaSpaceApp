@@ -10,12 +10,14 @@ pub enum Lang {
     #[default]
     Ru,
     En,
+    /// Kazakh: texts come from `content` (`Text::kk`); old two-language strings fall back to Russian
+    Kk,
 }
 
 impl Lang {
     pub fn pick<'a>(self, ru: &'a str, en: &'a str) -> &'a str {
         match self {
-            Lang::Ru => ru,
+            Lang::Ru | Lang::Kk => ru,
             Lang::En => en,
         }
     }

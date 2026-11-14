@@ -30,9 +30,10 @@ pub struct MenuPlugin;
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<Built>()
-            .add_systems(Update, (handle, backdrop, walker, build_page).chain().after(crate::Set::Input).run_if(not(in_state(AppState::Playing))))
+            .add_systems(Update, (handle, backdrop, walker, build_page).chain().after(crate::Set::Input).run_if(not(in_state(AppState::Playing))).run_if(not(in_state(AppState::Ship))))
             .add_systems(Update, global_toggles.after(crate::Set::Input))
-            .add_systems(OnEnter(AppState::Playing), clear_menus);
+            .add_systems(OnEnter(AppState::Playing), clear_menus)
+            .add_systems(OnEnter(AppState::Ship), clear_menus);
     }
 }
 
@@ -199,7 +200,7 @@ fn build_page(mut commands: Commands, state: Res<State<AppState>>, setup: Res<Se
                         debrief(p, &art, l, r);
                     }
                 }
-                AppState::Playing => {}
+                AppState::Playing | AppState::Ship => {}
             }
         });
 }
@@ -283,15 +284,16 @@ fn main_menu(p: &mut ChildSpawnerCommands, art: &Art, prof: &Prof, music: bool, 
                 kit::tile(r, art, Action::Go(AppState::Shop), 4, "shop", l.pick("Магазин", "Shop"), 130.0, kit::C_PANEL);
             });
             c.spawn(kit::row(12.0)).with_children(|r| {
-                kit::tile(r, art, Action::Go(AppState::Badges), 5, "medal", l.pick("Нашивки", "Patches"), 150.0, kit::C_PANEL);
-                kit::tile(r, art, Action::Go(AppState::Info), 6, "book", l.pick("Данные NASA", "NASA data"), 150.0, kit::C_PANEL);
-                kit::tile(r, art, Action::ToggleAge, 7, if prof.0.cadet { "seedling" } else { "rocket" }, if prof.0.cadet { l.pick("Кадет 7–9", "Cadet 7–9") } else { l.pick("Пилот 10–12", "Pilot 10–12") }, 150.0, kit::C_PANEL);
+                kit::tile(r, art, Action::StartExpedition, 5, "rocket", l.pick("Экспедиция", "Expedition"), 140.0, Color::srgb(0.55, 0.3, 0.85));
+                kit::tile(r, art, Action::Go(AppState::Badges), 6, "medal", l.pick("Нашивки", "Patches"), 140.0, kit::C_PANEL);
+                kit::tile(r, art, Action::Go(AppState::Info), 7, "book", l.pick("Данные NASA", "NASA data"), 140.0, kit::C_PANEL);
+                kit::tile(r, art, Action::ToggleAge, 8, if prof.0.cadet { "seedling" } else { "rocket" }, if prof.0.cadet { l.pick("Кадет 7–9", "Cadet 7–9") } else { l.pick("Пилот 10–12", "Pilot 10–12") }, 140.0, kit::C_PANEL);
             });
             c.spawn(kit::row(8.0)).with_children(|r| {
-                kit::button(r, art, Action::ToggleLang, 8, "globe", if prof.0.lang == Lang::En { "EN" } else { "RU" }, false);
-                kit::button(r, art, Action::ToggleSound, 9, if prof.0.sound { "sound" } else { "mute" }, "", false);
-                kit::button(r, art, Action::ToggleMusic, 10, if music { "s_music" } else { "mute" }, "", false);
-                kit::button(r, art, Action::Quit, 11, "exit", "", false);
+                kit::button(r, art, Action::ToggleLang, 9, "globe", if prof.0.lang == Lang::En { "EN" } else { "RU" }, false);
+                kit::button(r, art, Action::ToggleSound, 10, if prof.0.sound { "sound" } else { "mute" }, "", false);
+                kit::button(r, art, Action::ToggleMusic, 11, if music { "s_music" } else { "mute" }, "", false);
+                kit::button(r, art, Action::Quit, 12, "exit", "", false);
             });
         });
         row.spawn(kit::col(14.0)).insert(Node { flex_direction: FlexDirection::Column, row_gap: Val::Px(14.0), align_items: AlignItems::Center, ..default() }).with_children(|c| {

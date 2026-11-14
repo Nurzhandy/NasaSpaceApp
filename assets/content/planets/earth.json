@@ -1,0 +1,7 @@
+{ "id": "earth", "icon": "earth", "playable": false, "draft": true,
+  "name": { "ru": "Земля", "kk": null, "en": "Earth" },
+  "gravity": { "ru": "1 g (9,8 м/с²)", "kk": null, "en": "1 g (9.8 m/s²)" },
+  "temperature": { "ru": "в среднем около +15 °C", "kk": null, "en": "about +15 °C on average" },
+  "atmosphere": { "ru": "азот и кислород, защищает от метеоритов и излучения", "kk": null, "en": "nitrogen and oxygen; protects from meteorites and radiation" },
+  "surface": { "junior": { "ru": "Океаны, горы, леса — и мы!", "kk": null, "en": "Oceans, mountains, forests — and us!" } },
+  "history": { "junior": { "ru": "Единственная известная планета с жизнью.", "kk": null, "en": "The only known planet with life." } } }

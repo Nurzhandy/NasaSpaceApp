@@ -4,7 +4,7 @@
 use crate::art::Art;
 use crate::{AppState, Set};
 use ja_core::data::SkinSlot;
-use ja_core::{MapId, ModuleId};
+use ja_core::{MapId, MiniInput, ModuleId};
 use bevy::prelude::*;
 
 pub const C_BG: Color = Color::srgba(0.07, 0.08, 0.2, 0.94);
@@ -51,6 +51,20 @@ pub enum Action {
     Reflect(u8),
     BuildPick(usize),
     Quit,
+    /// ship expedition (part A, ship/)
+    StartExpedition,
+    Mini(u32, MiniInput),
+    CloseTask,
+    DialogNext,
+    DialogChoose(usize),
+    DialogSkip,
+    CloseCard,
+    CloseBreather,
+    RestartDay,
+    NextDay,
+    ToMoon,
+    ShipResume,
+    ShipQuit,
     /// network game (net.rs)
     NetHost,
     NetJoin(u8),
@@ -107,7 +121,7 @@ fn read_inputs(keys: Res<ButtonInput<KeyCode>>, pads: Query<(Entity, &Gamepad)>,
     let ax = |n: bool, p: bool| (p as i32 - n as i32) as f32;
     let k = |c: KeyCode| keys.pressed(c);
     let j = |c: KeyCode| keys.just_pressed(c);
-    let playing = *state.get() == AppState::Playing;
+    let playing = matches!(*state.get(), AppState::Playing | AppState::Ship);
     // network co-op: one astronaut per computer, so the whole keyboard is this player's
     let coop = setup.coop && playing && !net.active();
     let mut p1 = Pad {
@@ -184,7 +198,7 @@ fn buttons(mut q: Query<(&Interaction, &UiAction, &mut BackgroundColor, Option<&
 pub struct Base(pub Color);
 
 fn navigate(inputs: Res<Inputs>, keys: Res<ButtonInput<KeyCode>>, state: Res<State<AppState>>, busy: Res<UiBusy>, mut focus: ResMut<Focus>, mut q: Query<(&Focusable, &UiAction, &mut BorderColor)>, mut out: EventWriter<Act>) {
-    let playing = *state.get() == AppState::Playing;
+    let playing = matches!(*state.get(), AppState::Playing | AppState::Ship);
     if playing && !busy.0 {
         return;
     }

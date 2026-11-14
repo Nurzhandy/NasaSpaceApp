@@ -503,6 +503,13 @@ impl Game {
 
     /// A mission in a chosen mode: story, free building (sandbox) or the finale challenge.
     pub fn with_mode(cfg: MissionConfig, mode: Mode, weather: &Weather) -> Game {
+        Self::with_players(cfg, mode, if cfg.coop { 2 } else { 1 }, weather)
+    }
+
+    /// Up to 4 astronauts (expeditions). `cfg.coop` is ignored; 2+ players count as co-op.
+    pub fn with_players(cfg: MissionConfig, mode: Mode, players: u8, weather: &Weather) -> Game {
+        let players_n = players.clamp(1, 4);
+        let cfg = MissionConfig { coop: players_n > 1, ..cfg };
         let m = map(cfg.map);
         let mut rng = Rng::new(cfg.seed);
         let live = cfg.live && weather.live && cfg.map != MapId::Earth;
@@ -549,7 +556,7 @@ impl Game {
             }
         }
 
-        let players = (0..if cfg.coop { 2 } else { 1 }).map(|i| Player { pos: (DOOR.0 - 0.8 + i as f32 * 1.6, DOOR.1 + 1.0), inside: false, carried: 0 }).collect();
+        let players = (0..players_n).map(|i| Player { pos: (DOOR.0 - 1.2 + i as f32 * 0.8, DOOR.1 + 1.0), inside: false, carried: 0 }).collect();
         let open_all = mode != Mode::Story;
         let s = State {
             map: cfg.map,

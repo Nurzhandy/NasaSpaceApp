@@ -13,11 +13,18 @@
 //!
 //! Tests: `cargo test -p ja-core` · balance report: `cargo test -p ja-core --release balance -- --ignored --nocapture`.
 
+pub mod campaign;
+pub mod content;
 pub mod data;
+pub mod dialog;
+pub mod expedition;
 pub mod game;
 pub mod i18n;
+pub mod minigame;
+pub mod physics;
 pub mod progress;
 pub mod rng;
+pub mod ship;
 pub mod weather;
 
 #[cfg(test)]
@@ -28,3 +35,7 @@ pub use game::{region_at, BossState, Cause, Command, Forecast, Game, GameEvent, 
 pub use i18n::{Lang, Msg, Tone};
 pub use progress::Profile;
 pub use weather::Weather;
+pub use campaign::{Campaign, CampaignCommand, CampaignEvent, CampaignState, Phase};
+pub use content::{Content, Text};
+pub use expedition::{ExpeditionConfig, Level, PlayMode, Role};
+pub use minigame::{Mini, MiniInput, MiniKind};

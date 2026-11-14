@@ -128,7 +128,7 @@ pub struct TourPlugin;
 impl Plugin for TourPlugin {
     fn build(&self, app: &mut App) {
         let Some(dir) = std::env::var_os("JA_SHOTS") else { return };
-        if std::env::var_os("JA_NET_TEST").is_some() {
+        if std::env::var_os("JA_NET_TEST").is_some() || std::env::var_os("JA_SHIP_TEST").is_some() {
             return; // the network test drives the game itself
         }
         let dir = PathBuf::from(dir);
