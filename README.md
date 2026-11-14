@@ -151,4 +151,15 @@ The newer 2D pixel-art version lives in `crates/game` (rules in `crates/core`, s
 
 ![Network lobby](docs/screenshots_2d/14_network_lobby.jpg)
 
+## 🌕 Landing and survival on the Moon / Посадка и выживание на Луне
+
+**Start → New expedition** (Survival or Creative, Junior or Advanced, 1–2 players) → **land the module** near the lunar south pole (W/S thrust, A/D tilt, E answers Mission Control's “1202” alarm) → **survive**: every morning Mission Control sends tonight's forecast (cold snap, dust cloud, meteorites, energy crisis, breakdowns, or a real NASA DONKI flare). Spend coins on upgrades (U) — each one has a trade-off — and read the evening report to see what your choices changed.
+
+**«Начать» → «Новая экспедиция»** (выживание или творческий режим, Junior или Advanced, 1–2 игрока) → **посадка** у южного полюса Луны → **выживание**: утром прогноз на вечер, днём работа и улучшения за монеты (U), вечером угроза, потом разбор «почему так вышло».
+
+![Landing](docs/screenshots_2d/24_alarm_1202.jpg)
+![Evening report](docs/screenshots_2d/29_report.jpg)
+
+Balance: `cargo test -p ja-core --release survival_balance -- --ignored --nocapture` · screenshot tour: `JA_TOUR=survival JA_SHOTS=folder cargo run -p game --release`.
+
 *Educational game. It does not assess readiness for real spaceflight and is not psychological treatment.*

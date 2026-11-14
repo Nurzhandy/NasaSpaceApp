@@ -14,6 +14,7 @@
 
 use crate::data::*;
 use crate::rng::Rng;
+use crate::survival::{build_cost, Body, EventReport, Survival, Tonight, Upgrade};
 use crate::weather::{Weather, WeatherEvent};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -58,6 +59,9 @@ pub enum Mode {
     Sandbox,
     /// straight to the finale with a ready base
     Challenge,
+    /// the campaign on the Moon after landing: evening threats with a forecast, heat, upgrades,
+    /// the astronauts' own stats (see `survival.rs`)
+    Survival,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -98,6 +102,10 @@ pub enum Command {
     ChooseCargo(bool),
     NameFeeling(usize),
     Support(usize),
+    /// survival: buy the next level of an upgrade with coins
+    Upgrade(Upgrade),
+    /// the Space Beacon breathing calmed the astronaut's heartbeat
+    Calm,
 }
 
 /// Why a command was refused. Show `crate::i18n::refusal_msg` to the child.
@@ -105,7 +113,7 @@ pub enum Command {
 pub enum Refusal {
     MissionOver,
     NotEnoughPower,
-    NotEnoughMaterials,
+    NotEnoughCoins,
     CellBusy,
     OutsideBase,
     EdgeOfMap,
@@ -121,6 +129,8 @@ pub enum Refusal {
     HandsFull,
     NothingToDeliver,
     NeedsModule(ModuleKind),
+    /// the upgrade is already at the top level
+    MaxLevel,
     NeedUnlock(Unlock),
     LabNeedsPower,
     NotReady,
@@ -143,6 +153,8 @@ pub enum Forecast {
     NoSignal,
     /// the antenna has no power
     NoAntenna,
+    /// survival: what comes this evening
+    Tonight(Tonight),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -150,6 +162,8 @@ pub enum Cause {
     Oxygen,
     Food,
     Dose,
+    /// survival: the habitat froze
+    Cold,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -196,10 +210,21 @@ pub enum GameEvent {
     BatteryEmpty,
     Unlocked(Unlock),
     QuestStarted(usize),
-    QuestDone { quest: usize, materials: u32, unlock: Option<Unlock> },
+    QuestDone { quest: usize, coins: u32, unlock: Option<Unlock> },
     BossWave { wave: u8, of: u8, kind: Wave },
     WaveCleared { wave: u8, countered: bool },
     BossDefeated { countered: u8, of: u8 },
+    /// survival: the evening threat starts
+    Threat(Tonight),
+    /// survival: the evening is over — what happened and why
+    ThreatOver(EventReport),
+    Upgraded { kind: Upgrade, level: u8 },
+    MeteorHit { module: ModuleId, damage: f32 },
+    /// a suit tank is low / empty (the astronaut is brought back to the airlock)
+    SuitLow { player: u8 },
+    SuitEmpty { player: u8 },
+    Tired { player: u8 },
+    Calmed { player: u8 },
     MissionEnded(MissionResult),
 }
 
@@ -215,6 +240,13 @@ pub struct Module {
     pub power: u8,
     pub broken: bool,
     pub dusty: bool,
+    /// structural strength %, meteorites lower it (survival)
+    #[serde(default = "full_hp")]
+    pub hp: f32,
+}
+
+fn full_hp() -> f32 {
+    100.0
 }
 
 impl Module {
@@ -247,6 +279,9 @@ pub struct Player {
     pub pos: (f32, f32),
     pub inside: bool,
     pub carried: u32,
+    /// suit oxygen, fatigue, suit condition, heartbeat (survival)
+    #[serde(default)]
+    pub body: Body,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -309,6 +344,9 @@ pub struct Flags {
     pub built: u32,
     pub collected: u32,
     pub regions_visited: [bool; 3],
+    /// survival: evening threats met / handled the right way
+    pub threats: u32,
+    pub countered: u32,
 }
 
 /// Snapshot for the debrief and for `progress::Profile::finish`.
@@ -358,7 +396,7 @@ pub struct State {
     pub goal: f32,
     pub battery: f32,
     pub battery_cap: f32,
-    pub materials: u32,
+    pub coins: u32,
     /// power blocks per sol available right now / taken by modules
     pub supply: f32,
     pub demand: u32,
@@ -390,6 +428,9 @@ pub struct State {
     pub status: Status,
     pub history: Vec<SolRecord>,
     pub flags: Flags,
+    /// heat, air tightness, upgrades, tonight's threat (simulated in `Mode::Survival`)
+    #[serde(default)]
+    pub surv: Survival,
 }
 
 /// Which far region a point is in (`None` = the base and the open ground around it).
@@ -430,7 +471,7 @@ impl State {
         self.modules.iter().filter(|m| m.kind == kind).count()
     }
     pub fn powered(&self, kind: ModuleKind) -> u32 {
-        self.modules.iter().filter(|m| m.kind == kind).map(|m| m.power as u32).sum()
+        self.modules.iter().filter(|m| m.kind == kind && !m.broken).map(|m| m.power as u32).sum()
     }
     pub fn has(&self, u: Unlock) -> bool {
         self.unlocks.contains(&u)
@@ -472,18 +513,21 @@ impl State {
             return quests;
         }
         let per = [0, 20, 30, 40, 50, 60][self.def().tier as usize];
+        let threats = self.surv.countered * 3;
         let base = match self.status {
             Status::Won => per * self.stars() + if self.live { 10 } else { 0 } + if self.coop { 10 } else { 0 },
             _ => 10 + (self.sol.saturating_sub(1) * 3).min(20),
         };
-        base + quests + self.boss_countered as u32 * 5
+        base + quests + self.boss_countered as u32 * 5 + threats
     }
 }
 
 pub struct Game {
-    s: State,
-    rng: Rng,
-    weather: Weather,
+    pub(crate) s: State,
+    pub(crate) rng: Rng,
+    pub(crate) weather: Weather,
+    /// survival: tonight's threat for every sol (index = sol)
+    pub(crate) threat_plan: Vec<Option<Tonight>>,
     schedule: HashMap<u32, (EventKind, bool)>,
     false_alarm: Option<u32>,
     pending: Vec<EventKind>,
@@ -507,7 +551,7 @@ impl Game {
         let mut rng = Rng::new(cfg.seed);
         let live = cfg.live && weather.live && cfg.map != MapId::Earth;
         let sols = match mode {
-            Mode::Story => m.sols,
+            Mode::Story | Mode::Survival => m.sols,
             Mode::Sandbox => 99,
             Mode::Challenge => 1,
         };
@@ -521,10 +565,12 @@ impl Game {
             if m.night_sols.contains(&sol) || !rng.chance(0.65) {
                 continue;
             }
-            let mut kind = m.events[rng.below(m.events.len())];
+            // survival: threats come in the evening (survival.rs); the day keeps the small events
+            let pool: Vec<EventKind> = if mode == Mode::Survival { m.events.iter().copied().filter(|k| matches!(k, EventKind::Harvest | EventKind::Emotion | EventKind::Supply | EventKind::Discovery)).collect() } else { m.events.to_vec() };
+            let mut kind = pool[rng.below(pool.len())];
             let mut tries = 0;
             while (Some(kind) == last || (mode != Mode::Sandbox && used_once.contains(&kind))) && tries < 20 {
-                kind = m.events[rng.below(m.events.len())];
+                kind = pool[rng.below(pool.len())];
                 tries += 1;
             }
             if matches!(kind, EventKind::Dust | EventKind::Conjunction | EventKind::Supply) {
@@ -535,21 +581,21 @@ impl Game {
             last = Some(kind);
         }
         // a real high-risk week guarantees an early flare
-        if live && last_free >= 2 {
+        if live && last_free >= 2 && mode != Mode::Survival {
             let sol = 2 + rng.below(2.min(last_free as usize - 1)) as u32;
             if weather.risk() >= 2 || !schedule.contains_key(&sol) {
                 schedule.insert(sol, (EventKind::Flare, false));
             }
         }
         let mut false_alarm = None;
-        if !cfg.cadet && cfg.map != MapId::Earth && rng.chance(0.5) && last_free >= 2 {
+        if !cfg.cadet && cfg.map != MapId::Earth && mode != Mode::Survival && rng.chance(0.5) && last_free >= 2 {
             let free: Vec<u32> = (2..=last_free).filter(|s| !schedule.contains_key(s) && !m.night_sols.contains(s)).collect();
             if !free.is_empty() {
                 false_alarm = Some(free[rng.below(free.len())]);
             }
         }
 
-        let players = (0..if cfg.coop { 2 } else { 1 }).map(|i| Player { pos: (DOOR.0 - 0.8 + i as f32 * 1.6, DOOR.1 + 1.0), inside: false, carried: 0 }).collect();
+        let players = (0..if cfg.coop { 2 } else { 1 }).map(|i| Player { pos: (DOOR.0 - 0.8 + i as f32 * 1.6, DOOR.1 + 1.0), inside: false, carried: 0, body: Body::default() }).collect();
         let open_all = mode != Mode::Story;
         let s = State {
             map: cfg.map,
@@ -570,10 +616,11 @@ impl Game {
             goal: (m.sols as f32 * if cfg.cadet { 0.8 } else { 1.2 }).round(),
             battery: m.start_battery,
             battery_cap: HABITAT_BATTERY,
-            materials: match mode {
-                Mode::Story => m.start_materials,
+            coins: match mode {
+                Mode::Story => m.start_coins,
                 Mode::Sandbox => 40,
-                Mode::Challenge => m.start_materials + 10,
+                Mode::Challenge => m.start_coins + 10,
+                Mode::Survival => m.start_coins + 8,
             },
             supply: 0.0,
             demand: 0,
@@ -601,13 +648,27 @@ impl Game {
             status: Status::Playing,
             history: vec![],
             flags: Flags::default(),
+            surv: Survival::default(),
         };
-        let mut g = Game { s, rng, weather: weather.clone(), schedule, false_alarm, pending: vec![], next_id: 1, low_o2_warned: false, battery_warned: false, mirror: false, outbox: vec![] };
+        let mut g = Game { s, rng, weather: weather.clone(), threat_plan: vec![], schedule, false_alarm, pending: vec![], next_id: 1, low_o2_warned: false, battery_warned: false, mirror: false, outbox: vec![] };
         g.starting_base(cfg.cadet, mode == Mode::Challenge);
         g.starting_sites();
+        if mode == Mode::Survival {
+            g.plan_threats();
+        }
         g.refresh_power();
         let _ = g.begin_sol();
         g
+    }
+
+    pub(crate) fn spawn_site_pub(&mut self, kind: SiteKind) -> SiteId {
+        self.spawn_site(kind, None)
+    }
+    pub(crate) fn refresh_power_pub(&mut self) {
+        self.refresh_power()
+    }
+    pub(crate) fn start_flare_pub(&mut self, event: WeatherEvent, live: bool, duration: f32, boost: f32) {
+        self.start_flare(event, live, duration, boost)
     }
 
     pub fn state(&self) -> &State {
@@ -652,7 +713,7 @@ impl Game {
         let d = module_def(kind);
         let id = self.next_id;
         self.next_id += 1;
-        self.s.modules.push(Module { id, kind, x, y, w: d.w, h: d.h, power, broken: false, dusty: false });
+        self.s.modules.push(Module { id, kind, x, y, w: d.w, h: d.h, power, broken: false, dusty: false, hp: 100.0 });
         id
     }
 
@@ -734,15 +795,22 @@ impl Game {
         let m = s.def();
         let night = s.is_night();
         let mut g = 0.0;
+        let survival = s.mode == Mode::Survival;
+        // survival: the landing site sets the sunlight; dust stays until someone cleans it
+        let sun = if survival { [0.8, 1.0, 1.2][crate::landing::SITES[s.surv.site as usize].sun as usize - 1] * s.surv.crisis } else { 1.0 };
         for md in &s.modules {
             match md.kind {
-                ModuleKind::Solar if !night => g += m.panel_yield * if s.dust_left > 0 && md.dusty { 0.45 } else { 1.0 },
+                ModuleKind::Solar if md.broken => {}
+                ModuleKind::Solar if !night => g += m.panel_yield * sun * if (s.dust_left > 0 || survival) && md.dusty { 0.45 } else { 1.0 },
                 ModuleKind::Rtg => g += RTG_YIELD,
                 _ => {}
             }
         }
         if s.cadet {
             g = (g - 1.0).max(2.0f32.min(g));
+        }
+        if survival {
+            g -= s.surv.upkeep();
         }
         g
     }
@@ -773,8 +841,12 @@ impl Game {
         // forecast for tomorrow, delayed like real comms
         let m = self.s.def();
         let next = self.s.sol + 1;
+        let survival_fc = if self.s.mode == Mode::Survival { self.tonight_plan() } else { None };
         let fc = if self.s.powered(ModuleKind::Antenna) == 0 {
             Forecast::NoAntenna
+        } else if let Some(t) = survival_fc {
+            // survival: the morning forecast is about this evening
+            Forecast::Tonight(t)
         } else if self.s.silence_left > 0 {
             Forecast::NoSignal
         } else if self.s.has_finale() && (next == self.s.sols || self.s.sols == 1) {
@@ -793,6 +865,10 @@ impl Game {
                 _ => Forecast::Calm,
             }
         };
+        if survival_fc.is_some() || self.s.mode == Mode::Survival {
+            // survival: yesterday's evening forecast is stale this morning
+            self.s.forecast = None;
+        }
         let now = self.s.elapsed;
         self.s.mc = Some(McMessage { forecast: fc, sent_at: now, arrive_at: now + m.delay_s });
         ev.push(GameEvent::ForecastSent { arrives_in: m.delay_s });
@@ -978,14 +1054,14 @@ impl Game {
             }
             // done: reward, then the next task starts (events are not counted twice)
             let r = q.reward;
-            self.s.materials += r.materials;
+            self.s.coins += r.coins;
             if let Some(u) = r.unlock {
                 if !self.s.has(u) {
                     self.s.unlocks.push(u);
                     out.push(GameEvent::Unlocked(u));
                 }
             }
-            out.push(GameEvent::QuestDone { quest: self.s.quest, materials: r.materials, unlock: r.unlock });
+            out.push(GameEvent::QuestDone { quest: self.s.quest, coins: r.coins, unlock: r.unlock });
             self.s.quest += 1;
             self.s.quests_done += 1;
             self.s.quest_progress = 0;
@@ -1021,7 +1097,9 @@ impl Game {
             s.battery = (s.battery + (supply - demand) * ds).min(s.battery_cap);
         }
         // oxygen and food
-        let o2_made: f32 = s.modules.iter().filter(|m| m.kind == ModuleKind::OxygenGen).map(|m| m.power as f32 * O2_PER * if m.broken { 0.5 } else { 1.0 }).sum();
+        let survival = s.mode == Mode::Survival;
+        let o2_made: f32 = s.modules.iter().filter(|m| m.kind == ModuleKind::OxygenGen).map(|m| m.power as f32 * O2_PER * if m.broken { 0.5 } else { 1.0 } * if survival && m.dusty { 0.6 } else { 1.0 }).sum();
+        let o2_made = if survival { o2_made * self_o2_factor(s) } else { o2_made };
         let leak = if s.leak { 4.0 } else { 0.0 };
         s.o2 += (o2_made * mult - O2_USE - leak) * ds;
         let green = s.powered(ModuleKind::Greenhouse) as f32;
@@ -1055,7 +1133,7 @@ impl Game {
         }
         s.dose += dose_rate * ds;
         // morale and science
-        s.morale -= 4.0 * ds;
+        s.morale -= 4.0 * ds * if survival { 1.0 - 0.25 * s.surv.level(Upgrade::Comfort) as f32 } else { 1.0 };
         let sci_mult = if s.morale < 30.0 { 0.5 } else if s.morale >= 80.0 { 1.3 } else { 1.0 };
         s.science += s.powered(ModuleKind::Lab) as f32 * mult * sci_mult * ds;
         if s.mode == Mode::Sandbox {
@@ -1098,6 +1176,9 @@ impl Game {
             s.status = Status::Lost(Cause::Dose);
         }
         s.t += ds;
+        if survival && self.s.status == Status::Playing {
+            self.survival_tick(ds, mult, &mut ev);
+        }
         ev.extend(self.fire_pending());
         ev.extend(self.boss_tick(ds));
         if self.s.status == Status::Playing && self.s.t >= 1.0 {
@@ -1106,6 +1187,9 @@ impl Game {
                 // the last sol lasts until the finale is over
                 self.s.t = 0.999;
             } else {
+                if self.s.mode == Mode::Survival {
+                    self.finish_threat(&mut ev);
+                }
                 let s = &mut self.s;
                 s.history.push(SolRecord { sol: s.sol, o2: s.o2, food: s.food, dose: s.dose, science: s.science });
                 if s.sol >= s.sols {
@@ -1151,7 +1235,7 @@ impl Game {
             cadet: s.cadet,
             coop: s.coop,
             live: s.live,
-            flags: s.flags.clone(),
+            flags: Flags { threats: s.surv.threats, countered: s.surv.countered, ..s.flags.clone() },
             samples_delivered: s.samples_delivered,
             quests_done: s.quests_done,
             boss_done: s.boss_done,
@@ -1173,15 +1257,15 @@ impl Game {
         if x < -BUILD_R || y < -BUILD_R || x + d.w - 1 > BUILD_R || y + d.h - 1 > BUILD_R {
             return Err(Refusal::OutsideBase);
         }
-        let probe = Module { id: 0, kind, x, y, w: d.w, h: d.h, power: 0, broken: false, dusty: false };
+        let probe = Module { id: 0, kind, x, y, w: d.w, h: d.h, power: 0, broken: false, dusty: false, hp: 100.0 };
         let overlaps = self.s.modules.iter().any(|m| m.x < x + d.w && x < m.x + m.w && m.y < y + d.h && y < m.y + m.h);
         let on_site = self.s.sites.iter().any(|st| probe.dist((st.x, st.y)) < 0.5);
         let on_pad = probe.dist(CARGO_PAD) < 1.0 || probe.dist(DOOR) < 0.8;
         if overlaps || on_site || on_pad {
             return Err(Refusal::CellBusy);
         }
-        if self.s.materials < d.cost {
-            return Err(Refusal::NotEnoughMaterials);
+        if self.s.coins < build_cost(kind, &self.s.surv) {
+            return Err(Refusal::NotEnoughCoins);
         }
         Ok(())
     }
@@ -1191,7 +1275,7 @@ impl Game {
         let mut best: Option<(i32, i32, i32)> = None;
         for y in -BUILD_R..=BUILD_R {
             for x in -BUILD_R..=BUILD_R {
-                let ok = matches!(self.can_build(kind, x, y), Ok(()) | Err(Refusal::NotEnoughMaterials));
+                let ok = matches!(self.can_build(kind, x, y), Ok(()) | Err(Refusal::NotEnoughCoins));
                 let d = x * x + y * y;
                 if ok && best.map_or(true, |b| d < b.2) {
                     best = Some((x, y, d));
@@ -1235,10 +1319,10 @@ impl Game {
             return Ok(vec![]);
         }
         let pi = (player as usize).min(self.s.players.len() - 1);
-        let mut ev = match cmd {
+        let ev = match cmd {
             Command::Build { kind, x, y } => {
                 self.can_build(kind, x, y)?;
-                self.s.materials -= module_def(kind).cost;
+                self.s.coins -= build_cost(kind, &self.s.surv);
                 let module = self.add_module(kind, x, y, 0);
                 self.s.flags.built += 1;
                 let mut ev = vec![GameEvent::Built { module, kind }];
@@ -1254,13 +1338,13 @@ impl Game {
                     return Err(Refusal::CannotDemolish);
                 }
                 let refund = module_def(m.kind).cost / 2;
-                self.s.materials += refund;
+                self.s.coins += refund;
                 self.s.modules.retain(|x| x.id != m.id);
                 vec![GameEvent::Demolished { kind: m.kind, refund }]
             }
             Command::SetPower { module, blocks } => {
                 let m = self.s.module(module).ok_or(Refusal::UnknownId)?;
-                let max = module_def(m.kind).max_power;
+                let max = if m.kind == ModuleKind::Habitat { self.heater_slots() } else { module_def(m.kind).max_power };
                 if max == 0 {
                     return Err(Refusal::NoPowerSlot);
                 }
@@ -1281,6 +1365,12 @@ impl Game {
             Command::Repair { module } => {
                 self.require_near_module(pi, module)?;
                 let kind = self.s.module(module).map(|m| (m.kind, m.broken)).ok_or(Refusal::UnknownId)?;
+                if self.s.mode == Mode::Survival {
+                    self.survival_repair(module)?;
+                    self.s.coins += 2;
+                    self.s.flags.repairs += 1;
+                    return self.finish_apply(vec![GameEvent::Repaired(module)]);
+                }
                 match kind {
                     (ModuleKind::OxygenGen, true) => {
                         if let Some(m) = self.s.modules.iter_mut().find(|m| m.id == module) {
@@ -1300,10 +1390,15 @@ impl Game {
             Command::Clean { module } => {
                 self.require_near_module(pi, module)?;
                 let m = self.s.modules.iter_mut().find(|m| m.id == module).ok_or(Refusal::UnknownId)?;
-                if m.kind != ModuleKind::Solar || !m.dusty {
+                let survival = self.s.mode == Mode::Survival;
+                let cleanable = m.kind == ModuleKind::Solar || (survival && m.kind == ModuleKind::OxygenGen);
+                if !cleanable || !m.dusty {
                     return Err(Refusal::NothingToClean);
                 }
                 m.dusty = false;
+                if survival {
+                    self.s.coins += 1;
+                }
                 vec![GameEvent::Cleaned(module)]
             }
             Command::Collect { site } => {
@@ -1325,8 +1420,8 @@ impl Game {
                         }
                         self.s.players[pi].carried += 1;
                     }
-                    SiteKind::Ore => self.s.materials += 3,
-                    SiteKind::Wreck => self.s.materials += 6,
+                    SiteKind::Ore => self.s.coins += 3,
+                    SiteKind::Wreck => self.s.coins += 6,
                     SiteKind::Ice => self.s.o2 = (self.s.o2 + 10.0).min(100.0),
                 }
                 self.s.sites.retain(|x| x.id != site);
@@ -1351,6 +1446,9 @@ impl Game {
                 }
                 let science = count as f32 * 1.5;
                 self.s.science += science;
+                if self.s.mode == Mode::Survival {
+                    self.s.coins += count;
+                }
                 self.s.samples_delivered += count;
                 self.s.players[pi].carried = 0;
                 vec![GameEvent::SamplesDelivered { count, science }]
@@ -1406,7 +1504,7 @@ impl Game {
                     s.battery = (s.battery - 2.0).max(0.0);
                     s.food = (s.food + 20.0).min(100.0);
                     s.o2 = (s.o2 + 8.0).min(100.0);
-                    s.materials += 4;
+                    s.coins += 4;
                 } else {
                     s.food = (s.food + 8.0).min(100.0);
                 }
@@ -1438,7 +1536,17 @@ impl Game {
                 s.flags.helped = true;
                 vec![GameEvent::Supported(i)]
             }
+            Command::Upgrade(u) => self.apply_upgrade(u)?,
+            Command::Calm => {
+                let b = &mut self.s.players[pi].body;
+                b.heart = (b.heart - 25.0).max(60.0);
+                vec![GameEvent::Calmed { player: pi as u8 }]
+            }
         };
+        self.finish_apply(ev)
+    }
+
+    fn finish_apply(&mut self, mut ev: Vec<GameEvent>) -> Result<Vec<GameEvent>, Refusal> {
         self.refresh_power();
         let q = self.quest_tick(&ev);
         ev.extend(q);
@@ -1520,7 +1628,7 @@ mod tests {
         assert_eq!(g.state().can_walk(20.0, 0.0), Ok(()));
         let far = g.state().sites.iter().find(|s| s.region == Some(0)).unwrap().clone();
         assert_eq!(collect(&mut g, &far), Err(Refusal::NeedUnlock(Unlock::Vehicle)));
-        g.s.materials = 20;
+        g.s.coins = 20;
         let (x, y) = g.find_free_spot(ModuleKind::Garage).unwrap();
         let ev = g.apply(0, Command::Build { kind: ModuleKind::Garage, x, y }).unwrap();
         assert!(ev.contains(&GameEvent::Unlocked(Unlock::Vehicle)));
@@ -1556,7 +1664,7 @@ mod tests {
         }
         assert!(done.iter().any(|e| matches!(e, GameEvent::QuestDone { quest: 0, .. })));
         assert_eq!(g.state().quest, 1);
-        g.s.materials = 30;
+        g.s.coins = 30;
         let (x, y) = g.find_free_spot(ModuleKind::Lab).unwrap();
         let ev = g.apply(0, Command::Build { kind: ModuleKind::Lab, x, y }).unwrap();
         assert!(ev.contains(&GameEvent::QuestStarted(2)));
@@ -1673,13 +1781,13 @@ mod tests {
         assert_eq!(g.apply(0, Command::Build { kind: ModuleKind::Habitat, x: 6, y: 6 }), Err(Refusal::OnlyOne));
         assert_eq!(g.apply(0, Command::Build { kind: ModuleKind::Rtg, x: 6, y: 6 }), Err(Refusal::NotAvailableHere));
         let (x, y) = g.find_free_spot(ModuleKind::Shield).unwrap();
-        let before = g.state().materials;
+        let before = g.state().coins;
         assert!(g.apply(0, Command::Build { kind: ModuleKind::Shield, x, y }).is_ok());
-        assert_eq!(g.state().materials, before - 6);
+        assert_eq!(g.state().coins, before - 6);
         assert_eq!(g.apply(0, Command::Build { kind: ModuleKind::Shield, x, y }), Err(Refusal::CellBusy));
-        g.s.materials = 0;
+        g.s.coins = 0;
         let (x, y) = g.find_free_spot(ModuleKind::Lab).unwrap();
-        assert_eq!(g.apply(0, Command::Build { kind: ModuleKind::Lab, x, y }), Err(Refusal::NotEnoughMaterials));
+        assert_eq!(g.apply(0, Command::Build { kind: ModuleKind::Lab, x, y }), Err(Refusal::NotEnoughCoins));
     }
 
     #[test]
@@ -1687,9 +1795,9 @@ mod tests {
         let mut g = game(MapId::Earth, false);
         assert_eq!(g.apply(0, Command::Demolish { x: 0, y: 0 }), Err(Refusal::CannotDemolish));
         let b = g.state().modules.iter().find(|m| m.kind == ModuleKind::Battery).unwrap().clone();
-        let before = g.state().materials;
+        let before = g.state().coins;
         g.apply(0, Command::Demolish { x: b.x, y: b.y }).unwrap();
-        assert_eq!(g.state().materials, before + 2);
+        assert_eq!(g.state().coins, before + 2);
         assert_eq!(g.state().battery_cap, HABITAT_BATTERY);
     }
 
@@ -1748,9 +1856,9 @@ mod tests {
     fn collecting_ore_gives_materials_and_removes_the_site() {
         let mut g = game(MapId::Moon, false);
         let ore = g.state().sites.iter().find(|s| s.kind == SiteKind::Ore && s.region.is_none()).unwrap().clone();
-        let before = g.state().materials;
+        let before = g.state().coins;
         collect(&mut g, &ore).unwrap();
-        assert_eq!(g.state().materials, before + 3);
+        assert_eq!(g.state().coins, before + 3);
         assert!(g.state().sites.iter().all(|s| s.id != ore.id));
     }
 
@@ -1840,4 +1948,9 @@ mod tests {
         assert!(r.boss_done || !r.won, "a won story mission went through the finale");
         assert_eq!(g.apply(0, Command::DeliverSamples), Err(Refusal::MissionOver));
     }
+}
+
+fn self_o2_factor(s: &State) -> f32 {
+    let cold = if s.surv.temp < 0.0 { 0.5 } else { 1.0 };
+    cold * (1.0 + 0.2 * s.surv.level(Upgrade::LifeSupport) as f32)
 }

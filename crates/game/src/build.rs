@@ -41,7 +41,7 @@ struct BuildBar;
 #[derive(Component)]
 struct BuildButton(usize);
 #[derive(Component)]
-struct MaterialsText;
+struct CoinsText;
 
 pub struct BuildPlugin;
 impl Plugin for BuildPlugin {
@@ -120,7 +120,7 @@ fn toggle(mut commands: Commands, inputs: Res<Inputs>, modal: Res<Modal>, mut bm
         return;
     }
     let l = prof.lang();
-    let mats = sim.0.state().materials;
+    let mats = sim.0.state().coins;
     commands
         .spawn((
             Node { position_type: PositionType::Absolute, bottom: Val::Px(12.0), left: Val::Percent(50.0), margin: UiRect::left(Val::Px(-560.0)), width: Val::Px(1120.0), flex_direction: FlexDirection::Column, align_items: AlignItems::Center, row_gap: Val::Px(8.0), padding: UiRect::all(Val::Px(10.0)), border: UiRect::all(Val::Px(3.0)), ..default() },
@@ -136,7 +136,7 @@ fn toggle(mut commands: Commands, inputs: Res<Inputs>, modal: Res<Modal>, mut bm
                 kit::icon(r, &art, "hammer", 30.0);
                 kit::text(r, l.pick("Стройка", "Build"), &art.head, 22.0, C_TEXT);
                 kit::icon(r, &art, "wrench", 24.0);
-                r.spawn((Text::new(format!("{mats}")), TextFont { font: art.head.clone(), font_size: 22.0, ..default() }, TextColor(kit::C_ACCENT), MaterialsText));
+                r.spawn((Text::new(format!("{mats}")), TextFont { font: art.head.clone(), font_size: 22.0, ..default() }, TextColor(kit::C_ACCENT), CoinsText));
                 kit::text(r, l.pick("·  клик/F — строить · ПКМ/X — разобрать · Q/R — выбор · B — выход", "·  click/F build · RMB/X remove · Q/R choose · B exit"), &art.body, 17.0, C_MUTED);
             });
             p.spawn(kit::row(8.0)).with_children(|r| {
@@ -254,7 +254,7 @@ fn ghost_view(
     *gv = Visibility::Visible;
     let l = prof.lang();
     tx.0 = match check {
-        Ok(()) => format!("{} · {} {}", l.pick(d.name_ru, d.name_en), d.cost, l.pick("материалов", "materials")),
+        Ok(()) => format!("{} · {} {}", l.pick(d.name_ru, d.name_en), d.cost, l.pick("монет", "coins")),
         Err(r) => i18n::refusal_msg(r).text(l).to_string(),
     };
     tc.0 = if check.is_ok() { C_GOOD } else { Color::srgb(1.0, 0.75, 0.75) };
@@ -263,7 +263,7 @@ fn ghost_view(
     *zv = Visibility::Visible;
 }
 
-fn bar_view(bm: Res<BuildMode>, sim: Res<Sim>, mut q: Query<(&BuildButton, &mut BorderColor, &mut BackgroundColor, &mut kit::Base)>, mut mats: Query<&mut Text, With<MaterialsText>>) {
+fn bar_view(bm: Res<BuildMode>, sim: Res<Sim>, mut q: Query<(&BuildButton, &mut BorderColor, &mut BackgroundColor, &mut kit::Base)>, mut mats: Query<&mut Text, With<CoinsText>>) {
     if !bm.active {
         return;
     }
@@ -277,6 +277,6 @@ fn bar_view(bm: Res<BuildMode>, sim: Res<Sim>, mut q: Query<(&BuildButton, &mut 
         }
     }
     for mut t in &mut mats {
-        t.0 = format!("{}", sim.0.state().materials);
+        t.0 = format!("{}", sim.0.state().coins);
     }
 }

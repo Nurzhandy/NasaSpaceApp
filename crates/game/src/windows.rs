@@ -7,7 +7,8 @@ use crate::kit::{self, Act, Action, Inputs, UiBusy, C_BAD, C_GOOD, C_LINE, C_MUT
 use crate::world::{run, Happened, Paused, Refused};
 use crate::{AppState, Prof, Set, Sim};
 use ja_core::data::{module_def, FEELINGS, MOODS};
-use ja_core::{i18n, Command, GameEvent};
+use ja_core::survival::{upgrade_def, MAX_LEVEL, UPGRADES};
+use ja_core::{i18n, Command, GameEvent, ModuleKind, Tone};
 use bevy::prelude::*;
 
 #[derive(Clone, Copy, PartialEq, Debug, Default)]
@@ -21,6 +22,10 @@ pub enum Win {
     Pause,
     Beacon,
     Tutorial(u8),
+    /// survival: buy upgrades with coins
+    Upgrades,
+    /// survival: what happened this evening and why
+    Report,
 }
 
 #[derive(Resource, Default)]
@@ -160,7 +165,20 @@ fn acts(mut acts: EventReader<Act>, mut modal: ResMut<Modal>, mut sim: ResMut<Si
                 }
             }
             Action::Beacon => modal.open(Win::Beacon, 0),
+            Action::Upgrades => modal.open(Win::Upgrades, 0),
+            Action::BuyUpgrade(i) => {
+                if let Some(u) = UPGRADES.get(i as usize) {
+                    if run(&mut sim, 0, Command::Upgrade(*u), &mut ok, &mut no) {
+                        play.write(Play("coin"));
+                    }
+                }
+                modal.version += 1;
+            }
             Action::Breathe => {
+                // calm breathing also slows the astronaut's heartbeat (survival)
+                if sim.0.state().mode == ja_core::Mode::Survival {
+                    run(&mut sim, 0, Command::Calm, &mut ok, &mut no);
+                }
                 modal.breathing = true;
                 modal.t = 0.0;
                 modal.version += 1;
@@ -260,16 +278,23 @@ fn render(mut commands: Commands, music: Res<crate::Music>, modal: Res<Modal>, m
                     });
                     kit::text(p, l.pick("Энергии всегда меньше, чем хочется. Ночью работает только батарея.", "There’s never enough power. At night only the battery works."), &art.body, 17.0, C_MUTED);
                     let mut order = 0u16;
-                    for m in st.modules.iter().filter(|m| module_def(m.kind).max_power > 0) {
+                    let heater = st.surv.level(ja_core::Upgrade::Heater);
+                    for m in st.modules.iter().filter(|m| module_def(m.kind).max_power > 0 || (m.kind == ModuleKind::Habitat && heater > 0)) {
                         let s = module_def(m.kind);
+                        let is_heater = m.kind == ModuleKind::Habitat;
                         p.spawn((kit::row(10.0), BorderColor(C_LINE))).insert(Node { flex_direction: FlexDirection::Row, align_items: AlignItems::Center, column_gap: Val::Px(10.0), padding: UiRect::vertical(Val::Px(4.0)), border: UiRect::top(Val::Px(1.0)), ..default() }).with_children(|r| {
                             kit::icon(r, &art, s.icon, 36.0);
                             r.spawn(Node { width: Val::Px(300.0), flex_direction: FlexDirection::Column, ..default() }).with_children(|c| {
-                                kit::text(c, l.pick(s.name_ru, s.name_en), &art.body, 20.0, if m.broken { C_BAD } else { C_TEXT });
-                                kit::wrap_text(c, if m.broken { l.pick("сломан — подойди и держи F", "broken — go and hold F") } else { l.pick(s.desc_ru, s.desc_en) }, &art.body, 13.0, C_MUTED, 300.0);
+                                if is_heater {
+                                    kit::text(c, l.pick("Обогрев купола", "Dome heater"), &art.body, 20.0, C_TEXT);
+                                    kit::wrap_text(c, format!("{:.0} °C {} · {} {:.0} °C", st.surv.temp, l.pick("внутри", "inside"), l.pick("снаружи", "outside"), st.surv.outside), &art.body, 13.0, C_MUTED, 300.0);
+                                } else {
+                                    kit::text(c, l.pick(s.name_ru, s.name_en), &art.body, 20.0, if m.broken { C_BAD } else { C_TEXT });
+                                    kit::wrap_text(c, if m.broken { l.pick("сломан — подойди и держи E", "broken — go and hold E") } else { l.pick(s.desc_ru, s.desc_en) }, &art.body, 13.0, C_MUTED, 300.0);
+                                }
                             });
                             kit::button(r, &art, Action::Power(m.id, -1), order, "", "−", false);
-                            kit::pips(r, m.power as u32, s.max_power as u32, kit::C_WARN, 26.0);
+                            kit::pips(r, m.power as u32, if is_heater { heater as u32 } else { s.max_power as u32 }, kit::C_WARN, 26.0);
                             kit::button(r, &art, Action::Power(m.id, 1), order + 1, "", "+", false);
                         });
                         order += 2;
@@ -355,7 +380,7 @@ fn render(mut commands: Commands, music: Res<crate::Music>, modal: Res<Modal>, m
                     });
                     kit::button(p, &art, Action::ExitMission, 5, "exit", l.pick("Выйти в меню", "Exit to menu"), false);
                     p.spawn(kit::row(14.0)).insert(Node { flex_wrap: FlexWrap::Wrap, flex_direction: FlexDirection::Row, column_gap: Val::Px(14.0), ..default() }).with_children(|r| {
-                        for (ic, ru, en) in [("walk", "WASD — ходить", "WASD — walk"), ("ok_hand", "F — действие", "F — action"), ("hammer", "B — стройка", "B — build"), ("power", "Tab — энергия", "Tab — power"), ("gamepad", "Геймпад: A/Y/Select", "Gamepad: A/Y/Select")] {
+                        for (ic, ru, en) in [("walk", "WASD — ходить", "WASD — walk"), ("ok_hand", "E — действие", "E — action"), ("gear", "U — улучшения", "U — upgrades"), ("hammer", "B — стройка", "B — build"), ("power", "Tab — энергия", "Tab — power"), ("gamepad", "Геймпад: A/Y/Select", "Gamepad: A/Y/Select")] {
                             r.spawn(kit::row(5.0)).with_children(|x| {
                                 kit::icon(x, &art, ic, 20.0);
                                 kit::text(x, l.pick(ru, en), &art.body, 15.0, C_MUTED);
@@ -390,6 +415,59 @@ fn render(mut commands: Commands, music: Res<crate::Music>, modal: Res<Modal>, m
                         let last = step as usize + 1 >= n;
                         kit::text(r, format!("{}/{}", step + 1, n), &art.body, 18.0, C_MUTED);
                         kit::button(r, &art, Action::TutorialNext, 0, if last { "rocket" } else { "play" }, if last { l.pick("Поехали!", "Let’s go!") } else { l.pick("Дальше", "Next") }, true);
+                    });
+                }
+                Win::Upgrades => {
+                    title(p, "gear", l.pick("Улучшения базы", "Base upgrades"));
+                    p.spawn(kit::row(8.0)).with_children(|r| {
+                        kit::icon(r, &art, "coin", 28.0);
+                        kit::text(r, format!("{} {}", st.coins, l.pick("монет. У каждого улучшения есть цена — не только в монетах.", "coins. Every upgrade has a cost — not only in coins.")), &art.body, 18.0, C_MUTED);
+                    });
+                    p.spawn(Node { flex_direction: FlexDirection::Row, flex_wrap: FlexWrap::Wrap, column_gap: Val::Px(10.0), row_gap: Val::Px(10.0), max_width: Val::Px(760.0), ..default() }).with_children(|g| {
+                        for (i, u) in UPGRADES.iter().enumerate() {
+                            let d = upgrade_def(*u);
+                            let lvl = st.surv.level(*u);
+                            let cost = st.surv.next_cost(*u);
+                            g.spawn((Node { width: Val::Px(240.0), flex_direction: FlexDirection::Column, row_gap: Val::Px(5.0), padding: UiRect::all(Val::Px(10.0)), border: UiRect::all(Val::Px(2.0)), ..default() }, BackgroundColor(kit::C_PANEL), BorderColor(C_LINE), BorderRadius::all(Val::Px(8.0)))).with_children(|c| {
+                                c.spawn(kit::row(8.0)).with_children(|r| {
+                                    kit::icon(r, &art, d.icon, 34.0);
+                                    kit::wrap_text(r, l.pick(d.name_ru, d.name_en), &art.head, 18.0, C_TEXT, 180.0);
+                                });
+                                kit::pips(c, lvl as u32, MAX_LEVEL as u32, kit::C_ACCENT, 18.0);
+                                kit::wrap_text(c, format!("+ {}", l.pick(d.plus_ru, d.plus_en)), &art.body, 14.0, C_GOOD, 220.0);
+                                kit::wrap_text(c, format!("− {}", l.pick(d.minus_ru, d.minus_en)), &art.body, 14.0, C_BAD, 220.0);
+                                match cost {
+                                    Some(c2) => {
+                                        kit::button(c, &art, Action::BuyUpgrade(i as u8), i as u16, "coin", &format!("{} {c2}", l.pick("Купить за", "Buy for")), st.coins >= c2);
+                                    }
+                                    None => {
+                                        kit::text(c, l.pick("Максимум", "Maxed out"), &art.head, 16.0, kit::C_ACCENT);
+                                    }
+                                }
+                            });
+                        }
+                    });
+                    kit::button(p, &art, Action::Close, 20, "check", l.pick("Готово", "Done"), false);
+                }
+                Win::Report => {
+                    let Some(rep) = st.surv.report.clone() else {
+                        kit::button(p, &art, Action::Close, 0, "check", "OK", true);
+                        return;
+                    };
+                    let head = i18n::report_title(&rep);
+                    title(p, head.icon, l.pick("Разбор вечера", "Evening report"));
+                    kit::wrap_text(p, head.text(l), &art.body, 20.0, if rep.countered { C_GOOD } else { kit::C_WARN }, 680.0);
+                    for line in &rep.lines {
+                        let m = i18n::report_line(line);
+                        p.spawn((kit::row(10.0), BorderColor(C_LINE))).insert(Node { flex_direction: FlexDirection::Row, align_items: AlignItems::Center, column_gap: Val::Px(10.0), padding: UiRect::vertical(Val::Px(6.0)), border: UiRect::top(Val::Px(1.0)), ..default() }).with_children(|r| {
+                            kit::icon(r, &art, m.icon, 34.0);
+                            kit::wrap_text(r, m.text(l), &art.body, 17.0, if m.tone == Tone::Good { C_GOOD } else { C_TEXT }, 620.0);
+                        });
+                    }
+                    kit::wrap_text(p, l.pick("Решения, принятые днём, решают, что будет вечером. Загляни в улучшения (U).", "Decisions made during the day decide the evening. Check the upgrades (U)."), &art.body, 16.0, C_MUTED, 680.0);
+                    p.spawn(kit::row(10.0)).with_children(|r| {
+                        kit::button(r, &art, Action::Close, 0, "check", l.pick("Понятно", "Got it"), true);
+                        kit::button(r, &art, Action::Upgrades, 1, "gear", l.pick("Улучшения", "Upgrades"), false);
                     });
                 }
                 Win::None => {}

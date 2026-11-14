@@ -2,7 +2,8 @@
 //!
 //! `JA_SHOTS=docs/screenshots_2d JA_PROFILE=/tmp/ja_tour.json cargo run -p game --release`
 //! walks through menus, a Moon mission (power, build mode, a flare, pause, beacon), the debrief
-//! and co-op, saving PNGs, then quits.
+//! and co-op, saving PNGs, then quits. `JA_TOUR=survival` shows the campaign instead: new
+//! expedition, landing (autopilot), survival on the Moon, upgrades, an evening threat and its report.
 
 use crate::build::BuildMode;
 use crate::kit::{Act, Action};
@@ -32,6 +33,14 @@ enum Do {
     /// fast-forward until a flare (or any finale wave) is on screen; gives up after 40 s
     UntilFlare,
     Coop,
+    /// survival tour: fly the landing with the autopilot, wait for touchdown / the alarm
+    AutoLand,
+    UntilLanded,
+    UntilAlarm,
+    /// survival: wait for tonight's forecast, the evening threat, the report window
+    UntilForecast,
+    UntilThreat,
+    UntilReport,
     Quit,
 }
 
@@ -120,8 +129,57 @@ const SAVE_STEPS: &[Do] = &[
     Do::Quit,
 ];
 
+/// `JA_TOUR=survival`: the campaign — new expedition, landing, survival on the Moon.
+const SURVIVAL_STEPS: &[Do] = &[
+    Do::Wait(2.5),
+    Do::Shot("20_menu"),
+    Do::Act(Action::Go(AppState::Expedition)),
+    Do::Wait(1.2),
+    Do::Shot("21_expedition"),
+    Do::Act(Action::StartExpedition),
+    Do::Wait(1.5),
+    Do::Shot("22_landing_sites"),
+    Do::AutoLand,
+    Do::Act(Action::PickSite(1)),
+    Do::Wait(4.0),
+    Do::Shot("23_descent"),
+    Do::UntilAlarm,
+    Do::Wait(0.4),
+    Do::Shot("24_alarm_1202"),
+    Do::UntilLanded,
+    Do::Wait(1.2),
+    Do::Shot("25_touchdown"),
+    Do::Act(Action::LandingGo),
+    Do::Wait(1.5),
+    Do::Close,
+    Do::UntilForecast,
+    Do::Wait(0.5),
+    Do::Shot("26_base_forecast"),
+    Do::Open(Win::Upgrades),
+    Do::Wait(1.0),
+    Do::Shot("27_upgrades"),
+    Do::Close,
+    Do::Speed(12.0),
+    Do::UntilThreat,
+    Do::Speed(1.0),
+    Do::Wait(1.0),
+    Do::Shot("28_evening_threat"),
+    Do::Speed(12.0),
+    Do::UntilReport,
+    Do::Speed(1.0),
+    Do::Wait(1.0),
+    Do::Shot("29_report"),
+    Do::Close,
+    Do::Wait(0.5),
+    Do::Quit,
+];
+
 fn steps() -> &'static [Do] {
-    if std::env::var("JA_TOUR").map(|v| v == "save").unwrap_or(false) { SAVE_STEPS } else { STEPS }
+    match std::env::var("JA_TOUR").as_deref() {
+        Ok("save") => SAVE_STEPS,
+        Ok("survival") => SURVIVAL_STEPS,
+        _ => STEPS,
+    }
 }
 
 pub struct TourPlugin;
@@ -155,6 +213,7 @@ fn run(
     mut setup: ResMut<Setup>,
     mut exit: EventWriter<AppExit>,
     sim: Option<Res<crate::Sim>>,
+    mut descent: ResMut<crate::landing::Descent>,
 ) {
     let Some(step) = steps().get(tour.step) else { return };
     tour.t += time.delta_secs();
@@ -194,6 +253,15 @@ fn run(
             acts.write(Act(Action::Play(true)));
             true
         }
+        Do::AutoLand => {
+            descent.autopilot = true;
+            true
+        }
+        Do::UntilLanded => descent.lander.as_ref().map_or(false, |l| l.phase == ja_core::landing::Phase::Landed) || tour.t > 60.0,
+        Do::UntilAlarm => descent.lander.as_ref().map_or(false, |l| l.alarm.is_some()) || tour.t > 30.0,
+        Do::UntilForecast => sim.as_ref().map_or(false, |s| matches!(s.0.state().forecast, Some(ja_core::Forecast::Tonight(_)))) || tour.t > 20.0,
+        Do::UntilThreat => sim.as_ref().map_or(false, |s| s.0.state().surv.active.is_some()) || tour.t > 40.0,
+        Do::UntilReport => modal.win == Win::Report || tour.t > 40.0,
         Do::Quit => {
             exit.write(AppExit::Success);
             true

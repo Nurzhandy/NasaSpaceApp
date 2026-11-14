@@ -16,8 +16,10 @@
 pub mod data;
 pub mod game;
 pub mod i18n;
+pub mod landing;
 pub mod progress;
 pub mod rng;
+pub mod survival;
 pub mod weather;
 
 #[cfg(test)]
@@ -27,4 +29,6 @@ pub use data::{EventKind, Goal, MapId, ModuleKind, SiteKind, SkinSlot, Unlock, W
 pub use game::{region_at, BossState, Cause, Command, Forecast, Game, GameEvent, MissionConfig, MissionResult, Mode, ModuleId, Refusal, SiteId, State, Status};
 pub use i18n::{Lang, Msg, Tone};
 pub use progress::Profile;
+pub use survival::{Body, EventReport, ReportLine, Survival, Threat, Tonight, Upgrade};
+pub use landing::{Lander, LanderInput, LandingEvent};
 pub use weather::Weather;

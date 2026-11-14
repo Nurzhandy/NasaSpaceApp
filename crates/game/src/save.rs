@@ -13,11 +13,12 @@ use bevy::prelude::*;
 use bevy::window::WindowCloseRequested;
 use ja_core::data::{MAPS, MODULES};
 use ja_core::weather::WeatherEvent;
-use ja_core::{Command, Game, GameEvent, MapId, MissionConfig, ModuleKind, Refusal, Status, Weather};
+use ja_core::survival::UPGRADES;
+use ja_core::{Command, Game, GameEvent, MapId, MissionConfig, Mode, ModuleKind, Refusal, Status, Weather};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-const VERSION: u32 = 2; // 2: big map, story tasks and finale in ja-core
+const VERSION: u32 = 3; // 3: survival on the Moon (landing site, upgrades, threats)
 const AUTOSAVE_EVERY: f32 = 5.0;
 
 /// One recorded call into the rules.
@@ -49,6 +50,8 @@ pub enum Cmd {
     Cargo(bool),
     Feel(usize),
     Support(usize),
+    Upgrade(u8),
+    Calm,
 }
 
 fn kind_idx(k: ModuleKind) -> u8 {
@@ -74,6 +77,8 @@ impl From<Command> for Cmd {
             Command::ChooseCargo(b) => Cmd::Cargo(b),
             Command::NameFeeling(i) => Cmd::Feel(i),
             Command::Support(i) => Cmd::Support(i),
+            Command::Upgrade(u) => Cmd::Upgrade(UPGRADES.iter().position(|x| *x == u).unwrap_or(0) as u8),
+            Command::Calm => Cmd::Calm,
         }
     }
 }
@@ -93,6 +98,8 @@ impl From<Cmd> for Command {
             Cmd::Cargo(b) => Command::ChooseCargo(b),
             Cmd::Feel(i) => Command::NameFeeling(i),
             Cmd::Support(i) => Command::Support(i),
+            Cmd::Upgrade(i) => Command::Upgrade(UPGRADES[(i as usize).min(UPGRADES.len() - 1)]),
+            Cmd::Calm => Command::Calm,
         }
     }
 }
@@ -129,6 +136,28 @@ impl SavedWeather {
     }
 }
 
+/// How the mission starts: the mode and, for survival, the landing.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
+pub struct Start {
+    pub mode: Mode,
+    pub site: u8,
+    pub landing_coins: u32,
+}
+impl Default for Start {
+    fn default() -> Self {
+        Self { mode: Mode::Story, site: 1, landing_coins: 0 }
+    }
+}
+impl Start {
+    pub fn game(&self, cfg: MissionConfig, weather: &Weather) -> Game {
+        match self.mode {
+            Mode::Survival => Game::survival(cfg, self.site, self.landing_coins, weather),
+            Mode::Story => Game::new(cfg, weather),
+            m => Game::with_mode(cfg, m, weather),
+        }
+    }
+}
+
 /// Everything needed to rebuild a mission.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Recording {
@@ -138,6 +167,8 @@ pub struct Recording {
     coop: bool,
     live: bool,
     seed: u64,
+    #[serde(default)]
+    pub start: Start,
     pub plan: u8,
     weather: SavedWeather,
     /// shown on the "Continue" button without replaying
@@ -149,8 +180,9 @@ pub struct Recording {
 }
 
 impl Recording {
-    pub fn new(cfg: MissionConfig, weather: &Weather, plan: u8) -> Self {
+    pub fn new(cfg: MissionConfig, start: Start, weather: &Weather, plan: u8) -> Self {
         Self {
+            start,
             version: VERSION,
             map: MAPS.iter().position(|m| m.id == cfg.map).unwrap_or(0) as u8,
             cadet: cfg.cadet,
@@ -180,16 +212,20 @@ impl Recording {
 }
 
 impl Sim {
-    /// Start a new mission (recorded from the first moment).
+    /// Start a new story mission (recorded from the first moment).
     pub fn start(cfg: MissionConfig, weather: &Weather, plan: u8) -> Self {
-        let game = Game::new(cfg, weather);
-        let mut rec = Recording::new(cfg, weather, plan);
+        Self::start_with(cfg, Start::default(), weather, plan)
+    }
+    /// Start a new mission in any mode (survival after the landing, creative…).
+    pub fn start_with(cfg: MissionConfig, start: Start, weather: &Weather, plan: u8) -> Self {
+        let game = start.game(cfg, weather);
+        let mut rec = Recording::new(cfg, start, weather, plan);
         rec.sols = game.state().sols;
         Sim(game, rec)
     }
     /// Rebuild a saved mission by replaying its recording.
     pub fn resume(mut rec: Recording) -> Self {
-        let mut game = Game::new(rec.config(), &rec.weather.to_weather());
+        let mut game = rec.start.game(rec.config(), &rec.weather.to_weather());
         for op in &rec.ops {
             match *op {
                 Op::T(dt) => {
@@ -392,7 +428,8 @@ pub fn begin(commands: &mut Commands, setup: &mut Setup, resume: bool, cfg: Miss
             return;
         }
     }
-    commands.insert_resource(Sim::start(cfg, weather, setup.plan));
+    let start = Start { mode: setup.mode, site: setup.site, landing_coins: setup.landing_coins };
+    commands.insert_resource(Sim::start_with(cfg, start, weather, setup.plan));
 }
 
 #[cfg(test)]
@@ -403,8 +440,12 @@ mod tests {
 
     /// Play a mission with a mix of every kind of call, save, load, replay — states must match.
     fn roundtrip(map: MapId, coop: bool, seed: u64) {
+        roundtrip_with(map, coop, seed, Start::default());
+    }
+
+    fn roundtrip_with(map: MapId, coop: bool, seed: u64, start: Start) {
         let cfg = MissionConfig { map, cadet: false, coop, live: false, seed };
-        let mut sim = Sim::start(cfg, &Weather::archive(), 2);
+        let mut sim = Sim::start_with(cfg, start, &Weather::archive(), 2);
         let mut x = seed;
         let mut rnd = move || {
             x ^= x << 13;
@@ -426,7 +467,12 @@ mod tests {
                 }
                 8 => {
                     let st = sim.0.state();
-                    let cmd = match rnd() % 6 {
+                    let cmd = match rnd() % 8 {
+                        6 => Command::Upgrade(UPGRADES[rnd() as usize % UPGRADES.len()]),
+                        7 => match st.modules.get(rnd() as usize % st.modules.len()) {
+                            Some(m) => Command::Repair { module: m.id },
+                            None => Command::Calm,
+                        },
                         0 => Command::Build { kind: ModuleKind::Battery, x: (rnd() % (2 * BUILD_R as u64)) as i32 - BUILD_R, y: (rnd() % (2 * BUILD_R as u64)) as i32 - BUILD_R },
                         1 => match st.modules.get(rnd() as usize % st.modules.len()) {
                             Some(m) => Command::SetPower { module: m.id, blocks: (rnd() % 4) as u8 },
@@ -459,5 +505,9 @@ mod tests {
         for (i, m) in MAPS.iter().enumerate() {
             roundtrip(m.id, i % 2 == 1, 1000 + i as u64);
         }
+        for (i, site) in [0u8, 1, 2].into_iter().enumerate() {
+            roundtrip_with(MapId::Moon, i == 1, 77 + i as u64, Start { mode: Mode::Survival, site, landing_coins: 7 });
+        }
+        roundtrip_with(MapId::Moon, false, 5, Start { mode: Mode::Sandbox, site: 1, landing_coins: 0 });
     }
 }

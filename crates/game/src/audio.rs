@@ -47,6 +47,13 @@ fn from_events(mut ev: EventReader<Happened>, mut refused: EventReader<Refused>,
             GameEvent::QuestStarted(_) => "radio",
             GameEvent::BossWave { .. } => "alarm",
             GameEvent::WaveCleared { .. } => "good",
+            GameEvent::Threat(_) | GameEvent::MeteorHit { .. } => "alarm",
+            GameEvent::ThreatOver(r) => {
+                if r.countered { "coin" } else { "radio" }
+            }
+            GameEvent::Upgraded { .. } => "coin",
+            GameEvent::SuitLow { .. } | GameEvent::SuitEmpty { .. } | GameEvent::Tired { .. } => "bad",
+            GameEvent::Calmed { .. } => "good",
             GameEvent::MissionEnded(r) => {
                 if r.won { "badge" } else { "launch" }
             }

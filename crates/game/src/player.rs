@@ -158,6 +158,9 @@ fn walk(time: Res<Time>, inputs: Res<Inputs>, modal: Res<Modal>, colliders: Res<
             p.anim += dt * 9.0 * mv.length();
             let far = p.pos.length() > ja_core::game::BUILD_R as f32 + 3.0;
             let speed = if far && sim.0.state().has(ja_core::Unlock::Vehicle) { SPEED * 2.2 } else { SPEED };
+            // survival: a tired astronaut walks slower (rest in the dome in the evening)
+            let tired = sim.0.state().players.get(p.idx as usize).map(|x| x.body.fatigue).unwrap_or(0.0);
+            let speed = if sim.0.state().mode == ja_core::Mode::Survival && tired > 60.0 { speed * (1.0 - (tired - 60.0) / 100.0) } else { speed };
             let mut np = p.pos + mv * speed * dt;
             for &(x, y, w, h) in &rects {
                 push_rect(&mut np, x, y, w, h);
@@ -211,9 +214,16 @@ pub fn find_target(st: &State, idx: u8, pos: Vec2, crew: Vec2) -> Option<Target>
     if let Some(m) = near.iter().find(|m| m.broken) {
         return Some(Target::Repair(m.id));
     }
-    if st.leak {
+    let survival = st.mode == ja_core::Mode::Survival;
+    if st.leak || (survival && st.surv.seal < 100.0) {
         if let Some(h) = near.iter().find(|m| m.kind == ModuleKind::Habitat) {
             return Some(Target::Repair(h.id));
+        }
+    }
+    // survival: meteorites leave dents — fix them before they break the module
+    if survival {
+        if let Some(m) = near.iter().find(|m| m.hp < 100.0 && m.kind != ModuleKind::Habitat) {
+            return Some(Target::Repair(m.id));
         }
     }
     if let Some(m) = near.iter().find(|m| m.dusty) {
@@ -366,7 +376,7 @@ fn prompts(
             *vis = Visibility::Hidden;
             continue;
         };
-        let key = if st.coop && p.idx == 1 && !net.active() { "Shift" } else { "F" };
+        let key = if st.coop && p.idx == 1 && !net.active() { "Shift" } else { "E" };
         let mname = |id: ModuleId| st.module(id).map(|m| { let d = module_def(m.kind); l.pick(d.name_ru, d.name_en) }).unwrap_or("");
         let (ic, label, warn): (&str, String, bool) = match t {
             Target::Exit => ("exit", l.pick("Выйти наружу", "Go outside").into(), false),

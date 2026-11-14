@@ -33,7 +33,6 @@ pub enum Action {
     ToggleLang,
     ToggleSound,
     ToggleMusic,
-    ToggleAge,
     ShopTab(u8),
     Skin(SkinSlot, usize),
     Power(ModuleId, i8),
@@ -56,6 +55,19 @@ pub enum Action {
     NetJoin(u8),
     NetJoinTyped,
     NetStop,
+    /// new expedition screen
+    SetCreative(bool),
+    SetJunior(bool),
+    SetPlayers(bool),
+    StartExpedition,
+    /// landing (landing.rs)
+    PickSite(u8),
+    LandingRetry,
+    LandingGo,
+    LandingAck,
+    /// survival upgrades window
+    Upgrades,
+    BuyUpgrade(u8),
 }
 
 #[derive(Event, Clone, Copy, Debug)]
