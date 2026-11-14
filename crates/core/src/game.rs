@@ -702,6 +702,14 @@ impl Game {
     }
 
     /// Part B reports where each astronaut stands (cells). Needed for "walk up and act".
+    /// Network game for 3–4: more astronauts at the door (up to 4 in all).
+    pub fn add_players(&mut self, total: u8) {
+        while (self.s.players.len() as u8) < total.min(4) {
+            let i = self.s.players.len() as f32;
+            self.s.players.push(Player { pos: (DOOR.0 - 1.2 + i * 0.8, DOOR.1 + 1.0), inside: false, carried: 0, body: Body::default() });
+        }
+        self.s.coop = self.s.players.len() > 1;
+    }
     pub fn set_player_pos(&mut self, player: u8, x: f32, y: f32) {
         if let Some(p) = self.s.players.get_mut(player as usize) {
             p.pos = (x, y);

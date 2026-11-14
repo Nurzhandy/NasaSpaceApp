@@ -202,14 +202,15 @@ fn poll_weather(rx: Option<Res<SkyRx>>, mut sky: ResMut<Sky>) {
     }
 }
 
-fn start_mission(mut commands: Commands, mut setup: ResMut<Setup>, prof: Res<Prof>, sky: Res<Sky>, resume: Res<save::Resume>, net_start: Option<Res<net::NetStart>>) {
+fn start_mission(mut commands: Commands, mut setup: ResMut<Setup>, prof: Res<Prof>, sky: Res<Sky>, resume: Res<save::Resume>, net_start: Option<Res<net::NetStart>>, net: Res<net::Net>) {
     if let Some(ns) = net_start {
         // network guest: the host's mission; its state replaces ours as soon as it arrives
-        commands.insert_resource(Sim::start(ns.0, &sky.weather, setup.plan));
+        let start = save::Start { players: ns.1, ..default() };
+        commands.insert_resource(Sim::start_with(ns.0, start, &sky.weather, setup.plan));
         commands.remove_resource::<net::NetStart>();
         return;
     }
     let seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos() as u64).unwrap_or(7);
     let cfg = MissionConfig { map: setup.map, cadet: prof.0.cadet, coop: setup.coop, live: setup.live, seed };
-    save::begin(&mut commands, &mut setup, resume.0, cfg, &sky.weather);
+    save::begin(&mut commands, &mut setup, resume.0, cfg, &sky.weather, net.crew());
 }

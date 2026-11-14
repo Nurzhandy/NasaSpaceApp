@@ -71,6 +71,10 @@ pub enum Action {
     NetJoin(u8),
     NetJoinTyped,
     NetStop,
+    /// network: show / hide this player's quick phrases
+    NetMute(u8),
+    /// network: say quick phrase n (net::PHRASES)
+    Say(u8),
     /// new expedition screen
     SetCreative(bool),
     SetJunior(bool),
@@ -114,7 +118,7 @@ pub struct Pad {
     pub nav: Vec2,
 }
 #[derive(Resource, Default)]
-pub struct Inputs(pub [Pad; 2]);
+pub struct Inputs(pub [Pad; 4]);
 
 /// True while an in-game window needs the focus (set by `windows`).
 #[derive(Resource, Default)]
@@ -186,11 +190,14 @@ fn read_inputs(keys: Res<ButtonInput<KeyCode>>, pads: Query<(Entity, &Gamepad)>,
     }
     p1.mv = p1.mv.clamp_length_max(1.0);
     p2.mv = p2.mv.clamp_length_max(1.0);
-    inputs.0 = match net.remote_idx() {
-        // the guest plays astronaut 1, the host astronaut 0; the other one is moved by the network
-        Some(0) if playing => [Pad::default(), p1],
-        Some(1) if playing => [p1, Pad::default()],
-        _ => [p1, p2],
+    inputs.0 = match net.local_idx() {
+        // network game: this computer plays one astronaut, the others are moved by the network
+        Some(i) if playing => {
+            let mut a = [Pad::default(); 4];
+            a[(i as usize).min(3)] = p1;
+            a
+        }
+        _ => [p1, p2, Pad::default(), Pad::default()],
     };
 }
 

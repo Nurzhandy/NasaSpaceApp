@@ -71,7 +71,7 @@ fn spawn_players(mut commands: Commands, sim: Res<Sim>, art: Res<Art>, prof: Res
         let (suit, visor, hat) = if i == 0 {
             (art::suit_color(&prof.0.suit), art::visor_color(&prof.0.visor), art::hat_index(&prof.0.hat))
         } else {
-            (Color::srgb(0.5, 0.75, 1.0), Color::srgb(1.0, 0.8, 0.3), Some(0))
+            (crate::net::seat_color(i as u8), Color::srgb(1.0, 0.8, 0.3), Some(0))
         };
         let w = to_world(p.pos.0, p.pos.1);
         let size = Vec2::new(16.0, 24.0) * PX;
@@ -88,7 +88,7 @@ fn spawn_players(mut commands: Commands, sim: Res<Sim>, art: Res<Art>, prof: Res
                     c.spawn((Sprite { image: art.sprite("hats"), texture_atlas: Some(TextureAtlas { layout: art.hat_layout.clone(), index: h }), custom_size: Some(Vec2::splat(16.0 * PX)), anchor: Anchor::BottomCenter, ..default() }, Transform::from_xyz(0.0, 52.0, 0.02)));
                 }
                 if st.coop {
-                    c.spawn((Sprite { image: art.sprite("arrow"), color: if i == 0 { Color::srgb(1.0, 0.75, 0.3) } else { Color::srgb(0.5, 0.8, 1.0) }, custom_size: Some(Vec2::splat(24.0)), flip_y: true, ..default() }, Transform::from_xyz(0.0, 100.0, 0.03)));
+                    c.spawn((Sprite { image: art.sprite("arrow"), color: crate::net::seat_color(i as u8), custom_size: Some(Vec2::splat(24.0)), flip_y: true, ..default() }, Transform::from_xyz(0.0, 100.0, 0.03)));
                 }
             });
         commands
@@ -129,7 +129,7 @@ fn walk(time: Res<Time>, inputs: Res<Inputs>, modal: Res<Modal>, colliders: Res<
             p.pos = Vec2::new(ps.pos.0, ps.pos.1);
         }
         p.was_inside = ps.inside;
-        if net.remote_idx() == Some(p.idx) {
+        if net.is_remote(p.idx) {
             // the other computer moves this astronaut: glide to where the network says it is
             let target = Vec2::new(ps.pos.0, ps.pos.1);
             let d = target - p.pos;
@@ -370,7 +370,7 @@ fn prompts(
     let l = prof.lang();
     for (v, mut tr, mut vis, children) in &mut views {
         let Some(p) = players.iter().find(|p| p.idx == v.0) else { continue };
-        let remote = net.remote_idx() == Some(p.idx);
+        let remote = net.is_remote(p.idx);
         let target = if remote || modal.blocks(p.idx) || (build.active && build.player == p.idx) { None } else { find_target(st, p.idx, p.pos, crew.0) };
         let Some(t) = target else {
             *vis = Visibility::Hidden;

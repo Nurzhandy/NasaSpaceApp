@@ -142,19 +142,26 @@ pub struct Start {
     pub mode: Mode,
     pub site: u8,
     pub landing_coins: u32,
+    /// network game: astronauts in the mission (0 = from `coop`)
+    #[serde(default)]
+    pub players: u8,
 }
 impl Default for Start {
     fn default() -> Self {
-        Self { mode: Mode::Story, site: 1, landing_coins: 0 }
+        Self { mode: Mode::Story, site: 1, landing_coins: 0, players: 0 }
     }
 }
 impl Start {
     pub fn game(&self, cfg: MissionConfig, weather: &Weather) -> Game {
-        match self.mode {
+        let mut g = match self.mode {
             Mode::Survival => Game::survival(cfg, self.site, self.landing_coins, weather),
             Mode::Story => Game::new(cfg, weather),
             m => Game::with_mode(cfg, m, weather),
+        };
+        if self.players > 2 {
+            g.add_players(self.players);
         }
+        g
     }
 }
 
@@ -304,7 +311,7 @@ pub fn load() -> Option<Recording> {
     (r.version == VERSION).then_some(r)
 }
 
-fn write(sim: &Sim) -> bool {
+pub fn write(sim: &Sim) -> bool {
     if !enabled() || !sim.unfinished() {
         return false;
     }
@@ -418,7 +425,7 @@ fn on_app_exit(mut ev: EventReader<AppExit>, sim: Option<Res<Sim>>) {
 }
 
 /// Used by `main::start_mission`: continue the saved mission if asked, else start a new one.
-pub fn begin(commands: &mut Commands, setup: &mut Setup, resume: bool, cfg: MissionConfig, weather: &Weather) {
+pub fn begin(commands: &mut Commands, setup: &mut Setup, resume: bool, cfg: MissionConfig, weather: &Weather, players: u8) {
     if resume {
         if let Some(rec) = load() {
             setup.map = rec.map_id();
@@ -428,7 +435,7 @@ pub fn begin(commands: &mut Commands, setup: &mut Setup, resume: bool, cfg: Miss
             return;
         }
     }
-    let start = Start { mode: setup.mode, site: setup.site, landing_coins: setup.landing_coins };
+    let start = Start { mode: setup.mode, site: setup.site, landing_coins: setup.landing_coins, players };
     commands.insert_resource(Sim::start_with(cfg, start, weather, setup.plan));
 }
 
@@ -506,8 +513,8 @@ mod tests {
             roundtrip(m.id, i % 2 == 1, 1000 + i as u64);
         }
         for (i, site) in [0u8, 1, 2].into_iter().enumerate() {
-            roundtrip_with(MapId::Moon, i == 1, 77 + i as u64, Start { mode: Mode::Survival, site, landing_coins: 7 });
+            roundtrip_with(MapId::Moon, i == 1, 77 + i as u64, Start { mode: Mode::Survival, site, landing_coins: 7, players: 0 });
         }
-        roundtrip_with(MapId::Moon, false, 5, Start { mode: Mode::Sandbox, site: 1, landing_coins: 0 });
+        roundtrip_with(MapId::Moon, false, 5, Start { mode: Mode::Sandbox, site: 1, landing_coins: 0, players: 3 });
     }
 }

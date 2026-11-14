@@ -172,6 +172,9 @@ pub struct Campaign {
     content: Content,
     rng: Rng,
     checkpoint: Checkpoint,
+    /// network guest: `Some(seat)` — the host runs the rules, this copy only shows them
+    mirror: Option<u8>,
+    outbox: Vec<(u8, CampaignCommand)>,
 }
 
 impl Campaign {
@@ -204,7 +207,7 @@ impl Campaign {
             next_uid: 1,
             breathers: 0,
         };
-        let mut c = Campaign { checkpoint: Checkpoint(s.clone()), s, content: content.clone(), rng: Rng::new(cfg.seed) };
+        let mut c = Campaign { checkpoint: Checkpoint(s.clone()), s, content: content.clone(), rng: Rng::new(cfg.seed), mirror: None, outbox: vec![] };
         let _ = c.start_day(1);
         c
     }
@@ -232,7 +235,26 @@ impl Campaign {
     }
     /// Network guest: show the host's campaign.
     pub fn mirror(&mut self, s: CampaignState) {
+        self.mirror_as(s, u8::MAX);
+    }
+    /// Network guest playing crew member `seat`: show the host's campaign but keep our own
+    /// position (it walks here and is sent to the host). From now on `tick` does nothing and
+    /// `apply` queues the command for the host (see `take_outbox`).
+    pub fn mirror_as(&mut self, mut s: CampaignState, seat: u8) {
+        if let (Some(mine), Some(theirs)) = (self.s.crew.get(seat as usize), s.crew.get_mut(seat as usize)) {
+            if self.mirror == Some(seat) {
+                *theirs = mine.clone();
+            }
+        }
+        self.mirror = Some(seat);
         self.s = s;
+    }
+    pub fn is_mirror(&self) -> bool {
+        self.mirror.is_some()
+    }
+    /// Commands a guest made since the last call, for the host.
+    pub fn take_outbox(&mut self) -> Vec<(u8, CampaignCommand)> {
+        std::mem::take(&mut self.outbox)
     }
 
     fn junior(&self) -> bool {
@@ -323,6 +345,9 @@ impl Campaign {
 
     pub fn tick(&mut self, dt: f32) -> Vec<CampaignEvent> {
         let mut ev = vec![];
+        if self.mirror.is_some() {
+            return ev;
+        }
         let Phase::Ship { day } = self.s.phase else { return ev };
         if self.frozen() || dt <= 0.0 {
             return ev;
@@ -518,6 +543,10 @@ impl Campaign {
     }
 
     pub fn apply(&mut self, player: u8, cmd: CampaignCommand) -> Result<Vec<CampaignEvent>, CampaignRefusal> {
+        if self.mirror.is_some() {
+            self.outbox.push((player, cmd));
+            return Ok(vec![]);
+        }
         let p = (player as usize).min(self.s.crew.len().saturating_sub(1));
         match cmd {
             CampaignCommand::DialogNext | CampaignCommand::DialogChoose(_) => {
@@ -831,5 +860,30 @@ mod tests {
         let back: CampaignState = serde_json::from_str(&json).unwrap();
         assert_eq!(&back, g.state());
         assert_eq!(back.crew.len(), 4);
+    }
+
+    /// Network guest: never simulates, queues commands, keeps its own position.
+    #[test]
+    fn mirror_queues_commands_and_keeps_own_position() {
+        let c = content();
+        let cfg = ExpeditionConfig::new(2, Level::Advanced);
+        let mut host = Campaign::new(cfg, &c);
+        let mut guest = Campaign::new(cfg, &c);
+        guest.mirror_as(host.state().clone(), 1);
+        assert!(guest.is_mirror());
+        guest.set_crew_pos(1, 2.0, 3.0);
+        let before = guest.state().elapsed;
+        assert!(guest.tick(5.0).is_empty());
+        assert_eq!(guest.state().elapsed, before);
+        assert_eq!(guest.apply(1, CampaignCommand::DialogSkip), Ok(vec![]));
+        let out = guest.take_outbox();
+        assert_eq!(out, vec![(1, CampaignCommand::DialogSkip)]);
+        for (p, cmd) in out {
+            let _ = host.apply(p, cmd);
+        }
+        host.tick(1.0);
+        guest.mirror_as(host.state().clone(), 1);
+        assert_eq!(guest.state().crew[1].pos, (2.0, 3.0), "own position is ours");
+        assert_eq!(guest.state().elapsed, host.state().elapsed);
     }
 }

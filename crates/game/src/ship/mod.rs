@@ -134,7 +134,8 @@ fn reload_f5(keys: Res<ButtonInput<KeyCode>>, mut res: ResMut<ContentRes>, camp:
     }
 }
 
-fn start_expedition(mut commands: Commands, mut acts: EventReader<Act>, content: Res<ContentRes>, setup: Res<Setup>, prof: Res<Prof>, mut next: ResMut<NextState<AppState>>, mut play: EventWriter<Play>) {
+#[allow(clippy::too_many_arguments)]
+fn start_expedition(mut commands: Commands, mut acts: EventReader<Act>, content: Res<ContentRes>, setup: Res<Setup>, prof: Res<Prof>, mut next: ResMut<NextState<AppState>>, mut play: EventWriter<Play>, net: Res<crate::net::Net>) {
     for Act(a) in acts.read() {
         if *a != Action::StartExpedition {
             continue;
@@ -148,7 +149,12 @@ fn start_expedition(mut commands: Commands, mut acts: EventReader<Act>, content:
         }
         // the choices from part B's "new expedition" screen
         let level = if prof.0.cadet { Level::Junior } else { Level::Advanced };
-        let mut cfg = ExpeditionConfig::new(if setup.coop { 2 } else { 1 }, level);
+        let crew = match net.crew() {
+            0 if setup.coop => 2,
+            0 => 1,
+            n => n,
+        };
+        let mut cfg = ExpeditionConfig::new(crew, level);
         if setup.mode == ja_core::Mode::Sandbox {
             cfg.mode = ja_core::PlayMode::Creative;
         }
@@ -288,10 +294,24 @@ fn spawn_ship(mut commands: Commands, camp: Res<Camp>, art: Res<Art>, prof: Res<
 
 // ---------------------------------------------------------------- walking and consoles
 
-fn walk(time: Res<Time>, inputs: Res<Inputs>, ui: Res<ShipUi>, mut camp: ResMut<Camp>, mut q: Query<&mut Crew>) {
+fn walk(time: Res<Time>, inputs: Res<Inputs>, ui: Res<ShipUi>, mut camp: ResMut<Camp>, mut q: Query<&mut Crew>, net: Res<crate::net::Net>) {
     let dt = time.delta_secs().min(0.05);
     let Some(layout) = camp.0.content().ship.clone() else { return };
     for mut c in &mut q {
+        if net.is_remote(c.idx) {
+            // another computer walks this one: glide to where the network says
+            if let Some(t) = camp.0.state().crew.get(c.idx as usize).map(|k| Vec2::new(k.pos.0, k.pos.1)) {
+                let d = t - c.pos;
+                if d.length() > 0.03 {
+                    c.dir = if d.x.abs() > d.y.abs() { if d.x < 0.0 { 1 } else { 2 } } else if d.y > 0.0 { 3 } else { 0 };
+                    c.anim += dt * 9.0;
+                    c.pos += d * (12.0 * dt).min(1.0);
+                } else {
+                    c.anim = 0.0;
+                }
+            }
+            continue;
+        }
         let Some(pad) = inputs.0.get(c.idx as usize).copied() else { continue };
         let busy = ui.paused || ui.open.is_some_and(|o| o.0 == c.idx) || camp.0.frozen();
         if busy || pad.mv.length() < 0.1 {
@@ -355,7 +375,8 @@ fn interact(inputs: Res<Inputs>, mut ui: ResMut<ShipUi>, mut camp: ResMut<Camp>,
 
 /// Buttons in the ship windows.
 #[allow(clippy::too_many_arguments)]
-fn ship_actions(mut acts: EventReader<Act>, mut camp: ResMut<Camp>, mut ui: ResMut<ShipUi>, mut next: ResMut<NextState<AppState>>, mut setup: ResMut<Setup>, prof: Res<Prof>, mut play: EventWriter<Play>, mut busy: ResMut<UiBusy>, inputs: Res<Inputs>) {
+#[allow(clippy::too_many_arguments)]
+fn ship_actions(mut acts: EventReader<Act>, mut camp: ResMut<Camp>, mut ui: ResMut<ShipUi>, mut next: ResMut<NextState<AppState>>, mut setup: ResMut<Setup>, prof: Res<Prof>, mut play: EventWriter<Play>, mut busy: ResMut<UiBusy>, inputs: Res<Inputs>, net: Res<crate::net::Net>) {
     let player = ui.open.map(|o| o.0).unwrap_or(0);
     let mut evs = vec![];
     // Esc: close the open window, or pause
@@ -393,6 +414,11 @@ fn ship_actions(mut acts: EventReader<Act>, mut camp: ResMut<Camp>, mut ui: ResM
             }
             Action::ShipQuit => {
                 next.set(AppState::Menu);
+                continue;
+            }
+            Action::ToMoon if camp.0.is_mirror() || net.local_idx().is_some_and(|i| i != 0) => {
+                // only the host flies the lander; the others follow when the base starts
+                play.write(Play("bad"));
                 continue;
             }
             Action::ToMoon => {

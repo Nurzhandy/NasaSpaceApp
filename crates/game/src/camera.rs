@@ -31,8 +31,7 @@ fn snap(mut cam: Query<&mut Transform, With<MainCam>>) {
 
 fn follow(time: Res<Time>, players: Query<&Player>, mut cam: Query<(&mut Transform, &mut Projection), With<MainCam>>, windows: Query<&Window>, net: Res<crate::net::Net>) {
     let Ok((mut t, mut proj)) = cam.single_mut() else { return };
-    let remote = net.remote_idx();
-    let pts: Vec<Vec2> = players.iter().filter(|p| Some(p.idx) != remote).map(|p| to_world(p.pos.x, p.pos.y + 0.8)).collect();
+    let pts: Vec<Vec2> = players.iter().filter(|p| !net.is_remote(p.idx)).map(|p| to_world(p.pos.x, p.pos.y + 0.8)).collect();
     if pts.is_empty() {
         return;
     }

@@ -218,13 +218,13 @@ fn feelings(mut ev: EventReader<Happened>, mut modal: ResMut<Modal>) {
     }
 }
 
-fn pause_world(modal: Res<Modal>, mut sim: ResMut<Sim>, mut paused: ResMut<Paused>, mut busy: ResMut<UiBusy>) {
+fn pause_world(modal: Res<Modal>, mut sim: ResMut<Sim>, mut paused: ResMut<Paused>, mut busy: ResMut<UiBusy>, net: Res<crate::net::Net>) {
     let coop = sim.0.state().coop;
     let p = match modal.win {
         Win::None => false,
         Win::Pause | Win::Beacon | Win::Tutorial(_) => true,
         _ => !coop,
-    };
+    } || net.hold;
     if paused.0 != p || sim.0.state().paused != p {
         paused.0 = p;
         sim.set_paused(p);
