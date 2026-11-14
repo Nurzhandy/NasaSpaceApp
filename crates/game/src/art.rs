@@ -41,7 +41,8 @@ pub const ICONS: &[&str] = &[
 
 pub fn load(mut commands: Commands, server: Res<AssetServer>, mut layouts: ResMut<Assets<TextureAtlasLayout>>) {
     let sprites = SPRITES.iter().map(|n| (*n, server.load(format!("sprites/{n}.png")))).collect();
-    let icons = ICONS.iter().map(|n| (*n, server.load(format!("icons/{n}.png")))).collect();
+    // icons are smooth pictures drawn bigger than shown: linear filtering keeps them clear when scaled
+    let icons = ICONS.iter().map(|n| (*n, server.load_with_settings(format!("icons/{n}.png"), |s: &mut bevy::image::ImageLoaderSettings| s.sampler = bevy::image::ImageSampler::linear()))).collect();
     commands.insert_resource(Art {
         sprites,
         icons,

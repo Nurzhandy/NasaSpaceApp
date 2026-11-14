@@ -3,6 +3,7 @@
 //! Rules live in `ja_core::campaign`; this module only draws them and sends commands.
 
 pub mod card;
+pub mod decor;
 
 use crate::art::{self, Art};
 use crate::audio::Play;
@@ -76,6 +77,7 @@ impl Plugin for ShipPlugin {
             .add_systems(Startup, load_content)
             .add_systems(Update, (start_expedition, reload_f5).after(Set::Input))
             .add_systems(OnEnter(AppState::Ship), (spawn_ship, crate::ship::reset_camera))
+            .add_systems(Update, decor::animate.run_if(in_state(AppState::Ship)))
             .add_systems(OnExit(AppState::Ship), |mut ui: ResMut<ShipUi>, mut busy: ResMut<UiBusy>| {
                 *ui = ShipUi::default();
                 busy.0 = false;
@@ -175,91 +177,21 @@ pub fn reset_camera(mut cam: Query<(&mut Transform, &mut Projection), With<MainC
 
 // ---------------------------------------------------------------- the ship interior
 
-fn room_color(i: usize) -> Color {
-    let c = [(0.20, 0.24, 0.42), (0.17, 0.20, 0.36), (0.18, 0.30, 0.36), (0.24, 0.22, 0.34), (0.20, 0.27, 0.30), (0.17, 0.28, 0.40), (0.24, 0.24, 0.28), (0.20, 0.22, 0.32), (0.28, 0.22, 0.26)][i % 9];
-    Color::srgb(c.0, c.1, c.2)
-}
-
-fn spawn_ship(mut commands: Commands, camp: Res<Camp>, art: Res<Art>, prof: Res<Prof>) {
+fn spawn_ship(mut commands: Commands, camp: Res<Camp>, art: Res<Art>, prof: Res<Prof>, mut meshes: ResMut<Assets<Mesh>>, mut mats: ResMut<Assets<ColorMaterial>>) {
     let sc = StateScoped(AppState::Ship);
     let c = camp.0.content();
     let Some(layout) = &c.ship else { return };
     let l = prof.lang();
-    // space behind the ship
-    commands.spawn((Sprite { color: Color::srgb(0.01, 0.01, 0.04), custom_size: Some(Vec2::new(3000.0, 2000.0)), ..default() }, Transform::from_xyz(0.0, 0.0, -5.0), sc.clone()));
-    let mut seed = 7u64;
-    for _ in 0..140 {
-        seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
-        let (x, y) = (((seed >> 33) % 1600) as f32 - 800.0, ((seed >> 13) % 1000) as f32 - 500.0);
-        commands.spawn((Sprite { color: Color::srgba(1.0, 1.0, 1.0, 0.6), custom_size: Some(Vec2::splat(2.0)), ..default() }, Transform::from_xyz(x, y, -4.0), sc.clone()));
-    }
-    // hull outline
-    let (w, h) = (21.0 * SC, 15.0 * SC);
-    commands.spawn((Sprite { color: Color::srgb(0.55, 0.58, 0.68), custom_size: Some(Vec2::new(w + 16.0, h + 16.0)), ..default() }, Transform::from_xyz(0.0, 0.0, -3.0), sc.clone()));
+    // space flying past, the hull, the rooms with furniture, the walls
+    decor::spawn(&mut commands, layout, &mut meshes, &mut mats, &art, l);
+    // consoles: a bright frame, a dark screen and a big clear picture of the job
     for (i, r) in layout.rooms.iter().enumerate() {
-        let c0 = to_px(r.x as f32, r.y as f32);
-        let size = Vec2::new(r.w as f32 * SC, r.h as f32 * SC);
-        commands.spawn((Sprite { color: room_color(i), custom_size: Some(size), anchor: Anchor::BottomLeft, ..default() }, Transform::from_xyz(c0.x, c0.y, -2.0), sc.clone()));
-        // floor grid
-        for gx in 0..r.w {
-            for gy in 0..r.h {
-                if (gx + gy) % 2 == 0 {
-                    let p = to_px((r.x + gx) as f32, (r.y + gy) as f32);
-                    commands.spawn((Sprite { color: Color::srgba(1.0, 1.0, 1.0, 0.03), custom_size: Some(Vec2::splat(SC)), anchor: Anchor::BottomLeft, ..default() }, Transform::from_xyz(p.x, p.y, -1.9), sc.clone()));
-                }
-            }
-        }
-        let name_at = to_px(r.x as f32 + 0.3, (r.y + r.h) as f32 - 0.35);
-        commands.spawn((
-            Text2d::new(r.name.get(l)),
-            TextFont { font: art.body.clone(), font_size: 15.0, ..default() },
-            TextColor(Color::srgba(0.85, 0.9, 1.0, 0.75)),
-            Anchor::CenterLeft,
-            Transform::from_xyz(name_at.x, name_at.y, -1.0),
-            sc.clone(),
-        ));
         for k in &r.consoles {
             let p = to_px(k.x as f32 + 0.5, k.y as f32 + 0.5);
-            commands.spawn((Sprite { color: Color::srgb(0.10, 0.11, 0.18), custom_size: Some(Vec2::splat(SC * 0.95)), ..default() }, Transform::from_xyz(p.x, p.y, -0.9), sc.clone()));
-            commands.spawn((Sprite { image: art.icon(&k.icon), custom_size: Some(Vec2::splat(SC * 0.75)), ..default() }, Transform::from_xyz(p.x, p.y, -0.8), sc.clone()));
-        }
-        // walls with door gaps
-        let wall = Color::srgb(0.62, 0.66, 0.78);
-        let t = 0.18;
-        let edges = [
-            ((r.x as f32, r.y as f32), (r.x as f32, (r.y + r.h) as f32)),
-            (((r.x + r.w) as f32, r.y as f32), ((r.x + r.w) as f32, (r.y + r.h) as f32)),
-            ((r.x as f32, r.y as f32), ((r.x + r.w) as f32, r.y as f32)),
-            ((r.x as f32, (r.y + r.h) as f32), ((r.x + r.w) as f32, (r.y + r.h) as f32)),
-        ];
-        for (a, b) in edges {
-            let vertical = a.0 == b.0;
-            let (lo, hi) = if vertical { (a.1, b.1) } else { (a.0, b.0) };
-            let mut cuts: Vec<(f32, f32)> = layout
-                .doors
-                .iter()
-                .filter(|d| if vertical { (d.0 - a.0).abs() < 0.01 && d.1 > lo && d.1 < hi } else { (d.1 - a.1).abs() < 0.01 && d.0 > lo && d.0 < hi })
-                .map(|d| if vertical { (d.1 - 0.8, d.1 + 0.8) } else { (d.0 - 0.8, d.0 + 0.8) })
-                .collect();
-            cuts.sort_by(|x, y| x.0.total_cmp(&y.0));
-            let mut s = lo;
-            let mut pieces = vec![];
-            for (c0, c1) in cuts {
-                pieces.push((s, c0));
-                s = c1;
-            }
-            pieces.push((s, hi));
-            for (p0, p1) in pieces {
-                if p1 - p0 < 0.05 {
-                    continue;
-                }
-                let (mid, size) = if vertical {
-                    (to_px(a.0, (p0 + p1) / 2.0), Vec2::new(t * SC, (p1 - p0) * SC))
-                } else {
-                    (to_px((p0 + p1) / 2.0, a.1), Vec2::new((p1 - p0) * SC, t * SC))
-                };
-                commands.spawn((Sprite { color: wall, custom_size: Some(size), ..default() }, Transform::from_xyz(mid.x, mid.y, -0.5), sc.clone()));
-            }
+            commands.spawn((Sprite { color: Color::srgba(1.0, 0.85, 0.3, 0.25), custom_size: Some(Vec2::splat(SC * 1.55)), ..default() }, Transform::from_xyz(p.x, p.y, -0.95), decor::Blink { speed: 1.2, phase: i as f32, base: 0.3 }, sc.clone()));
+            commands.spawn((Sprite { color: Color::srgb(1.0, 0.82, 0.3), custom_size: Some(Vec2::splat(SC * 1.32)), ..default() }, Transform::from_xyz(p.x, p.y, -0.9), sc.clone()));
+            commands.spawn((Sprite { color: Color::srgb(0.07, 0.09, 0.2), custom_size: Some(Vec2::splat(SC * 1.2)), ..default() }, Transform::from_xyz(p.x, p.y, -0.89), sc.clone()));
+            commands.spawn((Sprite { image: art.icon(&k.icon), custom_size: Some(Vec2::splat(SC * 1.08)), ..default() }, Transform::from_xyz(p.x, p.y, -0.8), sc.clone()));
         }
     }
     // the crew
@@ -553,7 +485,7 @@ fn markers(mut commands: Commands, camp: Res<Camp>, art: Res<Art>, old: Query<En
             TaskKind::Story => ("star", Color::srgb(1.0, 0.9, 0.4)),
             TaskKind::Routine => ("hint", Color::WHITE),
         };
-        commands.spawn((Sprite { image: art.icon(icon), color: col, custom_size: Some(Vec2::splat(28.0)), ..default() }, Transform::from_xyz(p.x, p.y, 3.0), Marker, StateScoped(AppState::Ship)));
+        commands.spawn((Sprite { image: art.icon(icon), color: col, custom_size: Some(Vec2::splat(38.0)), ..default() }, Transform::from_xyz(p.x, p.y + 6.0, 3.0), Marker, StateScoped(AppState::Ship)));
     }
     for room in &st.ship.leaks {
         if let Some(r) = camp.0.content().room(room) {
