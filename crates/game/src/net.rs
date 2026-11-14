@@ -73,13 +73,16 @@ impl Room {
 }
 
 /// Quick phrases (A9): icon, Russian, English.
-pub const PHRASES: [(&str, &str, &str); 6] = [
+pub const PHRASES: [(&str, &str, &str); 8] = [
     ("thumbs", "Отлично!", "Great!"),
     ("sos", "Помоги!", "Help!"),
     ("walk", "Иду!", "On my way!"),
     ("check", "Готово!", "Done!"),
     ("hourglass", "Подожди!", "Wait!"),
     ("battery", "Нужна энергия!", "Need power!"),
+    // smileys
+    ("f_happy", "Ура!", "Yay!"),
+    ("f_sad", "Ой…", "Oops…"),
 ];
 
 /// What a guest asks the host to do, numbered and re-sent until acknowledged.
@@ -820,7 +823,7 @@ fn find_hosts(time: Res<Time>, mut lobby: ResMut<Lobby>, net: Res<Net>) {
     }
 }
 
-// ---- quick phrases (A9): keys 1–6 or the buttons under the chat
+// ---- quick phrases and smileys (A9): keys 1–8 or the buttons under the chat
 
 #[allow(clippy::too_many_arguments)]
 fn say_actions(mut acts: EventReader<Act>, keys: Res<ButtonInput<KeyCode>>, mut net: ResMut<Net>, state: Res<bevy::state::state::State<AppState>>, busy: Res<UiBusy>, time: Res<Time>, mut wait: Local<f32>) {
@@ -828,7 +831,7 @@ fn say_actions(mut acts: EventReader<Act>, keys: Res<ButtonInput<KeyCode>>, mut 
     let mut said = acts.read().filter_map(|Act(a)| if let Action::Say(i) = *a { Some(i) } else { None }).last();
     let in_game = matches!(*state.get(), AppState::Playing | AppState::Ship);
     if net.active() && in_game && !busy.0 {
-        const KEYS: [KeyCode; 6] = [KeyCode::Digit1, KeyCode::Digit2, KeyCode::Digit3, KeyCode::Digit4, KeyCode::Digit5, KeyCode::Digit6];
+        const KEYS: [KeyCode; 8] = [KeyCode::Digit1, KeyCode::Digit2, KeyCode::Digit3, KeyCode::Digit4, KeyCode::Digit5, KeyCode::Digit6, KeyCode::Digit7, KeyCode::Digit8];
         if let Some(i) = KEYS.iter().position(|k| keys.just_pressed(*k)) {
             said = Some(i as u8);
         }
@@ -1110,7 +1113,7 @@ pub fn seat_color(i: u8) -> Color {
 fn spawn_badge(mut commands: Commands) {
     commands
         .spawn((
-            Node { position_type: PositionType::Absolute, left: Val::Px(12.0), bottom: Val::Px(90.0), padding: UiRect::axes(Val::Px(10.0), Val::Px(4.0)), ..default() },
+            Node { position_type: PositionType::Absolute, left: Val::Px(12.0), bottom: Val::Px(112.0), padding: UiRect::axes(Val::Px(10.0), Val::Px(4.0)), ..default() },
             BackgroundColor(Color::srgba(0.05, 0.06, 0.16, 0.85)),
             BorderRadius::all(Val::Px(6.0)),
             GlobalZIndex(40),
@@ -1181,7 +1184,7 @@ fn chat_view(mut commands: Commands, time: Res<Time>, mut net: ResMut<Net>, art:
     let me = net.local_idx().unwrap_or(0);
     commands
         .spawn((
-            Node { position_type: PositionType::Absolute, left: Val::Px(12.0), bottom: Val::Px(124.0), flex_direction: FlexDirection::Column, row_gap: Val::Px(4.0), ..default() },
+            Node { position_type: PositionType::Absolute, left: Val::Px(12.0), bottom: Val::Px(146.0), flex_direction: FlexDirection::Column, row_gap: Val::Px(4.0), ..default() },
             GlobalZIndex(41),
             ChatRoot,
         ))

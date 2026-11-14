@@ -154,7 +154,7 @@ fn start_expedition(mut commands: Commands, mut acts: EventReader<Act>, content:
             0 => 1,
             n => n,
         };
-        let mut cfg = ExpeditionConfig::new(crew, level);
+        let mut cfg = ExpeditionConfig::new(crew, level).with_auto_roles();
         if setup.mode == ja_core::Mode::Sandbox {
             cfg.mode = ja_core::PlayMode::Creative;
         }
@@ -608,6 +608,21 @@ fn hud(mut commands: Commands, camp: Res<Camp>, art: Res<Art>, prof: Res<Prof>, 
                 kit::text(b, format!("{} {:.1} / {:.1} кВт", l.pick("Мощность: даём / тратим", "Power: made / used"), s.power_in, s.power_out), &art.body, 13.0, C_MUTED);
             } else {
                 bar(b, &art, "battery", l.pick("Энергия", "Energy"), s.energy / ja_core::ship::ENERGY_CAP, format!("{:.0}%", s.energy / ja_core::ship::ENERGY_CAP * 100.0), col(s.energy / ja_core::ship::ENERGY_CAP * 100.0));
+            }
+            // crew roles: each gives the whole team a small bonus
+            for (i, r) in st.cfg.roles.iter().enumerate().take(st.cfg.players as usize) {
+                let Some(r) = r else { continue };
+                let (icon, ru, en, bru, ben) = match r {
+                    ja_core::Role::Pilot => ("rocket", "пилот", "pilot", "удары астероидов слабее", "asteroid hits are softer"),
+                    ja_core::Role::Engineer => ("wrench", "инженер", "engineer", "больше времени на ремонт", "more time for repairs"),
+                    ja_core::Role::Researcher => ("science", "исследователь", "researcher", "+50% монет в лаборатории", "+50% coins in the lab"),
+                    ja_core::Role::LifeSupport => ("oxygen", "жизнеобеспечение", "life support", "воздух портится медленнее", "air goes bad slower"),
+                };
+                b.spawn(kit::row(6.0)).with_children(|x| {
+                    kit::icon(x, &art, icon, 18.0);
+                    kit::text(x, format!("{} {} — {}:", l.pick("Игрок", "Player"), i + 1, l.pick(ru, en)), &art.head, 12.0, crate::net::seat_color(i as u8));
+                    kit::text(x, l.pick(bru, ben), &art.body, 12.0, C_MUTED);
+                });
             }
         });
         // day + coins
