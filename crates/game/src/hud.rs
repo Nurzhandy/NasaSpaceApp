@@ -102,7 +102,7 @@ fn spawn(mut commands: Commands, art: Res<Art>, prof: Res<Prof>, sim: Res<Sim>) 
                 });
             }
             p.spawn(kit::row(8.0)).with_children(|row| {
-                kit::icon(row, &art, "wrench", 28.0);
+                kit::icon(row, &art, "coin", 28.0);
                 row.spawn((Text::new("0"), TextFont { font: art.head.clone(), font_size: 20.0, ..default() }, TextColor(kit::C_ACCENT), MatText));
                 kit::icon(row, &art, "gem", 28.0);
                 row.spawn((Text::new("0"), TextFont { font: art.head.clone(), font_size: 20.0, ..default() }, TextColor(Color::srgb(0.6, 0.95, 1.0)), GemText));
@@ -166,7 +166,7 @@ fn spawn(mut commands: Commands, art: Res<Art>, prof: Res<Prof>, sim: Res<Sim>) 
     commands
         .spawn((Node { position_type: PositionType::Absolute, right: Val::Px(12.0), bottom: Val::Px(12.0), flex_direction: FlexDirection::Row, column_gap: Val::Px(14.0), padding: UiRect::axes(Val::Px(12.0), Val::Px(6.0)), ..default() }, BackgroundColor(Color::srgba(0.05, 0.06, 0.16, 0.75)), BorderRadius::all(Val::Px(6.0)), GlobalZIndex(9), sc.clone()))
         .with_children(|p| {
-            for (ic, k, ru, en) in [("hammer", "B", "стройка", "build"), ("power", "Tab", "энергия", "power"), ("ok_hand", "F", "действие", "action"), ("pause", "Esc", "пауза", "pause")] {
+            for (ic, k, ru, en) in [("hammer", "B", "стройка", "build"), ("power", "Tab", "энергия", "power"), ("ok_hand", "E", "действие", "action"), ("pause", "Esc", "пауза", "pause")] {
                 p.spawn(kit::row(5.0)).with_children(|r| {
                     kit::icon(r, &art, ic, 22.0);
                     kit::text(r, k, &art.head, 15.0, kit::C_ACCENT);
@@ -257,7 +257,7 @@ fn bars(sim: Res<Sim>, time: Res<Time>, mut fills: Query<(&Fill, &mut Node, &mut
         };
     }
     for mut t in &mut mats {
-        t.0 = st.materials.to_string();
+        t.0 = st.coins.to_string();
     }
     let carried: u32 = st.players.iter().map(|p| p.carried).sum();
     for mut t in &mut gems {

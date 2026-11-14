@@ -1,0 +1,40 @@
+{
+ "id": "neptune",
+ "icon": "planet",
+ "playable": false,
+ "draft": true,
+ "name": {
+  "ru": "Нептун",
+  "kk": null,
+  "en": "Neptune"
+ },
+ "gravity": {
+  "ru": "1,14 g",
+  "kk": null,
+  "en": "1.14 g"
+ },
+ "temperature": {
+  "ru": "около −200 °C",
+  "kk": null,
+  "en": "about −200 °C"
+ },
+ "atmosphere": {
+  "ru": "водород, гелий, метан; самые сильные ветры",
+  "kk": null,
+  "en": "hydrogen, helium, methane; the strongest winds"
+ },
+ "surface": {
+  "junior": {
+   "ru": "Самая далёкая планета, синяя из-за метана.",
+   "kk": null,
+   "en": "The farthest planet, blue because of methane."
+  }
+ },
+ "history": {
+  "junior": {
+   "ru": "Нептун нашли «на кончике пера» — по расчётам, в 1846 году.",
+   "kk": null,
+   "en": "Neptune was found by calculation first, in 1846."
+  }
+ }
+}

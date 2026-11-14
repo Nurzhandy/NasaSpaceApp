@@ -30,9 +30,10 @@ pub struct MenuPlugin;
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<Built>()
-            .add_systems(Update, (handle, backdrop, walker, build_page).chain().after(crate::Set::Input).run_if(not(in_state(AppState::Playing))).run_if(not(in_state(AppState::Ship))))
+            .add_systems(Update, (handle, backdrop, walker, build_page).chain().after(crate::Set::Input).run_if(not(in_state(AppState::Playing)).and(not(in_state(AppState::Landing))).and(not(in_state(AppState::Ship)))))
             .add_systems(Update, global_toggles.after(crate::Set::Input))
             .add_systems(OnEnter(AppState::Playing), clear_menus)
+            .add_systems(OnEnter(AppState::Landing), clear_menus)
             .add_systems(OnEnter(AppState::Ship), clear_menus);
     }
 }
@@ -50,7 +51,6 @@ fn global_toggles(mut acts: EventReader<Act>, mut prof: ResMut<Prof>, mut music:
             Action::ToggleLang => prof.0.lang = if prof.0.lang == Lang::Ru { Lang::En } else { Lang::Ru },
             Action::ToggleSound => prof.0.sound = !prof.0.sound,
             Action::ToggleMusic => music.0 = !music.0,
-            Action::ToggleAge => prof.0.cadet = !prof.0.cadet,
             Action::Quit => {
                 exit.write(AppExit::Success);
             }
@@ -82,7 +82,28 @@ fn handle(mut acts: EventReader<Act>, mut resume: ResMut<Resume>, mut setup: Res
                 play.write(Play("launch"));
                 next.set(AppState::Playing);
             }
-            Action::Again => next.set(AppState::Briefing),
+            Action::Again => next.set(AppState::Expedition),
+            Action::SetCreative(c) => {
+                setup.mode = if c { ja_core::Mode::Sandbox } else { ja_core::Mode::Survival };
+                setup.refresh += 1;
+            }
+            Action::SetJunior(j) => {
+                prof.0.cadet = j;
+                prof.save();
+                setup.refresh += 1;
+            }
+            Action::SetPlayers(two) => {
+                setup.coop = two;
+                setup.refresh += 1;
+            }
+            Action::StartExpedition => {
+                // the campaign: the flight on the ship (part A, ship/), then landing and survival
+                // on the Moon. The screenshot tour of part B goes straight to the landing.
+                setup.map = MapId::Moon;
+                resume.0 = false;
+                play.write(Play("launch"));
+                next.set(if crate::ship::skip_flight() { AppState::Landing } else { AppState::Ship });
+            }
             Action::SetPlan(p) => {
                 setup.plan = p;
                 setup.refresh += 1;
@@ -191,6 +212,7 @@ fn build_page(mut commands: Commands, state: Res<State<AppState>>, setup: Res<Se
                 AppState::Menu => main_menu(p, &art, &prof, music.0, &saved, l, &sky),
                 AppState::Maps => maps(p, &art, &prof, l, &setup),
                 AppState::Briefing => briefing(p, &art, l, &setup, &sky),
+                AppState::Expedition => expedition(p, &art, &prof, l, &setup),
                 AppState::Shop => shop(p, &art, &prof, l, &setup),
                 AppState::Badges => badges(p, &art, &prof, l),
                 AppState::Info => info(p, &art, l, &sky),
@@ -200,12 +222,12 @@ fn build_page(mut commands: Commands, state: Res<State<AppState>>, setup: Res<Se
                         debrief(p, &art, l, r);
                     }
                 }
-                AppState::Playing | AppState::Ship => {}
+                AppState::Playing | AppState::Landing | AppState::Ship | AppState::Encyclopedia => {}
             }
         });
 }
 
-fn topbar(p: &mut ChildSpawnerCommands, art: &Art, prof: &Prof, l: Lang, st: AppState) {
+fn topbar(p: &mut ChildSpawnerCommands, art: &Art, prof: &Prof, _l: Lang, st: AppState) {
     p.spawn((Node { width: Val::Percent(100.0), flex_direction: FlexDirection::Row, align_items: AlignItems::Center, justify_content: JustifyContent::SpaceBetween, padding: UiRect::axes(Val::Px(16.0), Val::Px(8.0)), ..default() }, BackgroundColor(Color::srgba(0.03, 0.04, 0.12, 0.85)))).with_children(|r| {
         r.spawn(kit::row(10.0)).with_children(|b| {
             if !matches!(st, AppState::Menu | AppState::Debrief) {
@@ -213,7 +235,7 @@ fn topbar(p: &mut ChildSpawnerCommands, art: &Art, prof: &Prof, l: Lang, st: App
                 kit::button(b, art, Action::Go(back), 800, "back", "", false);
             }
             kit::icon(b, art, "rocket", 32.0);
-            kit::text(b, l.pick("ЮНЫЙ АСТРОНАВТ: АВАНПОСТ", "JUNIOR ASTRONAUT: OUTPOST"), &art.head, 24.0, C_TEXT);
+            kit::text(b, "SPACE EXPLORERS", &art.head, 24.0, C_TEXT);
         });
         r.spawn(kit::row(8.0)).with_children(|b| {
             for (ic, v, c) in [("medal", prof.0.total.to_string(), C_TEXT), ("star", prof.0.stars.to_string(), Color::srgb(1.0, 0.88, 0.5))] {
@@ -242,7 +264,8 @@ fn avatar(p: &mut ChildSpawnerCommands, art: &Art, prof: &Prof, scale: f32) {
 fn main_menu(p: &mut ChildSpawnerCommands, art: &Art, prof: &Prof, music: bool, saved: &SavedMission, l: Lang, sky: &Sky) {
     p.spawn(Node { flex_grow: 1.0, flex_direction: FlexDirection::Row, padding: UiRect::all(Val::Px(26.0)), column_gap: Val::Px(30.0), ..default() }).with_children(|row| {
         row.spawn(kit::col(14.0)).insert(Node { width: Val::Px(620.0), flex_direction: FlexDirection::Column, row_gap: Val::Px(14.0), ..default() }).with_children(|c| {
-            kit::wrap_text(c, l.pick("Построй базу на Луне и Марсе", "Build a base on the Moon and Mars"), &art.head, 38.0, C_TEXT, 600.0);
+            kit::text(c, "SPACE EXPLORERS", &art.head, 44.0, kit::C_ACCENT);
+            kit::wrap_text(c, l.pick("Посади модуль на Луну и выживи на базе", "Land on the Moon and survive at your base"), &art.head, 30.0, C_TEXT, 600.0);
             c.spawn(kit::row(8.0)).with_children(|r| {
                 for ic in ["oxygen", "food", "shield", "science", "power"] {
                     kit::icon(r, art, ic, 34.0);
@@ -278,16 +301,14 @@ fn main_menu(p: &mut ChildSpawnerCommands, art: &Art, prof: &Prof, music: bool, 
                 });
             }
             c.spawn(kit::row(12.0)).with_children(|r| {
-                kit::tile(r, art, Action::Play(false), 1, "astronaut", l.pick("Играть", "Play"), 150.0, Color::srgb(0.9, 0.42, 0.22));
-                kit::tile(r, art, Action::Play(true), 2, "coop", l.pick("Вдвоём", "2 players"), 150.0, Color::srgb(0.26, 0.48, 0.92));
+                kit::tile(r, art, Action::Go(AppState::Expedition), 1, "rocket", l.pick("Начать", "Start"), 190.0, Color::srgb(0.9, 0.42, 0.22));
                 kit::tile(r, art, Action::Go(AppState::Lobby), 3, "satellite", l.pick("По сети", "Network"), 150.0, Color::srgb(0.2, 0.6, 0.55));
                 kit::tile(r, art, Action::Go(AppState::Shop), 4, "shop", l.pick("Магазин", "Shop"), 130.0, kit::C_PANEL);
             });
             c.spawn(kit::row(12.0)).with_children(|r| {
-                kit::tile(r, art, Action::StartExpedition, 5, "rocket", l.pick("Экспедиция", "Expedition"), 140.0, Color::srgb(0.55, 0.3, 0.85));
-                kit::tile(r, art, Action::Go(AppState::Badges), 6, "medal", l.pick("Нашивки", "Patches"), 140.0, kit::C_PANEL);
-                kit::tile(r, art, Action::Go(AppState::Info), 7, "book", l.pick("Данные NASA", "NASA data"), 140.0, kit::C_PANEL);
-                kit::tile(r, art, Action::ToggleAge, 8, if prof.0.cadet { "seedling" } else { "rocket" }, if prof.0.cadet { l.pick("Кадет 7–9", "Cadet 7–9") } else { l.pick("Пилот 10–12", "Pilot 10–12") }, 140.0, kit::C_PANEL);
+                kit::tile(r, art, Action::Go(AppState::Badges), 5, "medal", l.pick("Нашивки", "Patches"), 150.0, kit::C_PANEL);
+                kit::tile(r, art, Action::Go(AppState::Info), 6, "book", l.pick("Данные NASA", "NASA data"), 150.0, kit::C_PANEL);
+                kit::tile(r, art, Action::Go(AppState::Encyclopedia), 7, "planet", l.pick("Энциклопедия", "Encyclopedia"), 150.0, Color::srgb(0.3, 0.35, 0.7));
             });
             c.spawn(kit::row(8.0)).with_children(|r| {
                 kit::button(r, art, Action::ToggleLang, 9, "globe", if prof.0.lang == Lang::En { "EN" } else { "RU" }, false);
@@ -299,6 +320,50 @@ fn main_menu(p: &mut ChildSpawnerCommands, art: &Art, prof: &Prof, music: bool, 
         row.spawn(kit::col(14.0)).insert(Node { flex_direction: FlexDirection::Column, row_gap: Val::Px(14.0), align_items: AlignItems::Center, ..default() }).with_children(|c| {
             avatar(c, art, prof, 9.0);
             weather_card(c, art, l, sky);
+        });
+    });
+}
+
+/// B8/B9 — new expedition: survival or creative (only here, never during play), Junior or
+/// Advanced, one or two players on one screen.
+fn expedition(p: &mut ChildSpawnerCommands, art: &Art, prof: &Prof, l: Lang, setup: &Setup) {
+    let creative = setup.mode == ja_core::Mode::Sandbox;
+    let junior = prof.0.cadet;
+    let pick = |p: &mut ChildSpawnerCommands, title: &str, opts: [(Action, &str, &str, &str, bool); 2], order: u16| {
+        p.spawn(kit::col(8.0)).with_children(|c| {
+            kit::text(c, title, &art.head, 22.0, C_TEXT);
+            c.spawn(kit::row(12.0)).with_children(|r| {
+                for (i, (act, icon, name, desc, on)) in opts.into_iter().enumerate() {
+                    let bg = if on { Color::srgb(0.18, 0.42, 0.62) } else { kit::C_PANEL };
+                    r.spawn((Button, kit::UiAction(act), kit::Focusable(order + i as u16), Node { width: Val::Px(300.0), flex_direction: FlexDirection::Row, align_items: AlignItems::Center, column_gap: Val::Px(12.0), padding: UiRect::all(Val::Px(12.0)), border: UiRect::all(Val::Px(4.0)), ..default() }, BackgroundColor(bg), kit::Base(bg), BorderColor(if on { kit::C_ACCENT } else { C_LINE }), BorderRadius::all(Val::Px(10.0))))
+                        .with_children(|b| {
+                            kit::icon(b, art, icon, 48.0);
+                            b.spawn(kit::col(2.0)).with_children(|t| {
+                                kit::text(t, name, &art.head, 21.0, C_TEXT);
+                                kit::wrap_text(t, desc, &art.body, 15.0, C_MUTED, 200.0);
+                            });
+                        });
+                }
+            });
+        });
+    };
+    p.spawn(Node { flex_grow: 1.0, flex_direction: FlexDirection::Column, align_items: AlignItems::Center, row_gap: Val::Px(18.0), padding: UiRect::all(Val::Px(20.0)), ..default() }).with_children(|c| {
+        kit::text(c, l.pick("Новая экспедиция", "New expedition"), &art.head, 34.0, C_TEXT);
+        pick(c, l.pick("Режим (выбирается только сейчас)", "Mode (chosen only now)"), [
+            (Action::SetCreative(false), "shield", l.pick("Выживание", "Survival"), l.pick("Кислород, холод, метеориты. Каждое решение важно", "Oxygen, cold, meteorites. Every choice matters"), !creative),
+            (Action::SetCreative(true), "paint", l.pick("Творческий", "Creative"), l.pick("Без расхода кислорода и аварий — строй и исследуй", "No oxygen drain, no breakdowns — build and explore"), creative),
+        ], 0);
+        pick(c, l.pick("Уровень", "Level"), [
+            (Action::SetJunior(true), "seedling", "Junior 7–12", l.pick("Проще слова, больше подсказок, мягче угрозы", "Simpler words, more hints, softer threats"), junior),
+            (Action::SetJunior(false), "rocket", "Advanced 12+", l.pick("Две угрозы за вечер, строже посадка", "Two threats an evening, stricter landing"), !junior),
+        ], 2);
+        pick(c, l.pick("Игроки", "Players"), [
+            (Action::SetPlayers(false), "astronaut", l.pick("Один", "One"), l.pick("Один астронавт", "One astronaut"), !setup.coop),
+            (Action::SetPlayers(true), "coop", l.pick("Вдвоём", "Two"), l.pick("На одном экране: стрелки + правый Shift", "One screen: arrows + right Shift"), setup.coop),
+        ], 4);
+        c.spawn(kit::row(12.0)).with_children(|r| {
+            kit::button(r, art, Action::Go(AppState::Menu), 7, "back", l.pick("Назад", "Back"), false);
+            kit::button(r, art, Action::StartExpedition, 6, "rocket", l.pick("Старт: к Луне!", "Launch: to the Moon!"), true);
         });
     });
 }
@@ -566,7 +631,7 @@ fn debrief(p: &mut ChildSpawnerCommands, art: &Art, l: Lang, last: &LastResult) 
             }
             if let Some(c) = r.cause {
                 d.spawn((kit::row(10.0), BackgroundColor(kit::C_PANEL), BorderRadius::all(Val::Px(6.0)))).insert(Node { flex_direction: FlexDirection::Row, align_items: AlignItems::FlexStart, column_gap: Val::Px(10.0), padding: UiRect::all(Val::Px(10.0)), ..default() }).with_children(|s| {
-                    kit::icon(s, art, match c { ja_core::Cause::Oxygen => "oxygen", ja_core::Cause::Food => "food", ja_core::Cause::Dose => "radiation" }, 30.0);
+                    kit::icon(s, art, match c { ja_core::Cause::Oxygen => "oxygen", ja_core::Cause::Food => "food", ja_core::Cause::Cold => "snow", ja_core::Cause::Dose => "radiation" }, 30.0);
                     kit::wrap_text(s, i18n::cause_msg(c).text(l), &art.body, 17.0, C_TEXT, 620.0);
                 });
                 kit::text(d, l.pick("Ошибка — это данные. Теперь ты знаешь, что изменить.", "A mistake is data. Now you know what to change."), &art.body, 17.0, C_GOOD);

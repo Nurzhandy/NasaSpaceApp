@@ -5,17 +5,21 @@ mod art;
 mod audio;
 mod build;
 mod dialog_ui;
+mod encyclopedia;
+mod planets;
 mod minigames;
 mod ship;
 mod touch_panel;
 mod camera;
 mod hud;
 mod kit;
+mod landing;
 mod menu;
 mod net;
 mod player;
 mod save;
 mod story;
+mod survival_ui;
 mod tour;
 mod windows;
 mod world;
@@ -37,6 +41,10 @@ pub enum AppState {
     Menu,
     Maps,
     Briefing,
+    /// new expedition: survival or creative, Junior or Advanced, 1–2 players
+    Expedition,
+    /// landing on the Moon: choose a site, fly down (landing.rs)
+    Landing,
     Shop,
     Badges,
     Info,
@@ -44,6 +52,8 @@ pub enum AppState {
     Lobby,
     /// the flight to the Moon (part A, ship/)
     Ship,
+    /// planets, physics cards, crew voices (part A, encyclopedia.rs)
+    Encyclopedia,
     Playing,
     Debrief,
 }
@@ -58,10 +68,15 @@ pub struct Setup {
     pub shop_tab: u8,
     /// bump to force the current menu page to rebuild
     pub refresh: u32,
+    /// the mission mode: `Survival` (campaign) or `Sandbox` (creative); `Story` for old maps
+    pub mode: ja_core::Mode,
+    /// landing site and the coins the landing earned (survival)
+    pub site: u8,
+    pub landing_coins: u32,
 }
 impl Default for Setup {
     fn default() -> Self {
-        Self { map: MapId::Earth, coop: false, live: true, plan: 0, shop_tab: 0, refresh: 0 }
+        Self { map: MapId::Moon, coop: false, live: true, plan: 0, shop_tab: 0, refresh: 0, mode: ja_core::Mode::Survival, site: 1, landing_coins: 0 }
     }
 }
 
@@ -122,7 +137,7 @@ fn main() {
             DefaultPlugins
                 .set(WindowPlugin {
                     primary_window: Some(Window {
-                        title: "Junior Astronaut: Outpost — NASA Space Apps 2026".into(),
+                        title: "SPACE EXPLORERS — NASA Space Apps 2026".into(),
                         resolution: WindowResolution::new(1280.0, 760.0),
                         present_mode: PresentMode::AutoVsync,
                         ..default()
@@ -143,7 +158,8 @@ fn main() {
         .configure_sets(Update, (Set::Input, Set::Logic, Set::View).chain())
         .add_systems(Startup, (art::load, start_weather, spawn_camera))
         .add_systems(Update, poll_weather)
-        .add_plugins((kit::KitPlugin, audio::AudioFx, menu::MenuPlugin, world::WorldPlugin, player::PlayerPlugin, camera::CameraPlugin, build::BuildPlugin, hud::HudPlugin, windows::WindowsPlugin, tour::TourPlugin, save::SavePlugin, story::StoryPlugin, net::NetPlugin, ship::ShipPlugin, ship::ShipTestPlugin))
+        .add_plugins((kit::KitPlugin, audio::AudioFx, menu::MenuPlugin, world::WorldPlugin, player::PlayerPlugin, camera::CameraPlugin, build::BuildPlugin, hud::HudPlugin, windows::WindowsPlugin, tour::TourPlugin, save::SavePlugin))
+        .add_plugins((story::StoryPlugin, net::NetPlugin, landing::LandingPlugin, survival_ui::SurvivalUiPlugin, ship::ShipPlugin, ship::ShipTestPlugin, encyclopedia::EncyclopediaPlugin))
         .add_systems(OnEnter(AppState::Playing), start_mission)
         .run();
 }

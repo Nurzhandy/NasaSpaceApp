@@ -1,0 +1,40 @@
+{
+ "id": "uranus",
+ "icon": "planet",
+ "playable": false,
+ "draft": true,
+ "name": {
+  "ru": "Уран",
+  "kk": null,
+  "en": "Uranus"
+ },
+ "gravity": {
+  "ru": "0,9 g",
+  "kk": null,
+  "en": "0.9 g"
+ },
+ "temperature": {
+  "ru": "около −195 °C",
+  "kk": null,
+  "en": "about −195 °C"
+ },
+ "atmosphere": {
+  "ru": "водород, гелий, метан",
+  "kk": null,
+  "en": "hydrogen, helium, methane"
+ },
+ "surface": {
+  "junior": {
+   "ru": "Уран вращается «лёжа на боку».",
+   "kk": null,
+   "en": "Uranus spins lying on its side."
+  }
+ },
+ "history": {
+  "junior": {
+   "ru": "Единственный аппарат у Урана — «Вояджер‑2» в 1986 году.",
+   "kk": null,
+   "en": "The only visitor was Voyager 2 in 1986."
+  }
+ }
+}

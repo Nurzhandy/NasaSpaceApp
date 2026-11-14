@@ -3,6 +3,7 @@
 
 use crate::data::*;
 use crate::game::{Cause, Forecast, GameEvent, Refusal};
+use crate::survival::{upgrade_def, EventReport, ReportLine, Threat, Tonight};
 use crate::MapId;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default, serde::Serialize, serde::Deserialize)]
@@ -80,14 +81,14 @@ pub fn event_msg(e: &GameEvent) -> Option<Msg> {
         }
         Demolished { kind, refund } => {
             let d = module_def(*kind);
-            Msg::new(Info, "hammer", format!("{} разобран(а): +{refund} материалов", d.name_ru), format!("{} taken apart: +{refund} materials", d.name_en))
+            Msg::new(Info, "hammer", format!("{} разобран(а): +{refund} монет", d.name_ru), format!("{} taken apart: +{refund} coins", d.name_en))
         }
         Repaired(_) => Msg::new(Good, "check", "Починено! Ремонт взял немного батареи", "Fixed! The repair used a little battery"),
         Cleaned(_) => Msg::new(Good, "broom", "Панель чистая — энергии больше", "Panel clean — more power"),
         Collected { kind, .. } => match kind {
             SiteKind::Sample => Msg::new(Good, "gem", "Образец взят. Отнеси его в лабораторию", "Sample picked up. Take it to the lab"),
-            SiteKind::Ore => Msg::new(Good, "rock", "+3 материала для стройки", "+3 building materials"),
-            SiteKind::Wreck => Msg::new(Good, "rocket", "Детали старого модуля: +6 материалов", "Old lander parts: +6 materials"),
+            SiteKind::Ore => Msg::new(Good, "rock", "Руда: +3 монеты", "Ore: +3 coins"),
+            SiteKind::Wreck => Msg::new(Good, "rocket", "Детали старого модуля: +6 монет", "Old lander parts: +6 coins"),
             SiteKind::Ice => Msg::new(Good, "ice", "Лёд растоплен: +10 кислорода", "Ice melted: +10 oxygen"),
         },
         SamplesDelivered { count, science } => Msg::new(Good, "science", format!("Образцы в лаборатории ({count}): +{science:.1} науки"), format!("Samples in the lab ({count}): +{science:.1} science")),
@@ -95,7 +96,7 @@ pub fn event_msg(e: &GameEvent) -> Option<Msg> {
         LeftShelter { .. } => return None,
         Harvested { eat: true } => Msg::new(Good, "plate", "Вкусный ужин! +12 еды, +10 настроения", "Tasty dinner! +12 food, +10 mood"),
         Harvested { eat: false } => Msg::new(Good, "science", "Растения изучены: +2 науки", "Plants studied: +2 science"),
-        CargoUnloaded { all: true } => Msg::new(Good, "box", "Груз разгружен: еда, кислород и материалы", "Cargo unloaded: food, oxygen and materials"),
+        CargoUnloaded { all: true } => Msg::new(Good, "box", "Груз разгружен: еда, кислород и монеты", "Cargo unloaded: food, oxygen and coins"),
         CargoUnloaded { all: false } => Msg::new(Good, "bread", "Взяли еду: +8", "Took food: +8"),
         FeelingRight(f) => Msg::new(Good, FEELINGS[*f].icon, format!("Да, похоже на {}. Как поддержать?", FEELINGS[*f].name_ru), format!("Yes, it looks like {}. How can you help?", FEELINGS[*f].name_en)),
         FeelingTryAgain(_) => Msg::new(Info, "hint", "Может быть. А что ещё? Посмотри на подсказки в истории", "Maybe. What else could it be? Look at the clues in the story"),
@@ -118,6 +119,21 @@ pub fn event_msg(e: &GameEvent) -> Option<Msg> {
         BossDefeated { countered, of } => Msg::new(Badge, "trophy", format!("Финал пройден! Отбито волн: {countered} из {of}"), format!("Finale survived! Waves beaten: {countered} of {of}")),
         LowOxygen => Msg::new(Danger, "oxygen", "Мало кислорода! Дай больше энергии генератору кислорода", "Low oxygen! Give more power to the oxygen generator"),
         BatteryEmpty => Msg::new(Danger, "battery", "Батарея пуста — модули работают слабее. Убавь энергию или построй панели", "Battery empty — modules run weaker. Use less power or build panels"),
+        Threat(t) => {
+            let (icon, ru, en) = threat_name(t.threat);
+            let (_, todo_ru, todo_en) = threat_todo(t.threat);
+            Msg::new(Danger, icon, format!("Вечер: {ru} (сила {})! {todo_ru}", t.strength), format!("Evening: {en} (strength {})! {todo_en}", t.strength))
+        }
+        ThreatOver(r) => report_title(r),
+        Upgraded { kind, level } => {
+            let d = upgrade_def(*kind);
+            Msg::new(Good, d.icon, format!("{}: уровень {level}", d.name_ru), format!("{}: level {level}", d.name_en))
+        }
+        MeteorHit { damage, .. } => Msg::new(Danger, "comet", format!("Метеорит! Урон {damage:.0}%"), format!("Meteorite hit! {damage:.0}% damage")),
+        SuitLow { .. } => Msg::new(Warn, "oxygen", "В скафандре мало кислорода — вернись к шлюзу у двери", "Suit oxygen is low — go back to the airlock by the door"),
+        SuitEmpty { .. } => Msg::new(Danger, "oxygen", "Баллон пуст! Аварийная система вернула астронавта к шлюзу", "Tank empty! The emergency system brought the astronaut back to the airlock"),
+        Tired { .. } => Msg::new(Warn, "night", "Астронавт устал. Отдохни в куполе вечером", "The astronaut is tired. Rest in the dome in the evening"),
+        Calmed { .. } => Msg::new(Good, "heart", "Сердце бьётся спокойнее — так тратится меньше кислорода", "The heart beats calmer — that uses less oxygen"),
         MissionEnded(r) => {
             if r.won {
                 Msg::new(Good, "trophy", "Миссия выполнена!", "Mission complete!")
@@ -140,6 +156,7 @@ pub fn forecast_msg(f: Forecast) -> Msg {
         Forecast::Finale => Msg::new(Danger, "trophy", "Завтра финал! Зарядите батарею, включите щит, вспомните план «если — то»", "The finale is tomorrow! Charge the battery, raise the shield, remember the if–then plan"),
         Forecast::NoSignal => Msg::new(Warn, "antenna_bars", "…связи нет: Солнце глушит сигнал", "…no signal: the Sun blocks the radio"),
         Forecast::NoAntenna => Msg::new(Warn, "satellite", "Антенна без энергии — прогноз не пришёл", "The antenna has no power — no forecast"),
+        Forecast::Tonight(t) => tonight_msg(t),
         _ => Msg::new(Info, "check", "Завтра всё спокойно", "Tomorrow looks calm"),
     }
 }
@@ -149,8 +166,9 @@ pub fn refusal_msg(r: Refusal) -> Msg {
     let w = |icon, ru: &str, en: &str| Msg::new(Tone::Warn, icon, ru, en);
     match r {
         MissionOver => w("flag", "Миссия уже закончилась", "The mission is over"),
+        MaxLevel => w("star", "Это улучшение уже на максимальном уровне", "This upgrade is already at the top level"),
         NotEnoughPower => w("power", "Не хватает энергии. Убавь другой модуль или построй панели", "Not enough power. Turn another module down or build panels"),
-        NotEnoughMaterials => w("rock", "Не хватает материалов. Собери руду вокруг базы", "Not enough materials. Collect ore around the base"),
+        NotEnoughCoins => w("rock", "Не хватает монет. Собирай руду и выполняй задания", "Not enough coins. Collect ore and do tasks"),
         CellBusy => w("cross", "Здесь занято", "This spot is taken"),
         OutsideBase => w("cross", "Слишком далеко от купола", "Too far from the dome"),
         EdgeOfMap => w("map", "Дальше карта заканчивается", "This is the edge of the map"),
@@ -234,9 +252,9 @@ pub fn quest_done_msg(map_id: MapId, i: usize) -> Option<Msg> {
     let t = quest_title(map_id, i)?;
     let mut ru = format!("Задание выполнено: {}!", t.ru);
     let mut en = format!("Task done: {}!", t.en);
-    if q.reward.materials > 0 {
-        ru += &format!(" +{} материалов", q.reward.materials);
-        en += &format!(" +{} materials", q.reward.materials);
+    if q.reward.coins > 0 {
+        ru += &format!(" +{} монет", q.reward.coins);
+        en += &format!(" +{} coins", q.reward.coins);
     }
     Some(Msg::new(Tone::Badge, "check", ru, en))
 }
@@ -256,7 +274,92 @@ pub fn cause_msg(c: Cause) -> Msg {
     match c {
         Cause::Oxygen => Msg::new(Tone::Warn, "oxygen", "Кончился кислород. Если — то: давай больше энергии генератору и сразу чини поломки.", "Oxygen ran out. If–then: give the generator more power and fix breakdowns right away."),
         Cause::Food => Msg::new(Tone::Warn, "food", "Кончилась еда. Оранжерея и грузовой корабль помогают продержаться.", "Food ran out. The greenhouse and the cargo ship help you last."),
+        Cause::Cold => Msg::new(Tone::Warn, "snow", "База замёрзла. Если — то: если идёт похолодание, то заранее купи теплоизоляцию и включи обогрев", "The base froze. If–then: if a cold snap is coming, then buy insulation and switch on the heater in advance"),
         Cause::Dose => Msg::new(Tone::Warn, "radiation", "Слишком большая доза радиации. Построй щит и прячься в купол во время вспышки.", "The radiation dose got too high. Build a shield and hide in the dome during a flare."),
+    }
+}
+
+// ---------------------------------------------------------------- survival
+
+/// (icon, ru, en) — the name of a threat.
+pub fn threat_name(t: Threat) -> (&'static str, &'static str, &'static str) {
+    match t {
+        Threat::Cold => ("snow", "похолодание", "cold snap"),
+        Threat::Dust => ("tornado", "пылевое облако", "dust cloud"),
+        Threat::Meteors => ("comet", "метеориты", "meteorites"),
+        Threat::EnergyCrisis => ("battery", "энергокризис", "energy crisis"),
+        Threat::Failure => ("wrench", "поломки", "breakdowns"),
+        Threat::Flare => ("sun", "солнечная вспышка", "solar flare"),
+    }
+}
+
+/// (icon, ru, en) — how to get ready for a threat (the if–then plan).
+pub fn threat_todo(t: Threat) -> (&'static str, &'static str, &'static str) {
+    match t {
+        Threat::Cold => ("snow", "Утепли базу и включи обогрев в пульте энергии", "Insulate the base and switch on the heater in the power console"),
+        Threat::Dust => ("broom", "Потом почисти панели и генератор кислорода", "Afterwards clean the panels and the oxygen generator"),
+        Threat::Meteors => ("hammer", "Броня уменьшит урон. Заделывай дыры и чини модули", "Armor lowers the damage. Patch holes and fix modules"),
+        Threat::EnergyCrisis => ("battery", "Заряди батареи и реши, что выключить", "Charge the batteries and decide what to switch off"),
+        Threat::Failure => ("wrench", "Будь рядом с базой, чтобы быстро всё починить", "Stay near the base to fix things fast"),
+        Threat::Flare => ("radiation", "Включи щит и прячься в купол", "Switch on the shield and hide in the dome"),
+    }
+}
+
+/// The morning forecast: what comes this evening and how to get ready.
+pub fn tonight_msg(t: Tonight) -> Msg {
+    let (icon, ru, en) = threat_name(t.threat);
+    let (_, todo_ru, todo_en) = threat_todo(t.threat);
+    let k = t.strength;
+    let (mut r, mut e) = (format!("Прогноз на вечер: {ru} (сила {k} из 3). {todo_ru}"), format!("Forecast for tonight: {en} (strength {k} of 3). {todo_en}"));
+    if let Some(t2) = t.second {
+        let (_, ru2, en2) = threat_name(t2);
+        r += &format!(" И ещё: {ru2}!");
+        e += &format!(" And also: {en2}!");
+    }
+    Msg::new(Tone::Warn, icon, r, e)
+}
+
+pub fn report_title(r: &EventReport) -> Msg {
+    let (icon, ru, en) = threat_name(r.tonight.threat);
+    if r.countered {
+        Msg::new(Tone::Good, icon, format!("Вечер позади: {ru} — база справилась! +{} монет", r.coins), format!("The evening is over: {en} — the base coped! +{} coins", r.coins))
+    } else {
+        Msg::new(Tone::Warn, icon, format!("Вечер позади: {ru}. Посмотри разбор: что помогло бы"), format!("The evening is over: {en}. See the report: what would have helped"))
+    }
+}
+
+/// One line of the threat report: what happened → because of → what would help.
+pub fn report_line(l: &ReportLine) -> Msg {
+    use Tone::*;
+    match *l {
+        ReportLine::TempDrop { from, min, insulation, heater_on, better } => {
+            let tone = if min >= 10.0 { Good } else { Warn };
+            Msg::new(tone, "snow",
+                format!("Температура в куполе упала с {from:.0} до {min:.0} °C. Изоляция ур. {insulation}, обогрев {heater_on} бл. С изоляцией ур. {} было бы {better:.0} °C", insulation + 1),
+                format!("Dome temperature fell from {from:.0} to {min:.0} °C. Insulation lvl {insulation}, heater {heater_on} bl. With insulation lvl {} it would be {better:.0} °C", insulation + 1))
+        }
+        ReportLine::Dusty { modules, auto_cleaned } => {
+            let tone = if modules.saturating_sub(auto_cleaned) <= 1 { Good } else { Warn };
+            Msg::new(tone, "broom",
+                format!("Пыльных модулей: {modules}. Робот почистил: {auto_cleaned}. Пыльная панель даёт меньше половины энергии"),
+                format!("Dusty modules: {modules}. The robot cleaned: {auto_cleaned}. A dusty panel gives less than half the power"))
+        }
+        ReportLine::Hits { hits, damage, armor, seal_lost, better } => Msg::new(if seal_lost < 1.0 { Info } else { Warn }, "comet",
+            format!("Попаданий: {hits}, урон {damage:.0}%, герметичность −{seal_lost:.0}%. Броня ур. {armor}. С бронёй ур. {} урон был бы {better:.0}%", armor + 1),
+            format!("Hits: {hits}, damage {damage:.0}%, tightness −{seal_lost:.0}%. Armor lvl {armor}. With armor lvl {} the damage would be {better:.0}%", armor + 1)),
+        ReportLine::Power { battery_ran_out, battery_cap } => {
+            if battery_ran_out {
+                Msg::new(Warn, "battery", format!("Батарея опустела, модули работали слабее. Ёмкость {battery_cap:.0} бл.: больше батарей — больше запас"), format!("The battery ran empty, modules ran weaker. Capacity {battery_cap:.0} bl.: more batteries — more reserve"))
+            } else {
+                Msg::new(Good, "battery", format!("Энергии хватило: батареи ({battery_cap:.0} бл.) выручили"), format!("There was enough power: the batteries ({battery_cap:.0} bl.) helped"))
+            }
+        }
+        ReportLine::Broken { count, repaired } => Msg::new(if repaired >= count { Good } else { Warn }, "wrench",
+            format!("Сломалось модулей: {count}, починено: {repaired}. Сервисный робот делает ремонт крепче"),
+            format!("Modules broken: {count}, repaired: {repaired}. The service robot makes repairs stronger")),
+        ReportLine::Dose { added, sheltered, shield } => Msg::new(if sheltered { Good } else { Warn }, "radiation",
+            format!("Доза за вечер: +{added:.1}%. {} Щит убрал {:.0}% излучения", if sheltered { "Экипаж прятался в куполе." } else { "Экипаж был снаружи!" }, shield * 100.0),
+            format!("Dose this evening: +{added:.1}%. {} The shield removed {:.0}% of the radiation", if sheltered { "The crew hid in the dome." } else { "The crew was outside!" }, shield * 100.0)),
     }
 }
 
@@ -264,8 +367,8 @@ pub fn cause_msg(c: Cause) -> Msg {
 pub const TUTORIAL: &[(&str, &str, &str)] = &[
     ("walk", "Ходи клавишами WASD или стиком. Подойди к модулю — над ним появится подсказка.", "Walk with WASD or the stick. Walk up to a module and a hint appears."),
     ("power", "Энергии мало. Открой пульт и раздели её между кислородом, едой, щитом и наукой.", "Power is short. Open the console and share it between oxygen, food, shield and science."),
-    ("hammer", "Режим стройки: выбери модуль и поставь его на свободную клетку. Модули стоят материалов.", "Build mode: pick a module and place it on a free cell. Modules cost materials."),
-    ("rock", "Материалы и образцы лежат вокруг базы. Собери их и отнеси образцы в лабораторию.", "Materials and samples lie around the base. Collect them and take samples to the lab."),
+    ("hammer", "Режим стройки: выбери модуль и поставь его на свободную клетку. Модули стоят монет.", "Build mode: pick a module and place it on a free cell. Modules cost coins."),
+    ("rock", "Руда и образцы лежат вокруг базы. Собери их и отнеси образцы в лабораторию.", "Ore and samples lie around the base. Collect them and take samples to the lab."),
     ("sun", "Вспышка на Солнце? Беги в купол и нажми F. Внутри радиации почти нет.", "Solar flare? Run into the dome and press F. There is almost no radiation inside."),
 ];
 
@@ -303,17 +406,17 @@ mod tests {
     fn every_refusal_and_cause_has_both_languages() {
         let all = [
             Refusal::EdgeOfMap, Refusal::NeedUnlock(Unlock::Drill),
-            Refusal::MissionOver, Refusal::NotEnoughPower, Refusal::NotEnoughMaterials, Refusal::CellBusy, Refusal::OutsideBase,
+            Refusal::MissionOver, Refusal::NotEnoughPower, Refusal::NotEnoughCoins, Refusal::CellBusy, Refusal::OutsideBase,
             Refusal::NotAvailableHere, Refusal::OnlyOne, Refusal::CannotDemolish, Refusal::NoModuleThere, Refusal::NoPowerSlot,
             Refusal::TooFar, Refusal::InsideShelter, Refusal::NothingToRepair, Refusal::NothingToClean, Refusal::HandsFull,
             Refusal::NothingToDeliver, Refusal::NeedsModule(ModuleKind::Lab), Refusal::LabNeedsPower, Refusal::NotReady,
-            Refusal::AlreadyInside, Refusal::NotInside, Refusal::NoMood, Refusal::NameFeelingFirst, Refusal::UnknownId,
+            Refusal::AlreadyInside, Refusal::NotInside, Refusal::NoMood, Refusal::NameFeelingFirst, Refusal::UnknownId, Refusal::MaxLevel,
         ];
         for r in all {
             let m = refusal_msg(r);
             assert!(!m.ru.is_empty() && !m.en.is_empty() && m.ru != m.en, "{r:?}");
         }
-        for c in [Cause::Oxygen, Cause::Food, Cause::Dose] {
+        for c in [Cause::Oxygen, Cause::Food, Cause::Dose, Cause::Cold] {
             assert!(!cause_msg(c).en.is_empty());
         }
     }

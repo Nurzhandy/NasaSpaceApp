@@ -33,7 +33,6 @@ pub enum Action {
     ToggleLang,
     ToggleSound,
     ToggleMusic,
-    ToggleAge,
     ShopTab(u8),
     Skin(SkinSlot, usize),
     Power(ModuleId, i8),
@@ -51,9 +50,11 @@ pub enum Action {
     Reflect(u8),
     BuildPick(usize),
     Quit,
-    /// ship expedition (part A, ship/)
-    StartExpedition,
+    /// ship expedition (part A, ship/); the flight starts with `StartExpedition` (new expedition screen)
     Mini(u32, MiniInput),
+    /// encyclopedia (encyclopedia.rs): tab, item
+    EncTab(u8),
+    EncPick(u8),
     CloseTask,
     DialogNext,
     DialogChoose(usize),
@@ -70,6 +71,19 @@ pub enum Action {
     NetJoin(u8),
     NetJoinTyped,
     NetStop,
+    /// new expedition screen
+    SetCreative(bool),
+    SetJunior(bool),
+    SetPlayers(bool),
+    StartExpedition,
+    /// landing (landing.rs)
+    PickSite(u8),
+    LandingRetry,
+    LandingGo,
+    LandingAck,
+    /// survival upgrades window
+    Upgrades,
+    BuyUpgrade(u8),
 }
 
 #[derive(Event, Clone, Copy, Debug)]

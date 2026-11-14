@@ -1,0 +1,40 @@
+{
+ "id": "mercury",
+ "icon": "planet",
+ "playable": false,
+ "draft": true,
+ "name": {
+  "ru": "Меркурий",
+  "kk": null,
+  "en": "Mercury"
+ },
+ "gravity": {
+  "ru": "0,38 g",
+  "kk": null,
+  "en": "0.38 g"
+ },
+ "temperature": {
+  "ru": "от −180 °C ночью до +430 °C днём",
+  "kk": null,
+  "en": "from −180 °C at night to +430 °C by day"
+ },
+ "atmosphere": {
+  "ru": "почти нет",
+  "kk": null,
+  "en": "almost none"
+ },
+ "surface": {
+  "junior": {
+   "ru": "Ближайшая к Солнцу планета, вся в кратерах.",
+   "kk": null,
+   "en": "The closest planet to the Sun, covered in craters."
+  }
+ },
+ "history": {
+  "junior": {
+   "ru": "MESSENGER облетал Меркурий в 2011–2015 годах.",
+   "kk": null,
+   "en": "MESSENGER orbited Mercury in 2011–2015."
+  }
+ }
+}

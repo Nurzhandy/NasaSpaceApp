@@ -4,6 +4,7 @@
 
 use crate::data::*;
 use crate::game::*;
+use crate::survival::{Threat, Upgrade};
 use crate::weather::Weather;
 
 #[derive(Clone, Copy)]
@@ -67,6 +68,13 @@ fn allocate(g: &mut Game, pol: Policy) {
     spread(&shields, shield, 3);
     spread(&ids(s, ModuleKind::Antenna), ant, 1);
     spread(&labs, lab, 3);
+    // survival: the heater when it is cold or a cold evening is coming
+    if s.mode == Mode::Survival && pol.careful {
+        let cold_soon = matches!(s.surv.tonight.or(match s.forecast { Some(Forecast::Tonight(t)) => Some(t), _ => None }), Some(t) if t.threat == Threat::Cold || t.second == Some(Threat::Cold)) || s.is_night();
+        let slots = s.surv.level(Upgrade::Heater);
+        let heat = if s.surv.temp < 17.0 || cold_soon { slots } else { 0 };
+        want.push((s.habitat().id, heat));
+    }
     let cur: Vec<(ModuleId, u8)> = want.iter().map(|(id, _)| (*id, s.module(*id).map(|m| m.power).unwrap_or(0))).collect();
     // lower first, then raise in priority order
     for ((id, w), (_, c)) in want.iter().zip(&cur) {
@@ -101,7 +109,7 @@ fn try_build(g: &mut Game, pol: Policy) -> bool {
         v
     };
     for kind in wants {
-        if g.state().materials < module_def(kind).cost {
+        if g.state().coins < crate::survival::build_cost(kind, &g.state().surv) {
             return false; // save up for the most important one
         }
         if let Some((x, y)) = g.find_free_spot(kind) {
@@ -111,19 +119,54 @@ fn try_build(g: &mut Game, pol: Policy) -> bool {
     false
 }
 
-fn play(map_id: MapId, cadet: bool, seed: u64, pol: Policy) -> State {
+/// Survival: buy what tonight's forecast calls for (careful kids only).
+fn shop(g: &mut Game) -> bool {
+    let s = g.state();
+    let tonight = match s.forecast {
+        Some(Forecast::Tonight(t)) => Some(t),
+        _ => None,
+    };
+    let mut wants = vec![Upgrade::Insulation, Upgrade::Heater];
+    if let Some(t) = tonight {
+        for th in [Some(t.threat), t.second].into_iter().flatten() {
+            match th {
+                Threat::Cold => wants.insert(0, Upgrade::Insulation),
+                Threat::Meteors => wants.insert(0, Upgrade::Armor),
+                Threat::Dust | Threat::Failure => wants.push(Upgrade::Service),
+                _ => {}
+            }
+        }
+    }
+    if s.sol >= 3 {
+        wants.push(Upgrade::Insulation);
+        wants.push(Upgrade::Heater);
+    }
+    for u in wants {
+        let Some(cost) = g.state().surv.next_cost(u) else { continue };
+        if g.state().coins >= cost + 4 {
+            return g.apply(0, Command::Upgrade(u)).is_ok();
+        }
+    }
+    false
+}
+
+fn play_mode(map_id: MapId, cadet: bool, seed: u64, pol: Policy, survival: bool) -> State {
     let w = Weather::archive();
-    let mut g = Game::new(MissionConfig { map: map_id, cadet, coop: false, live: false, seed }, &w);
+    let cfg = MissionConfig { map: map_id, cadet, coop: false, live: false, seed };
+    let mut g = if survival { Game::survival(cfg, 1, 6, &w) } else { Game::new(cfg, &w) };
     let dt = 0.25;
     let (mut busy, mut t_flare, mut t_problem) = (0.0f32, 0.0f32, 0.0f32);
     while g.state().status == Status::Playing {
         g.tick(dt);
         busy = (busy - dt).max(0.0);
         allocate(&mut g, pol);
-        let (flare, inside, problem) = {
+        let (flare, inside, problem, rest) = {
             let s = g.state();
-            let problem = s.modules.iter().any(|m| (m.kind == ModuleKind::OxygenGen && m.broken) || m.dusty) || s.leak;
-            (s.flare.is_some(), s.players[0].inside, problem)
+            let surv = s.mode == Mode::Survival;
+            let problem = s.modules.iter().any(|m| (m.kind == ModuleKind::OxygenGen && m.broken) || (surv && m.broken) || m.dusty) || s.leak || (surv && s.surv.seal < 100.0);
+            // survival: careful kids sleep in the dome in the evening
+            let rest = surv && pol.careful && s.t >= crate::survival::EVENING && !problem;
+            (s.flare.is_some(), s.players[0].inside, problem, rest)
         };
         // flares: hide in the dome, come out afterwards
         t_flare = if flare { t_flare + dt } else { 0.0 };
@@ -133,9 +176,20 @@ fn play(map_id: MapId, cadet: bool, seed: u64, pol: Policy) -> State {
             continue;
         }
         if inside {
-            if !flare {
+            if !flare && !rest {
                 let _ = g.apply(0, Command::ExitShelter);
             }
+            continue;
+        }
+        if rest && busy <= 0.0 {
+            g.set_player_pos(0, DOOR.0, DOOR.1);
+            let _ = g.apply(0, Command::EnterShelter);
+            continue;
+        }
+        // survival: refill the suit at the airlock
+        if g.state().mode == Mode::Survival && g.state().players[0].body.suit_o2 < 35.0 {
+            g.set_player_pos(0, DOOR.0, DOOR.1);
+            busy = busy.max(1.0);
             continue;
         }
         if busy > 0.0 {
@@ -146,7 +200,8 @@ fn play(map_id: MapId, cadet: bool, seed: u64, pol: Policy) -> State {
         if t_problem > pol.react {
             let target = {
                 let s = g.state();
-                s.modules.iter().find(|m| (m.kind == ModuleKind::OxygenGen && m.broken) || (m.kind == ModuleKind::Habitat && s.leak) || m.dusty).map(|m| (m.id, m.dusty))
+                let surv = s.mode == Mode::Survival;
+                s.modules.iter().find(|m| (m.kind == ModuleKind::OxygenGen && m.broken) || (surv && m.broken) || (m.kind == ModuleKind::Habitat && (s.leak || (surv && s.surv.seal < 100.0))) || m.dusty).map(|m| (m.id, m.dusty && !m.broken))
             };
             if let Some((id, dusty)) = target {
                 busy = go_to_module(&mut g, id) + 3.0;
@@ -184,6 +239,10 @@ fn play(map_id: MapId, cadet: bool, seed: u64, pol: Policy) -> State {
             continue;
         }
         // build, then deliver samples, then explore
+        if survival && pol.careful && shop(&mut g) {
+            busy = 1.0;
+            continue;
+        }
         if try_build(&mut g, pol) {
             busy = 4.0;
             continue;
@@ -202,7 +261,7 @@ fn play(map_id: MapId, cadet: bool, seed: u64, pol: Policy) -> State {
         let target = {
             let s = g.state();
             let p = s.players[0].pos;
-            let want_ore = s.materials < 12;
+            let want_ore = s.coins < 12;
             s.sites
                 .iter()
                 .filter(|st| st.region.map_or(true, |r| s.region_open(r)))
@@ -229,13 +288,17 @@ struct Stats {
     wins: u32,
     stars: u32,
     dose: f32,
-    lost: [u32; 3],
+    lost: [u32; 4],
 }
 
 fn run(map_id: MapId, cadet: bool, pol: Policy, n: u32) -> Stats {
+    run_mode(map_id, cadet, pol, n, false)
+}
+
+fn run_mode(map_id: MapId, cadet: bool, pol: Policy, n: u32, survival: bool) -> Stats {
     let mut st = Stats::default();
     for i in 0..n {
-        let s = play(map_id, cadet, 0x9E37_79B9 ^ (i as u64).wrapping_mul(0x2545_F491_4F6C_DD1D), pol);
+        let s = play_mode(map_id, cadet, 0x9E37_79B9 ^ (i as u64).wrapping_mul(0x2545_F491_4F6C_DD1D), pol, survival);
         st.runs += 1;
         st.dose += s.dose;
         match s.status {
@@ -244,6 +307,7 @@ fn run(map_id: MapId, cadet: bool, pol: Policy, n: u32) -> Stats {
                 st.stars += s.stars();
             }
             Status::Lost(Cause::Oxygen) => st.lost[0] += 1,
+            Status::Lost(Cause::Cold) => st.lost[3] += 1,
             Status::Lost(Cause::Food) => st.lost[1] += 1,
             Status::Lost(Cause::Dose) => st.lost[2] += 1,
             Status::Playing => {}
@@ -285,4 +349,32 @@ fn balance() {
             assert!(bad + 20.0 <= *win, "{id:?} cadet={cadet}: being careful must matter ({bad:.0}% vs {win:.0}%)");
         }
     }
+}
+
+#[test]
+fn a_careful_crew_survives_the_moon() {
+    for cadet in [true, false] {
+        let st = run_mode(MapId::Moon, cadet, CAREFUL, 20, true);
+        assert!(st.wins >= 15, "cadet={cadet}: {} / 20, lost O2/food/dose {:?}", st.wins, st.lost);
+    }
+}
+
+/// Survival report: `cargo test -p ja-core --release survival_balance -- --ignored --nocapture`
+#[test]
+#[ignore]
+fn survival_balance() {
+    let n = 300;
+    println!("survival on the Moon ({n} runs each)");
+    println!("{:<8} {:<9} {:>5} {:>6}  lost O2/food/dose/cold", "level", "player", "win%", "dose");
+    let mut res = vec![];
+    for cadet in [true, false] {
+        for (name, pol) in [("careful", CAREFUL), ("careless", CARELESS)] {
+            let st = run_mode(MapId::Moon, cadet, pol, n, true);
+            let win = st.wins as f32 / st.runs as f32 * 100.0;
+            println!("{:<8} {:<9} {:>5.0} {:>6.1}  {}/{}/{}/{}", if cadet { "Junior" } else { "Advanced" }, name, win, st.dose / st.runs as f32, st.lost[0], st.lost[1], st.lost[2], st.lost[3]);
+            res.push(win);
+        }
+    }
+    assert!(res[0] >= 80.0 && res[2] >= 75.0, "careful crews must survive: {res:?}");
+    assert!(res[3] + 15.0 <= res[2], "preparing must matter for Advanced: {res:?}");
 }

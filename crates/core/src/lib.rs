@@ -20,11 +20,13 @@ pub mod dialog;
 pub mod expedition;
 pub mod game;
 pub mod i18n;
+pub mod landing;
 pub mod minigame;
 pub mod physics;
 pub mod progress;
 pub mod rng;
 pub mod ship;
+pub mod survival;
 pub mod weather;
 
 #[cfg(test)]
@@ -34,6 +36,8 @@ pub use data::{EventKind, Goal, MapId, ModuleKind, SiteKind, SkinSlot, Unlock, W
 pub use game::{region_at, BossState, Cause, Command, Forecast, Game, GameEvent, MissionConfig, MissionResult, Mode, ModuleId, Refusal, SiteId, State, Status};
 pub use i18n::{Lang, Msg, Tone};
 pub use progress::Profile;
+pub use survival::{Body, EventReport, ReportLine, Survival, Threat, Tonight, Upgrade};
+pub use landing::{Lander, LanderInput, LandingEvent};
 pub use weather::Weather;
 pub use campaign::{Campaign, CampaignCommand, CampaignEvent, CampaignState, Phase};
 pub use content::{Content, Text};

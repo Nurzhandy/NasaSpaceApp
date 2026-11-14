@@ -28,11 +28,11 @@ impl Art {
 
 const SPRITES: &[&str] = &[
     "antenna", "arrow", "astronaut", "astronaut_visor", "battery", "bubble", "cargo", "crater", "dot", "flame", "ghost", "greenhouse", "greenhouse_ripe", "habitat", "hats", "ice", "lab", "leak", "oxygen",
-    "rock_big", "rock_small", "rover", "sample_0", "sample_1", "shield", "solar", "solar_dusty", "spark", "tiles_earth", "tiles_europa", "tiles_mars", "tiles_moon", "tiles_orbit", "wreck", "app_icon", "rtg", "ore",
+    "rock_big", "rock_small", "rover", "sample_0", "sample_1", "shield", "solar", "solar_dusty", "spark", "tiles_earth", "tiles_europa", "tiles_mars", "tiles_moon", "tiles_orbit", "wreck", "app_icon", "rtg", "ore", "lander",
 ];
 
 pub const ICONS: &[&str] = &[
-    "alien", "antenna_bars", "astronaut", "back", "battery", "beacon", "book", "box", "bread", "broom", "cat", "check", "clipboard", "comet", "coop", "cross", "crown", "desert", "droplet", "earth", "exit",
+    "alien", "antenna_bars", "astronaut", "back", "battery", "beacon", "book", "box", "bread", "broom", "cat", "check", "clipboard", "coin", "comet", "coop", "cross", "crown", "desert", "droplet", "earth", "exit",
     "f_angry", "f_happy", "f_lonely", "f_proud", "f_sad", "f_tired", "f_worried", "flag", "flash", "food", "frown", "gamepad", "gear", "gem", "globe", "goggles", "hammer", "heart", "hint", "home",
     "hourglass", "house", "ice", "info", "key", "lab", "lock", "map", "mars", "medal", "moon", "mute", "neutral", "night", "ok_hand", "oxygen", "paint", "pause", "planet", "plant", "plate", "play",
     "power", "radiation", "radio", "retry", "robot", "rock", "rocket", "rover", "run", "s_call", "s_hug", "s_music", "s_photo", "s_talk", "sad_no", "satellite", "science", "seedling", "shield",

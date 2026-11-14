@@ -1,0 +1,40 @@
+{
+ "id": "jupiter",
+ "icon": "planet",
+ "playable": false,
+ "draft": true,
+ "name": {
+  "ru": "Юпитер",
+  "kk": null,
+  "en": "Jupiter"
+ },
+ "gravity": {
+  "ru": "2,5 g (на уровне облаков)",
+  "kk": null,
+  "en": "2.5 g (at cloud tops)"
+ },
+ "temperature": {
+  "ru": "около −110 °C в облаках",
+  "kk": null,
+  "en": "about −110 °C in the clouds"
+ },
+ "atmosphere": {
+  "ru": "водород и гелий, твёрдой поверхности нет",
+  "kk": null,
+  "en": "hydrogen and helium, no solid surface"
+ },
+ "surface": {
+  "junior": {
+   "ru": "Самая большая планета. Большое Красное Пятно — шторм больше Земли.",
+   "kk": null,
+   "en": "The biggest planet. The Great Red Spot is a storm bigger than Earth."
+  }
+ },
+ "history": {
+  "junior": {
+   "ru": "Europa Clipper летит изучать спутник Юпитера Европу.",
+   "kk": null,
+   "en": "Europa Clipper is flying to study Jupiter's moon Europa."
+  }
+ }
+}

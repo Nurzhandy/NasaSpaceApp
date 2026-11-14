@@ -1,0 +1,40 @@
+{
+ "id": "venus",
+ "icon": "planet",
+ "playable": false,
+ "draft": true,
+ "name": {
+  "ru": "Венера",
+  "kk": null,
+  "en": "Venus"
+ },
+ "gravity": {
+  "ru": "0,9 g",
+  "kk": null,
+  "en": "0.9 g"
+ },
+ "temperature": {
+  "ru": "около +465 °C — жарче, чем на Меркурии",
+  "kk": null,
+  "en": "about +465 °C — hotter than Mercury"
+ },
+ "atmosphere": {
+  "ru": "очень плотная, из CO₂, облака серной кислоты",
+  "kk": null,
+  "en": "very thick CO₂ with sulfuric acid clouds"
+ },
+ "surface": {
+  "junior": {
+   "ru": "Самая горячая планета: её греет парниковый эффект.",
+   "kk": null,
+   "en": "The hottest planet: a greenhouse effect heats it."
+  }
+ },
+ "history": {
+  "junior": {
+   "ru": "Советские «Венеры» передали первые снимки поверхности в 1975 году.",
+   "kk": null,
+   "en": "Soviet Venera landers sent the first surface photos in 1975."
+  }
+ }
+}

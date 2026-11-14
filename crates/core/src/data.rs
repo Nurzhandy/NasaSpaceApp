@@ -39,7 +39,7 @@ pub struct MapDef {
     pub start_panels: u8,
     pub start_rtg: u8,
     pub start_battery: f32,
-    pub start_materials: u32,
+    pub start_coins: u32,
     /// base dose % per sol without shield (real mSv/day × 7.3, see README)
     pub dose: f32,
     pub dose_real_ru: &'static str,
@@ -64,7 +64,7 @@ pub struct MapDef {
 pub const MAPS: &[MapDef] = &[
     MapDef {
         id: MapId::Earth, icon: "desert", name_ru: "База «Пустыня»", name_en: "Desert Base",
-        need: 0, tier: 1, sols: 4, panel_yield: 2.0, start_panels: 4, start_rtg: 0, start_battery: 4.0, start_materials: 12,
+        need: 0, tier: 1, sols: 4, panel_yield: 2.0, start_panels: 4, start_rtg: 0, start_battery: 4.0, start_coins: 12,
         dose: 0.06, dose_real_ru: "0,008 мЗв/сут — природный фон", dose_real_en: "0.008 mSv/day — natural background",
         delay_s: 0.0, delay_real_ru: "без задержки", delay_real_en: "no delay", gravity: 1.0,
         night_sols: &[], ice: false,
@@ -75,7 +75,7 @@ pub const MAPS: &[MapDef] = &[
     },
     MapDef {
         id: MapId::Moon, icon: "moon", name_ru: "Луна: Южный полюс", name_en: "Moon: South Pole",
-        need: 60, tier: 2, sols: 6, panel_yield: 2.25, start_panels: 4, start_rtg: 0, start_battery: 5.0, start_materials: 12,
+        need: 60, tier: 2, sols: 6, panel_yield: 2.25, start_panels: 4, start_rtg: 0, start_battery: 5.0, start_coins: 12,
         dose: 10.0, dose_real_ru: "1,369 мЗв/сут (Chang’e‑4)", dose_real_en: "1.369 mSv/day (Chang’e‑4)",
         delay_s: 1.3, delay_real_ru: "1,3 с", delay_real_en: "1.3 s", gravity: 0.16,
         night_sols: &[4], ice: true,
@@ -86,7 +86,7 @@ pub const MAPS: &[MapDef] = &[
     },
     MapDef {
         id: MapId::Mars, icon: "mars", name_ru: "Марс: кратер Езеро", name_en: "Mars: Jezero Crater",
-        need: 180, tier: 3, sols: 7, panel_yield: 1.5, start_panels: 4, start_rtg: 0, start_battery: 5.0, start_materials: 14,
+        need: 180, tier: 3, sols: 7, panel_yield: 1.5, start_panels: 4, start_rtg: 0, start_battery: 5.0, start_coins: 14,
         dose: 4.7, dose_real_ru: "0,64 мЗв/сут (Curiosity RAD)", dose_real_en: "0.64 mSv/day (Curiosity RAD)",
         delay_s: 6.0, delay_real_ru: "4–24 мин (в игре 6 с)", delay_real_en: "4–24 min (6 s in game)", gravity: 0.38,
         night_sols: &[], ice: false,
@@ -97,7 +97,7 @@ pub const MAPS: &[MapDef] = &[
     },
     MapDef {
         id: MapId::Orbit, icon: "satellite", name_ru: "Окололунная станция", name_en: "Lunar Orbit Station",
-        need: 400, tier: 4, sols: 7, panel_yield: 2.25, start_panels: 4, start_rtg: 0, start_battery: 5.0, start_materials: 14,
+        need: 400, tier: 4, sols: 7, panel_yield: 2.25, start_panels: 4, start_rtg: 0, start_battery: 5.0, start_coins: 14,
         dose: 13.4, dose_real_ru: "1,84 мЗв/сут в глубоком космосе (RAD)", dose_real_en: "1.84 mSv/day in deep space (RAD)",
         delay_s: 1.3, delay_real_ru: "1,3 с", delay_real_en: "1.3 s", gravity: 0.0,
         night_sols: &[], ice: false,
@@ -109,7 +109,7 @@ pub const MAPS: &[MapDef] = &[
     MapDef {
         id: MapId::Europa, icon: "ice", name_ru: "Европа (миссия будущего)", name_en: "Europa (future mission)",
         // the Sun is 27× dimmer at Jupiter: panels barely help, the base runs on RTGs like Curiosity
-        need: 700, tier: 5, sols: 8, panel_yield: 0.75, start_panels: 2, start_rtg: 2, start_battery: 6.0, start_materials: 16,
+        need: 700, tier: 5, sols: 8, panel_yield: 0.75, start_panels: 2, start_rtg: 2, start_battery: 6.0, start_coins: 16,
         // real surface dose (~5.4 Sv/day) is far beyond any shield: the game base hides under the ice
         dose: 13.0, dose_real_ru: "≈5 Зв/сут на поверхности — поэтому база спрятана подо льдом", dose_real_en: "≈5 Sv/day on the surface — so the base hides under the ice",
         delay_s: 10.0, delay_real_ru: "35–52 мин (в игре 10 с)", delay_real_en: "35–52 min (10 s in game)", gravity: 0.13,
@@ -152,7 +152,7 @@ pub struct ModuleDef {
     /// footprint in grid cells
     pub w: i32,
     pub h: i32,
-    /// materials to build
+    /// coins to build
     pub cost: u32,
     /// power blocks it can take (0 = not a consumer)
     pub max_power: u8,
@@ -195,9 +195,9 @@ pub fn module_def(kind: ModuleKind) -> &'static ModuleDef {
 pub enum SiteKind {
     /// a rock sample: carry it to the lab for science
     Sample,
-    /// metal-rich rocks: building materials
+    /// metal-rich rocks: building coins
     Ore,
-    /// an old lander: lots of materials
+    /// an old lander: lots of coins
     Wreck,
     /// water ice: turned into oxygen
     Ice,
@@ -537,7 +537,7 @@ pub enum Goal {
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Reward {
-    pub materials: u32,
+    pub coins: u32,
     pub unlock: Option<Unlock>,
     pub points: u32,
 }
@@ -554,36 +554,36 @@ pub struct QuestDef {
 }
 
 pub const STORY: &[QuestDef] = &[
-    QuestDef { icon: "rock", title_ru: "Первые материалы", title_en: "First materials", goal: Goal::Collect(SiteKind::Ore, 3),
-        story_ru: "ЦУП: «Привет, командир! Для стройки нужны материалы. Найди 3 рудных камня вокруг базы.»",
-        story_en: "Mission Control: “Hi, commander! Building needs materials. Find 3 ore rocks around the base.”",
-        reward: Reward { materials: 3, unlock: None, points: 5 } },
+    QuestDef { icon: "rock", title_ru: "Первые монеты", title_en: "First coins", goal: Goal::Collect(SiteKind::Ore, 3),
+        story_ru: "ЦУП: «Привет, командир! Для стройки нужны монеты. Найди 3 рудных камня вокруг базы.»",
+        story_en: "Mission Control: “Hi, commander! Building needs coins. Find 3 ore rocks around the base.”",
+        reward: Reward { coins: 3, unlock: None, points: 5 } },
     QuestDef { icon: "science", title_ru: "Своя лаборатория", title_en: "Our own lab", goal: Goal::Build(ModuleKind::Lab),
         story_ru: "Ая: «Учёные на Земле ждут наши образцы. Давай построим лабораторию!»",
         story_en: "Aya: “Scientists on Earth are waiting for our samples. Let's build a lab!”",
-        reward: Reward { materials: 4, unlock: None, points: 5 } },
+        reward: Reward { coins: 4, unlock: None, points: 5 } },
     QuestDef { icon: "gem", title_ru: "Первая наука", title_en: "First science", goal: Goal::Deliver(3),
         story_ru: "Ая: «Принеси 3 образца в лабораторию и дай ей энергию — тогда я соберу нам фонарь для тёмных мест!»",
         story_en: "Aya: “Bring 3 samples to the lab and give it power — then I'll make us a headlamp for dark places!”",
-        reward: Reward { materials: 0, unlock: Some(Unlock::Headlamp), points: 5 } },
+        reward: Reward { coins: 0, unlock: Some(Unlock::Headlamp), points: 5 } },
     QuestDef { icon: "rover", title_ru: "Гараж ровера", title_en: "Rover garage", goal: Goal::Build(ModuleKind::Garage),
         story_ru: "Тимур: «Пешком до места «{r0}» не дойти. Построим гараж — и у нас будет ровер!»",
         story_en: "Timur: “We can't walk to {r0}. Let's build a garage — and we'll have a rover!”",
-        reward: Reward { materials: 2, unlock: None, points: 5 } },
+        reward: Reward { coins: 2, unlock: None, points: 5 } },
     QuestDef { icon: "map", title_ru: "Экспедиция: {r0}", title_en: "Expedition: {r0}", goal: Goal::Explore(0, 2),
         story_ru: "ЦУП: «Съезди на ровере в область «{r0}» и привези 2 находки. Там лежит старый бур — забери его!»",
         story_en: "Mission Control: “Drive the rover to {r0} and bring back 2 finds. An old drill lies there — take it!”",
-        reward: Reward { materials: 4, unlock: Some(Unlock::Drill), points: 10 } },
+        reward: Reward { coins: 4, unlock: Some(Unlock::Drill), points: 10 } },
     QuestDef { icon: "shield", title_ru: "Защита базы", title_en: "Protect the base", goal: Goal::Build(ModuleKind::Shield),
         story_ru: "ЦУП: «Телескопы видят: в последний сол придёт «{boss}». Построй щит заранее!»",
         story_en: "Mission Control: “Our telescopes see it: on the last sol comes the {boss}. Build a shield in advance!”",
-        reward: Reward { materials: 3, unlock: None, points: 5 } },
+        reward: Reward { coins: 3, unlock: None, points: 5 } },
     QuestDef { icon: "ice", title_ru: "Тайна: {r2}", title_en: "Mystery: {r2}", goal: Goal::Explore(2, 2),
         story_ru: "БИП: «Бип-бип! Сканер видит что-то в области «{r2}». Возьми бур!»",
         story_en: "BEEP: “Beep-beep! My scanner sees something in {r2}. Take the drill!”",
-        reward: Reward { materials: 4, unlock: None, points: 10 } },
+        reward: Reward { coins: 4, unlock: None, points: 10 } },
     QuestDef { icon: "trophy", title_ru: "Финал: {boss}", title_en: "Finale: {boss}", goal: Goal::Boss,
         story_ru: "ЦУП: «Это «{boss}»! Прячься от вспышек, чисти панели, заделывай дыры. Мы с тобой!»",
         story_en: "Mission Control: “It's the {boss}! Hide from flares, clean the panels, patch the holes. We're with you!”",
-        reward: Reward { materials: 0, unlock: None, points: 20 } },
+        reward: Reward { coins: 0, unlock: None, points: 20 } },
 ];

@@ -58,6 +58,11 @@ pub fn to_px(x: f32, y: f32) -> Vec2 {
     Vec2::new((x - 10.5) * SC, (y - 7.5) * SC)
 }
 
+/// Part B's screenshot tour (JA_SHOTS without JA_SHIP_TEST) skips the flight and lands right away.
+pub fn skip_flight() -> bool {
+    std::env::var_os("JA_SHOTS").is_some() && std::env::var_os("JA_SHIP_TEST").is_none()
+}
+
 pub fn content_dir() -> std::path::PathBuf {
     std::path::PathBuf::from(crate::assets_dir()).join("content")
 }
@@ -138,11 +143,17 @@ fn start_expedition(mut commands: Commands, mut acts: EventReader<Act>, content:
             error!("no content: can't start the expedition");
             continue;
         };
+        if skip_flight() {
+            continue;
+        }
+        // the choices from part B's "new expedition" screen
         let level = if prof.0.cadet { Level::Junior } else { Level::Advanced };
-        let cfg = ExpeditionConfig::new(if setup.coop { 2 } else { 1 }, level);
+        let mut cfg = ExpeditionConfig::new(if setup.coop { 2 } else { 1 }, level);
+        if setup.mode == ja_core::Mode::Sandbox {
+            cfg.mode = ja_core::PlayMode::Creative;
+        }
         commands.insert_resource(Camp(Campaign::new(cfg, c)));
-        play.write(Play("launch"));
-        next.set(AppState::Ship);
+        let _ = (&mut next, &mut play); // part B's menu switches the state and plays the sound
     }
 }
 
@@ -385,12 +396,13 @@ fn ship_actions(mut acts: EventReader<Act>, mut camp: ResMut<Camp>, mut ui: ResM
                 continue;
             }
             Action::ToMoon => {
-                // part B's landing will sit here; until then the lander goes straight to the Moon base
+                // into the lander: part B's landing, then survival on the Moon
                 let _ = camp.0.apply(0, CampaignCommand::Landed);
                 setup.map = ja_core::MapId::Moon;
                 setup.coop = camp.0.state().cfg.players > 1;
+                setup.landing_coins = 0;
                 play.write(Play("launch"));
-                next.set(AppState::Playing);
+                next.set(AppState::Landing);
                 continue;
             }
             _ => continue,
@@ -808,7 +820,7 @@ fn ship_test(
 ) {
     run.t += time.delta_secs();
     let dir = std::env::var_os("JA_SHOTS").map(std::path::PathBuf::from);
-    let mut shot = |commands: &mut Commands, run: &mut TestRun, name: &'static str| {
+    let shot = |commands: &mut Commands, run: &mut TestRun, name: &'static str| {
         if run.shots.contains(&name) {
             return;
         }
@@ -824,6 +836,18 @@ fn ship_test(
             run.step = 1;
             run.t = 0.0;
         }
+        return;
+    }
+    if run.step == 101 && *state.get() == AppState::Landing && run.t > 2.5 {
+        // the flight handed over to part B's landing
+        shot(&mut commands, &mut run, "27_ship_to_landing");
+        info!("SHIP-TEST reached part B's landing");
+        run.step = 102;
+        run.t = 0.0;
+        return;
+    }
+    if run.step == 102 && run.t > 1.5 {
+        exit.write(AppExit::Success);
         return;
     }
     if *state.get() != AppState::Ship || run.t < 1.2 {
@@ -850,7 +874,9 @@ fn ship_test(
             run.step = 100;
         }
         if run.step == 100 && run.t > 3.0 {
-            exit.write(AppExit::Success);
+            acts.write(Act(Action::ToMoon));
+            run.step = 101;
+            run.t = 0.0;
         }
         return;
     }

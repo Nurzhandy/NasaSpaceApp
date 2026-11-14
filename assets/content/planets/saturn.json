@@ -1,0 +1,40 @@
+{
+ "id": "saturn",
+ "icon": "planet",
+ "playable": false,
+ "draft": true,
+ "name": {
+  "ru": "Сатурн",
+  "kk": null,
+  "en": "Saturn"
+ },
+ "gravity": {
+  "ru": "1,07 g",
+  "kk": null,
+  "en": "1.07 g"
+ },
+ "temperature": {
+  "ru": "около −140 °C",
+  "kk": null,
+  "en": "about −140 °C"
+ },
+ "atmosphere": {
+  "ru": "водород и гелий",
+  "kk": null,
+  "en": "hydrogen and helium"
+ },
+ "surface": {
+  "junior": {
+   "ru": "Кольца Сатурна — из льда и камней.",
+   "kk": null,
+   "en": "Saturn's rings are made of ice and rock."
+  }
+ },
+ "history": {
+  "junior": {
+   "ru": "Зонд «Кассини» изучал Сатурн 13 лет (2004–2017).",
+   "kk": null,
+   "en": "Cassini studied Saturn for 13 years (2004–2017)."
+  }
+ }
+}
