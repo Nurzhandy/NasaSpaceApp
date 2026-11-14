@@ -17,7 +17,7 @@ use ja_core::{Command, Game, GameEvent, MapId, MissionConfig, ModuleKind, Refusa
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-const VERSION: u32 = 1;
+const VERSION: u32 = 2; // 2: big map, story tasks and finale in ja-core
 const AUTOSAVE_EVERY: f32 = 5.0;
 
 /// One recorded call into the rules.

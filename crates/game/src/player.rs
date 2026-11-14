@@ -116,10 +116,12 @@ fn push_rect(p: &mut Vec2, x: f32, y: f32, w: f32, h: f32) {
     }
 }
 
-fn walk(time: Res<Time>, inputs: Res<Inputs>, modal: Res<Modal>, colliders: Res<Colliders>, mut sim: ResMut<Sim>, mut q: Query<&mut Player>, mut play: EventWriter<Play>, mut step_t: Local<f32>) {
+#[allow(clippy::too_many_arguments)]
+fn walk(time: Res<Time>, inputs: Res<Inputs>, modal: Res<Modal>, colliders: Res<Colliders>, mut sim: ResMut<Sim>, mut q: Query<&mut Player>, mut play: EventWriter<Play>, mut refused: EventWriter<Refused>, mut step_t: Local<f32>, mut warn_t: Local<f32>) {
     let dt = time.delta_secs().min(0.05);
     let rects: Vec<(f32, f32, f32, f32)> = sim.0.state().modules.iter().map(|m| (m.x as f32, m.y as f32, m.w as f32, m.h as f32)).collect();
     let mut moved_any = false;
+    *warn_t = (*warn_t - dt).max(0.0);
     for mut p in &mut q {
         let Some(ps) = sim.0.state().players.get(p.idx as usize).cloned() else { continue };
         // the rules move the astronaut to the door when they leave the dome
@@ -138,7 +140,9 @@ fn walk(time: Res<Time>, inputs: Res<Inputs>, modal: Res<Modal>, colliders: Res<
             p.facing = mv.normalize();
             p.dir = if mv.x.abs() > mv.y.abs() { if mv.x < 0.0 { 1 } else { 2 } } else if mv.y > 0.0 { 3 } else { 0 };
             p.anim += dt * 9.0 * mv.length();
-            let mut np = p.pos + mv * SPEED * dt;
+            let far = p.pos.length() > ja_core::game::BUILD_R as f32 + 3.0;
+            let speed = if far && sim.0.state().has(ja_core::Unlock::Vehicle) { SPEED * 2.2 } else { SPEED };
+            let mut np = p.pos + mv * speed * dt;
             for &(x, y, w, h) in &rects {
                 push_rect(&mut np, x, y, w, h);
             }
@@ -152,6 +156,14 @@ fn walk(time: Res<Time>, inputs: Res<Inputs>, modal: Res<Modal>, colliders: Res<
             let edge = WORLD_R - 0.6;
             if np.length() > edge {
                 np = np.normalize() * edge;
+            }
+            if let Err(why) = sim.0.state().can_walk(np.x, np.y) {
+                // a far region needs a tool (rover, headlamp, drill) — stop and say why
+                np = p.pos;
+                if *warn_t <= 0.0 {
+                    *warn_t = 2.5;
+                    refused.write(Refused(why));
+                }
             }
             p.pos = np;
         } else {

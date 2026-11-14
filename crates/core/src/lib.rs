@@ -23,8 +23,8 @@ pub mod weather;
 #[cfg(test)]
 mod balance;
 
-pub use data::{EventKind, MapId, ModuleKind, SiteKind, SkinSlot};
-pub use game::{Cause, Command, Forecast, Game, GameEvent, MissionConfig, MissionResult, ModuleId, Refusal, SiteId, State, Status};
+pub use data::{EventKind, Goal, MapId, ModuleKind, SiteKind, SkinSlot, Unlock, Wave};
+pub use game::{region_at, BossState, Cause, Command, Forecast, Game, GameEvent, MissionConfig, MissionResult, Mode, ModuleId, Refusal, SiteId, State, Status};
 pub use i18n::{Lang, Msg, Tone};
 pub use progress::Profile;
 pub use weather::Weather;

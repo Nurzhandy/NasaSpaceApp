@@ -4,7 +4,7 @@
 use crate::data::{Donki, DONKI_ARCHIVE};
 use crate::rng::Rng;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct WeatherEvent {
     /// FLR, GST, SEP or CME
     pub kind: String,

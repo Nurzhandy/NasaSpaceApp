@@ -10,6 +10,7 @@ mod kit;
 mod menu;
 mod player;
 mod save;
+mod story;
 mod tour;
 mod windows;
 mod world;
@@ -133,7 +134,7 @@ fn main() {
         .configure_sets(Update, (Set::Input, Set::Logic, Set::View).chain())
         .add_systems(Startup, (art::load, start_weather, spawn_camera))
         .add_systems(Update, poll_weather)
-        .add_plugins((kit::KitPlugin, audio::AudioFx, menu::MenuPlugin, world::WorldPlugin, player::PlayerPlugin, camera::CameraPlugin, build::BuildPlugin, hud::HudPlugin, windows::WindowsPlugin, tour::TourPlugin, save::SavePlugin))
+        .add_plugins((kit::KitPlugin, audio::AudioFx, menu::MenuPlugin, world::WorldPlugin, player::PlayerPlugin, camera::CameraPlugin, build::BuildPlugin, hud::HudPlugin, windows::WindowsPlugin, tour::TourPlugin, save::SavePlugin, story::StoryPlugin))
         .add_systems(OnEnter(AppState::Playing), start_mission)
         .run();
 }

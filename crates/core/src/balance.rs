@@ -205,6 +205,7 @@ fn play(map_id: MapId, cadet: bool, seed: u64, pol: Policy) -> State {
             let want_ore = s.materials < 12;
             s.sites
                 .iter()
+                .filter(|st| st.region.map_or(true, |r| s.region_open(r)))
                 .filter(|st| match st.kind {
                     SiteKind::Sample => carried < CARRY_MAX,
                     SiteKind::Ore | SiteKind::Wreck => want_ore,

@@ -12,7 +12,7 @@ pub enum MapId {
     Europa,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
 pub enum EventKind {
     Flare,
     Dust,
@@ -127,7 +127,7 @@ pub fn map(id: MapId) -> &'static MapDef {
 
 // ---------------------------------------------------------------- base modules
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
 pub enum ModuleKind {
     /// the dome: crew quarters and radiation shelter; exactly one, cannot be built or removed
     Habitat,
@@ -140,6 +140,8 @@ pub enum ModuleKind {
     Shield,
     Lab,
     Antenna,
+    /// rover garage: unlocks the vehicle for far regions
+    Garage,
 }
 
 pub struct ModuleDef {
@@ -179,6 +181,8 @@ pub const MODULES: &[ModuleDef] = &[
         desc_ru: "1 блок = +1 науки за сол. Принимает образцы, только когда включена.", desc_en: "1 block = +1 science per sol. Accepts samples only when powered." },
     ModuleDef { kind: ModuleKind::Antenna, icon: "satellite", name_ru: "Антенна", name_en: "Antenna", w: 1, h: 1, cost: 3, max_power: 1, only: &[],
         desc_ru: "Связь с Землёй: без энергии ЦУП не пришлёт прогноз.", desc_en: "Link to Earth: without power Mission Control can't send forecasts." },
+    ModuleDef { kind: ModuleKind::Garage, icon: "rover", name_ru: "Гараж ровера", name_en: "Rover garage", w: 3, h: 2, cost: 8, max_power: 0, only: &[],
+        desc_ru: "Даёт ровер: на нём можно доехать до дальних областей карты.", desc_en: "Gives you a rover to reach the far regions of the map." },
 ];
 
 pub fn module_def(kind: ModuleKind) -> &'static ModuleDef {
@@ -187,7 +191,7 @@ pub fn module_def(kind: ModuleKind) -> &'static ModuleDef {
 
 // ---------------------------------------------------------------- exploration sites
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
 pub enum SiteKind {
     /// a rock sample: carry it to the lab for science
     Sample,
@@ -320,6 +324,9 @@ pub const BADGES: &[Badge] = &[
     Badge { id: "live", icon: "sun", name_ru: "Живая погода", name_en: "Live weather" },
     Badge { id: "europa", icon: "ice", name_ru: "Покоритель Европы", name_en: "Europa explorer" },
     Badge { id: "builder", icon: "hammer", name_ru: "Строитель базы", name_en: "Base builder" },
+    Badge { id: "boss", icon: "crown", name_ru: "Пережил финал", name_en: "Finale survivor" },
+    Badge { id: "explorer", icon: "map", name_ru: "Исследователь", name_en: "Explorer" },
+    Badge { id: "story", icon: "book", name_ru: "Вся история", name_en: "The whole story" },
 ];
 
 pub struct Feeling {
@@ -384,4 +391,199 @@ pub const SOURCES: &[Source] = &[
     Source { title: "Obradović 2021 — deep breaths reduce children’s arousal", url: "https://pubmed.ncbi.nlm.nih.gov/34813098/" },
     Source { title: "Habgood & Ainsworth 2011 — intrinsic integration in educational games", url: "https://nottingham-repository.worktribe.com/output/23577510/motivating-children-to-learn-effectively-exploring-the-value-of-intrinsic-integration-in-educational-games" },
     Source { title: "Icons: OpenMoji (CC BY-SA 4.0)", url: "https://openmoji.org/" },
+];
+
+// ---------------------------------------------------------------- far regions, unlocks, story, bosses
+
+/// Tools that open far regions of the map.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
+pub enum Unlock {
+    /// a rover (or a tug at the orbit station): far, open ground
+    Vehicle,
+    /// a headlamp: permanently dark places
+    Headlamp,
+    /// a drill: things under the surface
+    Drill,
+}
+
+pub struct UnlockDef {
+    pub unlock: Unlock,
+    pub icon: &'static str,
+    pub name_ru: &'static str,
+    pub name_en: &'static str,
+}
+
+pub const UNLOCKS: &[UnlockDef] = &[
+    UnlockDef { unlock: Unlock::Vehicle, icon: "rover", name_ru: "Ровер", name_en: "Rover" },
+    UnlockDef { unlock: Unlock::Headlamp, icon: "flash", name_ru: "Налобный фонарь", name_en: "Headlamp" },
+    UnlockDef { unlock: Unlock::Drill, icon: "wrench", name_ru: "Бур", name_en: "Drill" },
+];
+
+pub fn unlock_def(u: Unlock) -> &'static UnlockDef {
+    UNLOCKS.iter().find(|d| d.unlock == u).expect("every Unlock is in UNLOCKS")
+}
+
+/// A far region: one 120° sector of the outer ring (see `game::region_at`).
+/// Region 0 needs the vehicle, region 1 the headlamp, region 2 the drill.
+pub struct RegionDef {
+    pub icon: &'static str,
+    pub name_ru: &'static str,
+    pub name_en: &'static str,
+    pub need: Unlock,
+    /// what is found there (repeat a kind to make it more common)
+    pub finds: &'static [SiteKind],
+    pub fact_ru: &'static str,
+    pub fact_en: &'static str,
+}
+
+use SiteKind::{Ice, Ore, Sample, Wreck};
+
+pub const REGIONS: &[(MapId, [RegionDef; 3])] = &[
+    (MapId::Earth, [
+        RegionDef { icon: "desert", name_ru: "Сухое русло", name_en: "Dry riverbed", need: Unlock::Vehicle, finds: &[Ore, Ore, Sample, Wreck],
+            fact_ru: "Геологи NASA учатся искать следы древней воды в пустынях Земли.", fact_en: "NASA geologists practise finding signs of ancient water in Earth's deserts." },
+        RegionDef { icon: "night", name_ru: "Лавовая пещера", name_en: "Lava cave", need: Unlock::Headlamp, finds: &[Sample, Sample, Ore],
+            fact_ru: "Астронавты тренируются в пещерах: там темно и тесно, как на другой планете.", fact_en: "Astronauts train in caves: dark and cramped, like another planet." },
+        RegionDef { icon: "snow", name_ru: "Солончак", name_en: "Salt flat", need: Unlock::Drill, finds: &[Ore, Sample, Sample],
+            fact_ru: "Под солью сохраняются следы микробов — так ищут жизнь и на Марсе.", fact_en: "Salt preserves traces of microbes — that's how we look for life on Mars too." },
+    ]),
+    (MapId::Moon, [
+        RegionDef { icon: "rock", name_ru: "Массив Малаперт", name_en: "Malapert Massif", need: Unlock::Vehicle, finds: &[Ore, Ore, Wreck, Sample],
+            fact_ru: "Массив Малаперт у южного полюса Луны — один из районов посадки по программе Artemis.", fact_en: "Malapert Massif near the lunar south pole is one of the Artemis landing regions." },
+        RegionDef { icon: "night", name_ru: "Кратер Шеклтон", name_en: "Shackleton Crater", need: Unlock::Headlamp, finds: &[Ice, Ice, Sample],
+            fact_ru: "Дно кратера Шеклтон никогда не видит Солнца: там очень холодно и может быть лёд.", fact_en: "The floor of Shackleton Crater never sees the Sun: it's freezing and may hold ice." },
+        RegionDef { icon: "hammer", name_ru: "Лавовая трубка", name_en: "Lava tube", need: Unlock::Drill, finds: &[Sample, Ore, Ore],
+            fact_ru: "Лавовые трубки могут стать укрытием для будущих баз: камень защищает от радиации.", fact_en: "Lava tubes could shelter future bases: rock blocks radiation." },
+    ]),
+    (MapId::Mars, [
+        RegionDef { icon: "map", name_ru: "Древняя дельта", name_en: "Ancient delta", need: Unlock::Vehicle, finds: &[Sample, Sample, Ore, Wreck],
+            fact_ru: "В кратере Езеро когда-то было озеро, и река оставила дельту. Её изучает Perseverance.", fact_en: "Jezero once held a lake, and a river left a delta. Perseverance studies it." },
+        RegionDef { icon: "night", name_ru: "Пещера на склоне", name_en: "Hillside cave", need: Unlock::Headlamp, finds: &[Sample, Sample, Ore],
+            fact_ru: "Снимки орбитальных аппаратов NASA показали на Марсе входы в пещеры.", fact_en: "NASA orbiter images have shown cave entrances on Mars." },
+        RegionDef { icon: "ice", name_ru: "Подземный лёд", name_en: "Buried ice", need: Unlock::Drill, finds: &[Ice, Ice, Ore],
+            fact_ru: "Под пылью Марса во многих местах лежит водяной лёд — его нашёл зонд Phoenix.", fact_en: "Water ice lies under the dust in many places on Mars — the Phoenix lander found it." },
+    ]),
+    (MapId::Orbit, [
+        RegionDef { icon: "satellite", name_ru: "Облако обломков", name_en: "Debris cloud", need: Unlock::Vehicle, finds: &[Wreck, Ore, Ore],
+            fact_ru: "NASA следит за десятками тысяч обломков на орбите, чтобы станции могли уклониться.", fact_en: "NASA tracks tens of thousands of debris pieces so stations can dodge them." },
+        RegionDef { icon: "night", name_ru: "Тень Луны", name_en: "Moon's shadow", need: Unlock::Headlamp, finds: &[Sample, Sample, Ore],
+            fact_ru: "Станция Gateway будет летать вокруг Луны по сильно вытянутой орбите.", fact_en: "The Gateway station will fly around the Moon on a very stretched orbit." },
+        RegionDef { icon: "comet", name_ru: "Ледяной астероид", name_en: "Icy asteroid", need: Unlock::Drill, finds: &[Ice, Ice, Sample],
+            fact_ru: "Зонд OSIRIS-REx привёз на Землю частицы астероида Бенну в 2023 году.", fact_en: "OSIRIS-REx brought pieces of asteroid Bennu to Earth in 2023." },
+    ]),
+    (MapId::Europa, [
+        RegionDef { icon: "ice", name_ru: "Ледяные трещины", name_en: "Ice cracks", need: Unlock::Vehicle, finds: &[Ore, Ore, Sample, Wreck],
+            fact_ru: "Длинные трещины на Европе тянутся на тысячи километров.", fact_en: "Europa's long cracks stretch for thousands of kilometres." },
+        RegionDef { icon: "night", name_ru: "Хаос Коннемара", name_en: "Conamara Chaos", need: Unlock::Headlamp, finds: &[Sample, Sample, Ice],
+            fact_ru: "Хаос Коннемара — поле расколотых льдин, как будто лёд подтаял снизу.", fact_en: "Conamara Chaos is a field of broken ice rafts, as if the ice melted from below." },
+        RegionDef { icon: "droplet", name_ru: "Шлейф гейзера", name_en: "Geyser plume", need: Unlock::Drill, finds: &[Ice, Sample, Sample],
+            fact_ru: "Телескоп Hubble видел признаки водяных шлейфов над Европой.", fact_en: "The Hubble telescope saw signs of water plumes above Europa." },
+    ]),
+];
+
+pub fn regions(id: MapId) -> &'static [RegionDef; 3] {
+    &REGIONS.iter().find(|r| r.0 == id).expect("every map has regions").1
+}
+
+/// One wave of the finale ("boss") event.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
+pub enum Wave {
+    /// hide in the dome (and raise the shield)
+    Flare,
+    /// clean the solar panels
+    Dust,
+    /// patch the leak and repair the generator
+    Meteor,
+}
+
+/// The finale of a story mission: a big event based on something that really happened.
+pub struct BossDef {
+    pub map: MapId,
+    pub icon: &'static str,
+    pub name_ru: &'static str,
+    pub name_en: &'static str,
+    pub waves: &'static [Wave],
+    pub fact_ru: &'static str,
+    pub fact_en: &'static str,
+}
+
+pub const BOSSES: &[BossDef] = &[
+    BossDef { map: MapId::Earth, icon: "tornado", name_ru: "Хабуб — стена песка", name_en: "Haboob — a wall of sand", waves: &[Wave::Dust, Wave::Meteor, Wave::Dust],
+        fact_ru: "Хабуб — песчаная буря высотой до километра. Такие бывают в пустынях Аризоны и Сахары.", fact_en: "A haboob is a sandstorm up to a kilometre tall, seen in the Arizona and Sahara deserts." },
+    BossDef { map: MapId::Moon, icon: "sun", name_ru: "Супервспышка Кэррингтона", name_en: "Carrington superflare", waves: &[Wave::Flare, Wave::Meteor, Wave::Flare],
+        fact_ru: "В 1859 году самая сильная известная солнечная буря вызвала полярные сияния почти у экватора.", fact_en: "In 1859 the strongest known solar storm made auroras visible almost at the equator." },
+    BossDef { map: MapId::Mars, icon: "tornado", name_ru: "Глобальная пылевая буря", name_en: "Global dust storm", waves: &[Wave::Dust, Wave::Flare, Wave::Dust],
+        fact_ru: "В 2018 году пыль закрыла весь Марс, и марсоход Opportunity навсегда остался без солнца.", fact_en: "In 2018 dust covered all of Mars and the Opportunity rover lost its sunlight for good." },
+    BossDef { map: MapId::Orbit, icon: "comet", name_ru: "Метеорный рой", name_en: "Meteor swarm", waves: &[Wave::Meteor, Wave::Flare, Wave::Meteor],
+        fact_ru: "МКС не раз меняла орбиту, чтобы уйти от обломков и метеороидов.", fact_en: "The ISS has changed its orbit many times to dodge debris and meteoroids." },
+    BossDef { map: MapId::Europa, icon: "radiation", name_ru: "Радиационный шторм Юпитера", name_en: "Jupiter radiation storm", waves: &[Wave::Flare, Wave::Meteor, Wave::Flare],
+        fact_ru: "Магнитное поле Юпитера разгоняет частицы: у Европы одно из самых радиоактивных мест Солнечной системы.", fact_en: "Jupiter's magnetic field speeds up particles: Europa is one of the most radioactive places in the Solar System." },
+];
+
+pub fn boss(id: MapId) -> &'static BossDef {
+    BOSSES.iter().find(|b| b.map == id).expect("every map has a boss")
+}
+
+/// What a story task asks for.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+pub enum Goal {
+    Collect(SiteKind, u32),
+    Build(ModuleKind),
+    Deliver(u32),
+    /// collect this many finds inside far region N
+    Explore(u8, u32),
+    Boss,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Reward {
+    pub materials: u32,
+    pub unlock: Option<Unlock>,
+    pub points: u32,
+}
+
+/// Story tasks, in order. Texts may use {r0} {r1} {r2} (region names) and {boss}.
+pub struct QuestDef {
+    pub icon: &'static str,
+    pub title_ru: &'static str,
+    pub title_en: &'static str,
+    pub story_ru: &'static str,
+    pub story_en: &'static str,
+    pub goal: Goal,
+    pub reward: Reward,
+}
+
+pub const STORY: &[QuestDef] = &[
+    QuestDef { icon: "rock", title_ru: "Первые материалы", title_en: "First materials", goal: Goal::Collect(SiteKind::Ore, 3),
+        story_ru: "ЦУП: «Привет, командир! Для стройки нужны материалы. Найди 3 рудных камня вокруг базы.»",
+        story_en: "Mission Control: “Hi, commander! Building needs materials. Find 3 ore rocks around the base.”",
+        reward: Reward { materials: 3, unlock: None, points: 5 } },
+    QuestDef { icon: "science", title_ru: "Своя лаборатория", title_en: "Our own lab", goal: Goal::Build(ModuleKind::Lab),
+        story_ru: "Ая: «Учёные на Земле ждут наши образцы. Давай построим лабораторию!»",
+        story_en: "Aya: “Scientists on Earth are waiting for our samples. Let's build a lab!”",
+        reward: Reward { materials: 4, unlock: None, points: 5 } },
+    QuestDef { icon: "gem", title_ru: "Первая наука", title_en: "First science", goal: Goal::Deliver(3),
+        story_ru: "Ая: «Принеси 3 образца в лабораторию и дай ей энергию — тогда я соберу нам фонарь для тёмных мест!»",
+        story_en: "Aya: “Bring 3 samples to the lab and give it power — then I'll make us a headlamp for dark places!”",
+        reward: Reward { materials: 0, unlock: Some(Unlock::Headlamp), points: 5 } },
+    QuestDef { icon: "rover", title_ru: "Гараж ровера", title_en: "Rover garage", goal: Goal::Build(ModuleKind::Garage),
+        story_ru: "Тимур: «Пешком до места «{r0}» не дойти. Построим гараж — и у нас будет ровер!»",
+        story_en: "Timur: “We can't walk to {r0}. Let's build a garage — and we'll have a rover!”",
+        reward: Reward { materials: 2, unlock: None, points: 5 } },
+    QuestDef { icon: "map", title_ru: "Экспедиция: {r0}", title_en: "Expedition: {r0}", goal: Goal::Explore(0, 2),
+        story_ru: "ЦУП: «Съезди на ровере в область «{r0}» и привези 2 находки. Там лежит старый бур — забери его!»",
+        story_en: "Mission Control: “Drive the rover to {r0} and bring back 2 finds. An old drill lies there — take it!”",
+        reward: Reward { materials: 4, unlock: Some(Unlock::Drill), points: 10 } },
+    QuestDef { icon: "shield", title_ru: "Защита базы", title_en: "Protect the base", goal: Goal::Build(ModuleKind::Shield),
+        story_ru: "ЦУП: «Телескопы видят: в последний сол придёт «{boss}». Построй щит заранее!»",
+        story_en: "Mission Control: “Our telescopes see it: on the last sol comes the {boss}. Build a shield in advance!”",
+        reward: Reward { materials: 3, unlock: None, points: 5 } },
+    QuestDef { icon: "ice", title_ru: "Тайна: {r2}", title_en: "Mystery: {r2}", goal: Goal::Explore(2, 2),
+        story_ru: "БИП: «Бип-бип! Сканер видит что-то в области «{r2}». Возьми бур!»",
+        story_en: "BEEP: “Beep-beep! My scanner sees something in {r2}. Take the drill!”",
+        reward: Reward { materials: 4, unlock: None, points: 10 } },
+    QuestDef { icon: "trophy", title_ru: "Финал: {boss}", title_en: "Finale: {boss}", goal: Goal::Boss,
+        story_ru: "ЦУП: «Это «{boss}»! Прячься от вспышек, чисти панели, заделывай дыры. Мы с тобой!»",
+        story_en: "Mission Control: “It's the {boss}! Hide from flares, clean the panels, patch the holes. We're with you!”",
+        reward: Reward { materials: 0, unlock: None, points: 20 } },
 ];

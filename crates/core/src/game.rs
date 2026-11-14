@@ -1,13 +1,21 @@
-//! The outpost: a grid base built from modules, a real-time resource simulation, exploration
-//! sites and events. Pure data — the Bevy app (part B) only reads `state()`, sends `Command`s
-//! and reacts to `GameEvent`s.
+//! The outpost: a grid base built from modules, a real-time resource simulation, a big map with
+//! far regions, story tasks, a finale "boss" event, and game modes. Pure data — the Bevy app
+//! (part B) only reads `state()`, sends `Command`s and reacts to `GameEvent`s.
 //!
-//! Units: time in real seconds (a sol is `SOL_LEN` s), positions in grid cells (x right, y down
-//! or up — the core does not care), rates "per sol". The habitat sits at cells (-1..=1, -1..=1).
+//! Units: time in real seconds (a sol is `SOL_LEN` s), positions in grid cells, rates "per sol".
+//! The habitat sits at cells (-1..=1, -1..=1). Everything is serde-serializable so a host can send
+//! `State` to other computers and receive their `Command`s (network co-op).
+//!
+//! Map layout (radius in cells from the habitat):
+//! - `0..BUILD_R` — the base, modules can be built here;
+//! - `..INNER_R` — open ground around the base;
+//! - `INNER_R..WORLD_R` — three far regions, 120° each; region 0 needs the rover,
+//!   region 1 the headlamp, region 2 the drill (see `data::regions`).
 
 use crate::data::*;
 use crate::rng::Rng;
 use crate::weather::{Weather, WeatherEvent};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 pub const SOL_LEN: f32 = 100.0;
@@ -26,16 +34,33 @@ pub const NEAR: f32 = 2.5;
 pub const CARRY_MAX: u32 = 5;
 /// modules can be built within this many cells of the habitat centre
 pub const BUILD_R: i32 = 11;
-/// exploration area radius (cells)
-pub const WORLD_R: f32 = 36.0;
+/// open ground ends here; far regions start
+pub const INNER_R: f32 = 40.0;
+/// edge of the map (cells)
+pub const WORLD_R: f32 = 115.0;
 /// where the cargo ship lands and where players start (in front of the habitat door)
 pub const CARGO_PAD: (f32, f32) = (0.5, 7.5);
 pub const DOOR: (f32, f32) = (0.5, 2.5);
+/// finds on the map are topped up to at most this many
+pub const MAX_SITES: usize = 70;
+/// finale waves: length and pause between them (fractions of a sol)
+pub const WAVE_LEN: f32 = 0.2;
+pub const WAVE_GAP: f32 = 0.05;
 
 pub type ModuleId = u32;
 pub type SiteId = u32;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Mode {
+    /// story tasks, far regions open step by step, a finale on the last sol
+    Story,
+    /// free building: no losing, everything open, no time limit (end with `Game::end_now`)
+    Sandbox,
+    /// straight to the finale with a ready base
+    Challenge,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MissionConfig {
     pub map: MapId,
     /// age mode "Cadet 7–9": no food, accurate forecasts, lower science goal
@@ -53,7 +78,7 @@ impl MissionConfig {
 }
 
 /// Everything a player can do. `player` is 0 or 1 (co-op).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Command {
     Build { kind: ModuleKind, x: i32, y: i32 },
     Demolish { x: i32, y: i32 },
@@ -76,13 +101,14 @@ pub enum Command {
 }
 
 /// Why a command was refused. Show `crate::i18n::refusal_msg` to the child.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Refusal {
     MissionOver,
     NotEnoughPower,
     NotEnoughMaterials,
     CellBusy,
     OutsideBase,
+    EdgeOfMap,
     NotAvailableHere,
     OnlyOne,
     CannotDemolish,
@@ -95,6 +121,7 @@ pub enum Refusal {
     HandsFull,
     NothingToDeliver,
     NeedsModule(ModuleKind),
+    NeedUnlock(Unlock),
     LabNeedsPower,
     NotReady,
     AlreadyInside,
@@ -104,26 +131,28 @@ pub enum Refusal {
     UnknownId,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Forecast {
     Sure(EventKind),
     Maybe(EventKind),
     Night,
     Calm,
+    /// the finale comes tomorrow
+    Finale,
     /// the Sun is between Earth and the base (solar conjunction)
     NoSignal,
     /// the antenna has no power
     NoAntenna,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Cause {
     Oxygen,
     Food,
     Dose,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Status {
     Playing,
     Won,
@@ -131,7 +160,7 @@ pub enum Status {
 }
 
 /// Something happened. Use `crate::i18n::event_msg` for the child-facing text.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum GameEvent {
     NewSol(u32),
     Night,
@@ -145,6 +174,7 @@ pub enum GameEvent {
     ModuleBroken(ModuleId),
     Leak(ModuleId),
     HarvestReady,
+    /// new finds appeared on the map
     Discovery(Vec<SiteId>),
     CargoLanding { x: f32, y: f32 },
     CrewNeedsSupport(usize),
@@ -153,7 +183,7 @@ pub enum GameEvent {
     Demolished { kind: ModuleKind, refund: u32 },
     Repaired(ModuleId),
     Cleaned(ModuleId),
-    Collected { site: SiteId, kind: SiteKind },
+    Collected { site: SiteId, kind: SiteKind, region: Option<u8> },
     SamplesDelivered { count: u32, science: f32 },
     Sheltered { player: u8 },
     LeftShelter { player: u8 },
@@ -164,10 +194,16 @@ pub enum GameEvent {
     Supported(usize),
     LowOxygen,
     BatteryEmpty,
+    Unlocked(Unlock),
+    QuestStarted(usize),
+    QuestDone { quest: usize, materials: u32, unlock: Option<Unlock> },
+    BossWave { wave: u8, of: u8, kind: Wave },
+    WaveCleared { wave: u8, countered: bool },
+    BossDefeated { countered: u8, of: u8 },
     MissionEnded(MissionResult),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Module {
     pub id: ModuleId,
     pub kind: ModuleKind,
@@ -196,22 +232,24 @@ impl Module {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Site {
     pub id: SiteId,
     pub kind: SiteKind,
     pub x: f32,
     pub y: f32,
+    /// far region index, `None` = open ground near the base
+    pub region: Option<u8>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Player {
     pub pos: (f32, f32),
     pub inside: bool,
     pub carried: u32,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Flare {
     pub event: WeatherEvent,
     pub live: bool,
@@ -222,20 +260,20 @@ pub struct Flare {
     pub spike: f32,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CrewMood {
     pub mood: usize,
     pub named: bool,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct McMessage {
     pub forecast: Forecast,
     pub sent_at: f32,
     pub arrive_at: f32,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SolRecord {
     pub sol: u32,
     pub o2: f32,
@@ -244,7 +282,23 @@ pub struct SolRecord {
     pub science: f32,
 }
 
-#[derive(Clone, Debug, Default, PartialEq)]
+/// The finale in progress. Show `wave`/`of` and `t_left` as the "boss bar".
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct BossState {
+    /// current wave, 1-based
+    pub wave: u8,
+    pub of: u8,
+    pub kind: Wave,
+    /// false during the pause between waves
+    pub active: bool,
+    /// fraction of a sol left in this wave (or pause)
+    pub t_left: f32,
+    /// waves the crew handled the right way so far
+    pub countered: u8,
+    sheltered: bool,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Flags {
     pub sheltered_in_flare: bool,
     pub storm: bool,
@@ -254,12 +308,14 @@ pub struct Flags {
     pub repairs: u32,
     pub built: u32,
     pub collected: u32,
+    pub regions_visited: [bool; 3],
 }
 
 /// Snapshot for the debrief and for `progress::Profile::finish`.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MissionResult {
     pub map: MapId,
+    pub mode: Mode,
     pub won: bool,
     pub cause: Option<Cause>,
     pub stars: u32,
@@ -275,12 +331,16 @@ pub struct MissionResult {
     pub live: bool,
     pub flags: Flags,
     pub samples_delivered: u32,
+    pub quests_done: u32,
+    pub boss_done: bool,
+    pub boss_countered: u8,
 }
 
 /// Everything the app needs to draw. Read-only for part B.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct State {
     pub map: MapId,
+    pub mode: Mode,
     pub cadet: bool,
     pub coop: bool,
     pub live: bool,
@@ -305,6 +365,8 @@ pub struct State {
     pub modules: Vec<Module>,
     pub sites: Vec<Site>,
     pub players: Vec<Player>,
+    /// tools that open far regions
+    pub unlocks: Vec<Unlock>,
     pub flare: Option<Flare>,
     pub dust_left: u32,
     pub leak: bool,
@@ -318,9 +380,25 @@ pub struct State {
     pub mc: Option<McMessage>,
     pub silence_left: u32,
     pub samples_delivered: u32,
+    /// current story task (index into `data::STORY`; == len when all are done)
+    pub quest: usize,
+    pub quest_progress: u32,
+    pub quests_done: u32,
+    pub boss: Option<BossState>,
+    pub boss_done: bool,
+    pub boss_countered: u8,
     pub status: Status,
     pub history: Vec<SolRecord>,
     pub flags: Flags,
+}
+
+/// Which far region a point is in (`None` = the base and the open ground around it).
+pub fn region_at(x: f32, y: f32) -> Option<u8> {
+    if x.hypot(y) < INNER_R {
+        return None;
+    }
+    let a = y.atan2(x).rem_euclid(std::f32::consts::TAU);
+    Some(((a / (std::f32::consts::TAU / 3.0)) as u8).min(2))
 }
 
 impl State {
@@ -354,6 +432,23 @@ impl State {
     pub fn powered(&self, kind: ModuleKind) -> u32 {
         self.modules.iter().filter(|m| m.kind == kind).map(|m| m.power as u32).sum()
     }
+    pub fn has(&self, u: Unlock) -> bool {
+        self.unlocks.contains(&u)
+    }
+    /// Can the astronauts go into far region `r`?
+    pub fn region_open(&self, r: u8) -> bool {
+        self.has(regions(self.map)[r.min(2) as usize].need)
+    }
+    /// Can an astronaut stand here? Use it to stop walking at a locked region or the map edge.
+    pub fn can_walk(&self, x: f32, y: f32) -> Result<(), Refusal> {
+        if x.hypot(y) > WORLD_R {
+            return Err(Refusal::EdgeOfMap);
+        }
+        match region_at(x, y) {
+            Some(r) if !self.region_open(r) => Err(Refusal::NeedUnlock(regions(self.map)[r as usize].need)),
+            _ => Ok(()),
+        }
+    }
     /// fraction of radiation the shield removes (0..0.9)
     pub fn shield_red(&self) -> f32 {
         self.powered(ModuleKind::Shield).min(SHIELD_CAP) as f32 * SHIELD_PER
@@ -362,6 +457,9 @@ impl State {
     pub fn available(&self) -> u32 {
         self.supply.max(0.0).floor() as u32 + self.battery.max(0.0).floor() as u32
     }
+    pub fn has_finale(&self) -> bool {
+        self.mode != Mode::Sandbox
+    }
     pub fn stars(&self) -> u32 {
         if self.status != Status::Won {
             return 0;
@@ -369,11 +467,16 @@ impl State {
         1 + (self.science >= self.goal) as u32 + (self.dose < 50.0) as u32
     }
     pub fn points(&self) -> u32 {
+        let quests: u32 = STORY.iter().take(self.quests_done as usize).map(|q| q.reward.points).sum();
+        if self.mode == Mode::Sandbox {
+            return quests;
+        }
         let per = [0, 20, 30, 40, 50, 60][self.def().tier as usize];
-        match self.status {
+        let base = match self.status {
             Status::Won => per * self.stars() + if self.live { 10 } else { 0 } + if self.coop { 10 } else { 0 },
             _ => 10 + (self.sol.saturating_sub(1) * 3).min(20),
-        }
+        };
+        base + quests + self.boss_countered as u32 * 5
     }
 }
 
@@ -390,57 +493,69 @@ pub struct Game {
 }
 
 impl Game {
+    /// A story mission (the default).
     pub fn new(cfg: MissionConfig, weather: &Weather) -> Game {
+        Self::with_mode(cfg, Mode::Story, weather)
+    }
+
+    /// A mission in a chosen mode: story, free building (sandbox) or the finale challenge.
+    pub fn with_mode(cfg: MissionConfig, mode: Mode, weather: &Weather) -> Game {
         let m = map(cfg.map);
         let mut rng = Rng::new(cfg.seed);
         let live = cfg.live && weather.live && cfg.map != MapId::Earth;
-        // ---- event schedule (one event on most sols, never two of the same kind in a row)
+        let sols = match mode {
+            Mode::Story => m.sols,
+            Mode::Sandbox => 99,
+            Mode::Challenge => 1,
+        };
+        // ---- event schedule (one event on most sols, never two of the same kind in a row);
+        // the last sol of a story belongs to the finale
         let mut schedule = HashMap::new();
+        let last_free = if mode == Mode::Sandbox { sols } else { sols.saturating_sub(1) };
         let mut last: Option<EventKind> = None;
         let mut used_once: Vec<EventKind> = vec![];
-        for sol in 2..=m.sols {
+        for sol in 2..=last_free {
             if m.night_sols.contains(&sol) || !rng.chance(0.65) {
                 continue;
             }
             let mut kind = m.events[rng.below(m.events.len())];
             let mut tries = 0;
-            while (Some(kind) == last || used_once.contains(&kind)) && tries < 20 {
+            while (Some(kind) == last || (mode != Mode::Sandbox && used_once.contains(&kind))) && tries < 20 {
                 kind = m.events[rng.below(m.events.len())];
                 tries += 1;
             }
             if matches!(kind, EventKind::Dust | EventKind::Conjunction | EventKind::Supply) {
                 used_once.push(kind);
             }
-            if kind == EventKind::Dust && sol >= m.sols {
-                continue;
-            }
             let surprise = !cfg.cadet && kind == EventKind::Flare && rng.chance(0.2);
             schedule.insert(sol, (kind, surprise));
             last = Some(kind);
         }
         // a real high-risk week guarantees an early flare
-        if live {
-            let sol = 2 + rng.below(2.min(m.sols as usize - 1)) as u32;
+        if live && last_free >= 2 {
+            let sol = 2 + rng.below(2.min(last_free as usize - 1)) as u32;
             if weather.risk() >= 2 || !schedule.contains_key(&sol) {
                 schedule.insert(sol, (EventKind::Flare, false));
             }
         }
         let mut false_alarm = None;
-        if !cfg.cadet && cfg.map != MapId::Earth && rng.chance(0.5) {
-            let free: Vec<u32> = (2..=m.sols).filter(|s| !schedule.contains_key(s) && !m.night_sols.contains(s)).collect();
+        if !cfg.cadet && cfg.map != MapId::Earth && rng.chance(0.5) && last_free >= 2 {
+            let free: Vec<u32> = (2..=last_free).filter(|s| !schedule.contains_key(s) && !m.night_sols.contains(s)).collect();
             if !free.is_empty() {
                 false_alarm = Some(free[rng.below(free.len())]);
             }
         }
 
         let players = (0..if cfg.coop { 2 } else { 1 }).map(|i| Player { pos: (DOOR.0 - 0.8 + i as f32 * 1.6, DOOR.1 + 1.0), inside: false, carried: 0 }).collect();
+        let open_all = mode != Mode::Story;
         let s = State {
             map: cfg.map,
+            mode: mode,
             cadet: cfg.cadet,
             coop: cfg.coop,
             live,
             sol: 1,
-            sols: m.sols,
+            sols,
             t: 0.0,
             elapsed: 0.0,
             paused: false,
@@ -452,12 +567,17 @@ impl Game {
             goal: (m.sols as f32 * if cfg.cadet { 0.8 } else { 1.2 }).round(),
             battery: m.start_battery,
             battery_cap: HABITAT_BATTERY,
-            materials: m.start_materials,
+            materials: match mode {
+                Mode::Story => m.start_materials,
+                Mode::Sandbox => 40,
+                Mode::Challenge => m.start_materials + 10,
+            },
             supply: 0.0,
             demand: 0,
             modules: vec![],
             sites: vec![],
             players,
+            unlocks: if open_all { vec![Unlock::Vehicle, Unlock::Headlamp, Unlock::Drill] } else { vec![] },
             flare: None,
             dust_left: 0,
             leak: false,
@@ -469,12 +589,18 @@ impl Game {
             mc: None,
             silence_left: 0,
             samples_delivered: 0,
+            quest: if mode == Mode::Challenge { STORY.len() } else { 0 },
+            quest_progress: 0,
+            quests_done: 0,
+            boss: None,
+            boss_done: false,
+            boss_countered: 0,
             status: Status::Playing,
             history: vec![],
             flags: Flags::default(),
         };
         let mut g = Game { s, rng, weather: weather.clone(), schedule, false_alarm, pending: vec![], next_id: 1, low_o2_warned: false, battery_warned: false };
-        g.starting_base(cfg.cadet);
+        g.starting_base(cfg.cadet, mode == Mode::Challenge);
         g.starting_sites();
         g.refresh_power();
         let _ = g.begin_sol();
@@ -497,6 +623,14 @@ impl Game {
         }
     }
 
+    /// Finish now (the "go home" button in sandbox mode). Returns the result for the debrief.
+    pub fn end_now(&mut self) -> MissionResult {
+        if self.s.status == Status::Playing {
+            self.s.status = Status::Won;
+        }
+        self.result()
+    }
+
     fn add_module(&mut self, kind: ModuleKind, x: i32, y: i32, power: u8) -> ModuleId {
         let d = module_def(kind);
         let id = self.next_id;
@@ -505,7 +639,7 @@ impl Game {
         id
     }
 
-    fn starting_base(&mut self, cadet: bool) {
+    fn starting_base(&mut self, cadet: bool, ready: bool) {
         let m = self.s.def();
         self.add_module(ModuleKind::Habitat, -1, -1, 0);
         for i in 0..m.start_panels as i32 {
@@ -518,27 +652,64 @@ impl Game {
         self.add_module(ModuleKind::OxygenGen, -5, 2, 2);
         self.add_module(ModuleKind::Greenhouse, 3, 3, if cadet { 0 } else { 2 });
         self.add_module(ModuleKind::Antenna, 4, 0, 1);
+        if ready {
+            // challenge: a shield and a second battery are already there
+            self.add_module(ModuleKind::Shield, -7, -2, 0);
+            self.add_module(ModuleKind::Battery, -7, 0, 0);
+        }
     }
 
-    fn spawn_site(&mut self, kind: SiteKind) -> SiteId {
-        let a = self.rng.range(0.0, std::f32::consts::TAU);
-        let r = self.rng.range(BUILD_R as f32 + 2.0, WORLD_R - 2.0);
+    fn spawn_site(&mut self, kind: SiteKind, region: Option<u8>) -> SiteId {
+        let (a, r) = match region {
+            None => (self.rng.range(0.0, std::f32::consts::TAU), self.rng.range(BUILD_R as f32 + 2.0, INNER_R - 2.0)),
+            Some(i) => {
+                let sector = std::f32::consts::TAU / 3.0;
+                (self.rng.range(i as f32 * sector + 0.08, (i + 1) as f32 * sector - 0.08), self.rng.range(INNER_R + 3.0, WORLD_R - 4.0))
+            }
+        };
         let id = self.next_id;
         self.next_id += 1;
-        self.s.sites.push(Site { id, kind, x: a.cos() * r, y: a.sin() * r });
+        self.s.sites.push(Site { id, kind, x: a.cos() * r, y: a.sin() * r, region });
         id
+    }
+
+    fn spawn_region_find(&mut self, r: u8) -> SiteId {
+        let finds = regions(self.s.map)[r as usize].finds;
+        let kind = finds[self.rng.below(finds.len())];
+        self.spawn_site(kind, Some(r))
     }
 
     fn starting_sites(&mut self) {
         for _ in 0..4 {
-            self.spawn_site(SiteKind::Sample);
-            self.spawn_site(SiteKind::Ore);
+            self.spawn_site(SiteKind::Sample, None);
         }
-        self.spawn_site(SiteKind::Wreck);
+        for _ in 0..5 {
+            self.spawn_site(SiteKind::Ore, None);
+        }
+        self.spawn_site(SiteKind::Wreck, None);
         if self.s.def().ice {
-            self.spawn_site(SiteKind::Ice);
-            self.spawn_site(SiteKind::Ice);
+            self.spawn_site(SiteKind::Ice, None);
         }
+        for r in 0..3 {
+            for _ in 0..6 {
+                self.spawn_region_find(r);
+            }
+        }
+    }
+
+    /// New finds every sol: the robot BEEP scans, meteorites fall. The map never runs dry.
+    fn top_up_sites(&mut self) -> Option<GameEvent> {
+        if self.s.sites.len() >= MAX_SITES {
+            return None;
+        }
+        let mut ids = vec![];
+        let near = if self.rng.chance(0.5) { SiteKind::Ore } else { SiteKind::Sample };
+        ids.push(self.spawn_site(near, None));
+        ids.push(self.spawn_site(SiteKind::Ore, None));
+        for r in 0..3 {
+            ids.push(self.spawn_region_find(r));
+        }
+        Some(GameEvent::Discovery(ids))
     }
 
     fn compute_supply(&self) -> f32 {
@@ -576,6 +747,9 @@ impl Game {
         if self.s.silence_left > 0 {
             self.s.silence_left -= 1;
         }
+        if self.s.sol > 1 {
+            ev.extend(self.top_up_sites());
+        }
         if let Some((kind, _)) = self.schedule.get(&self.s.sol).copied() {
             self.pending.push(kind);
         }
@@ -586,6 +760,8 @@ impl Game {
             Forecast::NoAntenna
         } else if self.s.silence_left > 0 {
             Forecast::NoSignal
+        } else if self.s.has_finale() && (next == self.s.sols || self.s.sols == 1) {
+            Forecast::Finale
         } else if next > self.s.sols {
             Forecast::Calm
         } else if m.night_sols.contains(&next) && !self.s.is_night() {
@@ -606,6 +782,39 @@ impl Game {
         ev
     }
 
+    fn start_flare(&mut self, event: WeatherEvent, live: bool, duration: f32, boost: f32) {
+        let factor = match self.s.map {
+            MapId::Moon => 1.0,
+            MapId::Mars => 0.8,
+            MapId::Orbit => 1.25,
+            MapId::Europa => 1.1,
+            MapId::Earth => 0.0,
+        };
+        let spike = (12.0 + 18.0 * event.power) * factor * boost;
+        self.s.flare = Some(Flare { event, live, t_left: duration, duration, spike });
+        self.s.flags.flares += 1;
+    }
+
+    fn break_generator(&mut self) -> Option<GameEvent> {
+        let gens: Vec<ModuleId> = self.s.modules.iter().filter(|m| m.kind == ModuleKind::OxygenGen && !m.broken).map(|m| m.id).collect();
+        if gens.is_empty() {
+            return None;
+        }
+        let id = gens[self.rng.below(gens.len())];
+        if let Some(m) = self.s.modules.iter_mut().find(|m| m.id == id) {
+            m.broken = true;
+        }
+        Some(GameEvent::ModuleBroken(id))
+    }
+
+    fn dust_up(&mut self) {
+        self.s.dust_left = self.s.dust_left.max(1);
+        self.s.flags.storm = true;
+        for m in self.s.modules.iter_mut().filter(|m| m.kind == ModuleKind::Solar) {
+            m.dusty = true;
+        }
+    }
+
     fn fire_pending(&mut self) -> Vec<GameEvent> {
         if self.s.t < 0.08 || self.pending.is_empty() {
             return vec![];
@@ -615,38 +824,16 @@ impl Game {
             EventKind::Flare => {
                 let (event, live) = self.weather.pick_flare(&mut self.rng);
                 let live = live && self.s.live;
-                let factor = match self.s.map {
-                    MapId::Moon => 1.0,
-                    MapId::Mars => 0.8,
-                    MapId::Orbit => 1.25,
-                    MapId::Europa => 1.1,
-                    MapId::Earth => 0.0,
-                };
-                let spike = (12.0 + 18.0 * event.power) * factor;
                 let e = GameEvent::Flare { label_ru: event.label_ru.clone(), label_en: event.label_en.clone(), date: event.date.clone(), live };
-                self.s.flare = Some(Flare { event, live, t_left: 0.4, duration: 0.4, spike });
-                self.s.flags.flares += 1;
+                self.start_flare(event, live, 0.4, 1.0);
                 vec![e]
             }
             EventKind::Dust => {
+                self.dust_up();
                 self.s.dust_left = 2;
-                self.s.flags.storm = true;
-                for m in self.s.modules.iter_mut().filter(|m| m.kind == ModuleKind::Solar) {
-                    m.dusty = true;
-                }
                 vec![GameEvent::DustStorm]
             }
-            EventKind::Failure => {
-                let gens: Vec<ModuleId> = self.s.modules.iter().filter(|m| m.kind == ModuleKind::OxygenGen && !m.broken).map(|m| m.id).collect();
-                if gens.is_empty() {
-                    return vec![];
-                }
-                let id = gens[self.rng.below(gens.len())];
-                if let Some(m) = self.s.modules.iter_mut().find(|m| m.id == id) {
-                    m.broken = true;
-                }
-                vec![GameEvent::ModuleBroken(id)]
-            }
+            EventKind::Failure => self.break_generator().into_iter().collect(),
             EventKind::Leak => {
                 self.s.leak = true;
                 vec![GameEvent::Leak(self.s.habitat().id)]
@@ -660,7 +847,7 @@ impl Game {
                 vec![GameEvent::HarvestReady]
             }
             EventKind::Discovery => {
-                let ids = (0..3).map(|i| self.spawn_site(if i == 2 { SiteKind::Ore } else { SiteKind::Sample })).collect();
+                let ids = (0..3).map(|i| self.spawn_site(if i == 2 { SiteKind::Ore } else { SiteKind::Sample }, None)).collect();
                 vec![GameEvent::Discovery(ids)]
             }
             EventKind::Supply => {
@@ -677,6 +864,120 @@ impl Game {
                 vec![GameEvent::SignalLost]
             }
         }
+    }
+
+    fn start_wave(&mut self, wave: u8, countered: u8) -> Vec<GameEvent> {
+        let def = boss(self.s.map);
+        let of = def.waves.len() as u8;
+        let kind = def.waves[(wave - 1) as usize];
+        let mut ev = vec![GameEvent::BossWave { wave, of, kind }];
+        match kind {
+            Wave::Flare => {
+                // a historical/finale event, never labeled as live NASA data
+                let (date, power) = if self.s.map == MapId::Moon { ("1859-09-01", 1.0) } else { ("", 0.9) };
+                let event = WeatherEvent { kind: "FINALE".into(), date: date.into(), label_ru: def.name_ru.into(), label_en: def.name_en.into(), power };
+                self.start_flare(event, false, WAVE_LEN, 1.0);
+            }
+            Wave::Dust => self.dust_up(),
+            Wave::Meteor => {
+                self.s.leak = true;
+                ev.push(GameEvent::Leak(self.s.habitat().id));
+                ev.extend(self.break_generator());
+            }
+        }
+        self.s.boss = Some(BossState { wave, of, kind, active: true, t_left: WAVE_LEN, countered, sheltered: false });
+        ev
+    }
+
+    fn boss_tick(&mut self, ds: f32) -> Vec<GameEvent> {
+        let mut ev = vec![];
+        if !self.s.has_finale() || self.s.boss_done || self.s.sol < self.s.sols || self.s.status != Status::Playing {
+            return ev;
+        }
+        let Some(mut b) = self.s.boss else {
+            if self.s.t >= 0.15 {
+                ev.extend(self.start_wave(1, 0));
+            }
+            return ev;
+        };
+        b.t_left -= ds;
+        if b.active {
+            let inside = self.s.players.iter().any(|p| p.inside);
+            b.sheltered |= inside;
+            let done_right = match b.kind {
+                Wave::Flare => false,
+                Wave::Dust => !self.s.modules.iter().any(|m| m.dusty),
+                Wave::Meteor => !self.s.leak && !self.s.modules.iter().any(|m| m.broken),
+            };
+            let over = done_right || b.t_left <= 0.0 || (b.kind == Wave::Flare && self.s.flare.is_none());
+            if over {
+                let countered = done_right || (b.kind == Wave::Flare && b.sheltered);
+                if b.kind == Wave::Dust {
+                    // the storm passes
+                    self.s.dust_left = 0;
+                    for m in self.s.modules.iter_mut() {
+                        m.dusty = false;
+                    }
+                }
+                b.countered += countered as u8;
+                ev.push(GameEvent::WaveCleared { wave: b.wave, countered });
+                b.active = false;
+                b.t_left = WAVE_GAP;
+            }
+            self.s.boss = Some(b);
+        } else if b.t_left <= 0.0 {
+            if b.wave >= b.of {
+                self.s.boss = None;
+                self.s.boss_done = true;
+                self.s.boss_countered = b.countered;
+                ev.push(GameEvent::BossDefeated { countered: b.countered, of: b.of });
+            } else {
+                ev.extend(self.start_wave(b.wave + 1, b.countered));
+            }
+        } else {
+            self.s.boss = Some(b);
+        }
+        ev
+    }
+
+    /// Story progress from what just happened. Only the current task counts.
+    fn quest_tick(&mut self, events: &[GameEvent]) -> Vec<GameEvent> {
+        let mut out = vec![];
+        let mut events = events;
+        if self.s.mode == Mode::Challenge {
+            return out;
+        }
+        while let Some(q) = STORY.get(self.s.quest) {
+            let (need, progress) = match q.goal {
+                Goal::Collect(kind, n) => (n, self.s.quest_progress + events.iter().filter(|e| matches!(e, GameEvent::Collected { kind: k, .. } if *k == kind)).count() as u32),
+                Goal::Deliver(n) => (n, self.s.quest_progress + events.iter().map(|e| if let GameEvent::SamplesDelivered { count, .. } = e { *count } else { 0 }).sum::<u32>()),
+                Goal::Explore(r, n) => (n, self.s.quest_progress + events.iter().filter(|e| matches!(e, GameEvent::Collected { region: Some(x), .. } if *x == r)).count() as u32),
+                Goal::Build(kind) => (1, (self.s.count(kind) > 0) as u32),
+                Goal::Boss => (1, self.s.boss_done as u32),
+            };
+            self.s.quest_progress = progress.min(need);
+            if progress < need {
+                break;
+            }
+            // done: reward, then the next task starts (events are not counted twice)
+            let r = q.reward;
+            self.s.materials += r.materials;
+            if let Some(u) = r.unlock {
+                if !self.s.has(u) {
+                    self.s.unlocks.push(u);
+                    out.push(GameEvent::Unlocked(u));
+                }
+            }
+            out.push(GameEvent::QuestDone { quest: self.s.quest, materials: r.materials, unlock: r.unlock });
+            self.s.quest += 1;
+            self.s.quests_done += 1;
+            self.s.quest_progress = 0;
+            events = &[];
+            if self.s.quest < STORY.len() {
+                out.push(GameEvent::QuestStarted(self.s.quest));
+            }
+        }
+        out
     }
 
     /// Advance the world by `dt` real seconds.
@@ -740,6 +1041,12 @@ impl Game {
         s.morale -= 4.0 * ds;
         let sci_mult = if s.morale < 30.0 { 0.5 } else if s.morale >= 80.0 { 1.3 } else { 1.0 };
         s.science += s.powered(ModuleKind::Lab) as f32 * mult * sci_mult * ds;
+        if s.mode == Mode::Sandbox {
+            // free building: the crew never has to leave
+            s.o2 = s.o2.max(5.0);
+            s.food = s.food.max(5.0);
+            s.dose = s.dose.min(90.0);
+        }
         s.o2 = s.o2.clamp(0.0, 100.0);
         s.food = s.food.clamp(0.0, 100.0);
         s.dose = s.dose.clamp(0.0, 100.0);
@@ -775,25 +1082,34 @@ impl Game {
         }
         s.t += ds;
         ev.extend(self.fire_pending());
+        ev.extend(self.boss_tick(ds));
         if self.s.status == Status::Playing && self.s.t >= 1.0 {
-            let s = &mut self.s;
-            s.history.push(SolRecord { sol: s.sol, o2: s.o2, food: s.food, dose: s.dose, science: s.science });
-            if s.sol >= s.sols {
-                s.status = Status::Won;
+            let finale_running = self.s.has_finale() && self.s.sol >= self.s.sols && !self.s.boss_done;
+            if finale_running {
+                // the last sol lasts until the finale is over
+                self.s.t = 0.999;
             } else {
-                s.sol += 1;
-                if s.dust_left > 0 {
-                    s.dust_left -= 1;
-                    if s.dust_left == 0 {
-                        for m in s.modules.iter_mut() {
-                            m.dusty = false;
+                let s = &mut self.s;
+                s.history.push(SolRecord { sol: s.sol, o2: s.o2, food: s.food, dose: s.dose, science: s.science });
+                if s.sol >= s.sols {
+                    s.status = Status::Won;
+                } else {
+                    s.sol += 1;
+                    if s.dust_left > 0 {
+                        s.dust_left -= 1;
+                        if s.dust_left == 0 {
+                            for m in s.modules.iter_mut() {
+                                m.dusty = false;
+                            }
+                            ev.push(GameEvent::DustGone);
                         }
-                        ev.push(GameEvent::DustGone);
                     }
+                    ev.extend(self.begin_sol());
                 }
-                ev.extend(self.begin_sol());
             }
         }
+        let q = self.quest_tick(&ev);
+        ev.extend(q);
         if self.s.status != Status::Playing {
             ev.push(GameEvent::MissionEnded(self.result()));
         }
@@ -804,6 +1120,7 @@ impl Game {
         let s = &self.s;
         MissionResult {
             map: s.map,
+            mode: s.mode,
             won: s.status == Status::Won,
             cause: if let Status::Lost(c) = s.status { Some(c) } else { None },
             stars: s.stars(),
@@ -819,6 +1136,9 @@ impl Game {
             live: s.live,
             flags: s.flags.clone(),
             samples_delivered: s.samples_delivered,
+            quests_done: s.quests_done,
+            boss_done: s.boss_done,
+            boss_countered: s.boss_countered,
         }
     }
 
@@ -854,10 +1174,7 @@ impl Game {
         let mut best: Option<(i32, i32, i32)> = None;
         for y in -BUILD_R..=BUILD_R {
             for x in -BUILD_R..=BUILD_R {
-                let ok = match self.can_build(kind, x, y) {
-                    Ok(()) | Err(Refusal::NotEnoughMaterials) => true,
-                    _ => false,
-                };
+                let ok = matches!(self.can_build(kind, x, y), Ok(()) | Err(Refusal::NotEnoughMaterials));
                 let d = x * x + y * y;
                 if ok && best.map_or(true, |b| d < b.2) {
                     best = Some((x, y, d));
@@ -896,13 +1213,18 @@ impl Game {
             return Err(Refusal::MissionOver);
         }
         let pi = (player as usize).min(self.s.players.len() - 1);
-        let ev = match cmd {
+        let mut ev = match cmd {
             Command::Build { kind, x, y } => {
                 self.can_build(kind, x, y)?;
                 self.s.materials -= module_def(kind).cost;
                 let module = self.add_module(kind, x, y, 0);
                 self.s.flags.built += 1;
-                vec![GameEvent::Built { module, kind }]
+                let mut ev = vec![GameEvent::Built { module, kind }];
+                if kind == ModuleKind::Garage && !self.s.has(Unlock::Vehicle) {
+                    self.s.unlocks.push(Unlock::Vehicle);
+                    ev.push(GameEvent::Unlocked(Unlock::Vehicle));
+                }
+                ev
             }
             Command::Demolish { x, y } => {
                 let m = self.s.module_at(x, y).ok_or(Refusal::NoModuleThere)?.clone();
@@ -965,9 +1287,13 @@ impl Game {
             Command::Collect { site } => {
                 self.require_outside(pi)?;
                 let st = self.s.sites.iter().find(|x| x.id == site).ok_or(Refusal::UnknownId)?.clone();
+                if let Some(r) = st.region {
+                    if !self.s.region_open(r) {
+                        return Err(Refusal::NeedUnlock(regions(self.s.map)[r as usize].need));
+                    }
+                }
                 let p = &self.s.players[pi];
-                let d = ((p.pos.0 - st.x).powi(2) + (p.pos.1 - st.y).powi(2)).sqrt();
-                if d > NEAR {
+                if (p.pos.0 - st.x).hypot(p.pos.1 - st.y) > NEAR {
                     return Err(Refusal::TooFar);
                 }
                 match st.kind {
@@ -983,7 +1309,10 @@ impl Game {
                 }
                 self.s.sites.retain(|x| x.id != site);
                 self.s.flags.collected += 1;
-                vec![GameEvent::Collected { site, kind: st.kind }]
+                if let Some(r) = st.region {
+                    self.s.flags.regions_visited[r as usize] = true;
+                }
+                vec![GameEvent::Collected { site, kind: st.kind, region: st.region }]
             }
             Command::DeliverSamples => {
                 self.require_outside(pi)?;
@@ -1046,7 +1375,7 @@ impl Game {
                 self.require_outside(pi)?;
                 let pad = self.s.cargo.ok_or(Refusal::NotReady)?;
                 let p = self.s.players[pi].pos;
-                if ((p.0 - pad.0).powi(2) + (p.1 - pad.1).powi(2)).sqrt() > NEAR + 1.0 {
+                if (p.0 - pad.0).hypot(p.1 - pad.1) > NEAR + 1.0 {
                     return Err(Refusal::TooFar);
                 }
                 let s = &mut self.s;
@@ -1089,6 +1418,8 @@ impl Game {
             }
         };
         self.refresh_power();
+        let q = self.quest_tick(&ev);
+        ev.extend(q);
         Ok(ev)
     }
 
@@ -1104,8 +1435,12 @@ impl Game {
 mod tests {
     use super::*;
 
+    fn game_mode(map_id: MapId, cadet: bool, mode: Mode) -> Game {
+        Game::with_mode(MissionConfig { map: map_id, cadet, coop: false, live: false, seed: 42 }, mode, &Weather::archive())
+    }
+
     fn game(map_id: MapId, cadet: bool) -> Game {
-        Game::new(MissionConfig { map: map_id, cadet, coop: false, live: false, seed: 42 }, &Weather::archive())
+        game_mode(map_id, cadet, Mode::Story)
     }
 
     fn id_of(g: &Game, kind: ModuleKind) -> ModuleId {
@@ -1117,6 +1452,21 @@ mod tests {
         g.set_player_pos(0, c.0, c.1 + 2.0);
     }
 
+    fn collect(g: &mut Game, site: &Site) -> Result<Vec<GameEvent>, Refusal> {
+        g.set_player_pos(0, site.x, site.y);
+        g.apply(0, Command::Collect { site: site.id })
+    }
+
+    fn run_to_end(g: &mut Game) -> Vec<GameEvent> {
+        let mut all = vec![];
+        let mut guard = 0;
+        while g.state().status == Status::Playing && guard < 200_000 {
+            all.extend(g.tick(0.5));
+            guard += 1;
+        }
+        all
+    }
+
     #[test]
     fn starting_base_is_sane() {
         for m in MAPS {
@@ -1124,8 +1474,151 @@ mod tests {
             let s = g.state();
             assert_eq!(s.count(ModuleKind::Habitat), 1);
             assert!(s.demand as f32 <= s.supply + s.battery, "{:?} starts over budget", m.id);
-            assert!(s.sites.len() >= 9);
+            assert!(s.sites.len() >= 28, "{:?}: the big map has finds everywhere", m.id);
+            for r in 0..3u8 {
+                assert!(s.sites.iter().any(|x| x.region == Some(r) && region_at(x.x, x.y) == Some(r)));
+            }
+            assert!(s.sites.iter().all(|x| x.x.hypot(x.y) <= WORLD_R));
         }
+    }
+
+    #[test]
+    fn regions_are_120_degree_sectors_outside_the_open_ground() {
+        assert_eq!(region_at(10.0, 0.0), None);
+        assert_eq!(region_at(60.0, 1.0), Some(0));
+        assert_eq!(region_at(-60.0, 1.0), Some(1));
+        assert_eq!(region_at(0.0, -60.0), Some(2));
+    }
+
+    #[test]
+    fn far_regions_open_with_tools() {
+        let mut g = game(MapId::Moon, false);
+        assert_eq!(g.state().can_walk(60.0, 1.0), Err(Refusal::NeedUnlock(Unlock::Vehicle)));
+        assert_eq!(g.state().can_walk(0.0, 200.0), Err(Refusal::EdgeOfMap));
+        assert_eq!(g.state().can_walk(20.0, 0.0), Ok(()));
+        let far = g.state().sites.iter().find(|s| s.region == Some(0)).unwrap().clone();
+        assert_eq!(collect(&mut g, &far), Err(Refusal::NeedUnlock(Unlock::Vehicle)));
+        g.s.materials = 20;
+        let (x, y) = g.find_free_spot(ModuleKind::Garage).unwrap();
+        let ev = g.apply(0, Command::Build { kind: ModuleKind::Garage, x, y }).unwrap();
+        assert!(ev.contains(&GameEvent::Unlocked(Unlock::Vehicle)));
+        let ev = collect(&mut g, &far).unwrap();
+        assert!(matches!(ev[0], GameEvent::Collected { region: Some(0), .. }));
+        assert!(g.state().flags.regions_visited[0]);
+    }
+
+    #[test]
+    fn the_map_never_runs_dry() {
+        let mut g = game(MapId::Earth, false);
+        // take everything near the base
+        let near: Vec<Site> = g.state().sites.iter().filter(|s| s.region.is_none()).cloned().collect();
+        for s in &near {
+            let _ = collect(&mut g, s);
+        }
+        assert!(g.state().sites.iter().all(|s| s.region.is_some() || s.kind == SiteKind::Sample));
+        let mut fresh = false;
+        for _ in 0..(SOL_LEN / 0.5) as usize + 4 {
+            fresh |= g.tick(0.5).iter().any(|e| matches!(e, GameEvent::Discovery(_)));
+        }
+        assert!(fresh && g.state().sites.iter().any(|s| s.region.is_none()), "new finds appear every sol");
+    }
+
+    #[test]
+    fn story_tasks_advance_and_give_rewards() {
+        let mut g = game(MapId::Moon, false);
+        assert_eq!(g.state().quest, 0);
+        let ores: Vec<Site> = g.state().sites.iter().filter(|s| s.kind == SiteKind::Ore && s.region.is_none()).take(3).cloned().collect();
+        let mut done = vec![];
+        for s in &ores {
+            done.extend(collect(&mut g, s).unwrap());
+        }
+        assert!(done.iter().any(|e| matches!(e, GameEvent::QuestDone { quest: 0, .. })));
+        assert_eq!(g.state().quest, 1);
+        g.s.materials = 30;
+        let (x, y) = g.find_free_spot(ModuleKind::Lab).unwrap();
+        let ev = g.apply(0, Command::Build { kind: ModuleKind::Lab, x, y }).unwrap();
+        assert!(ev.contains(&GameEvent::QuestStarted(2)));
+        // deliver 3 samples → headlamp
+        let samples: Vec<Site> = g.state().sites.iter().filter(|s| s.kind == SiteKind::Sample && s.region.is_none()).take(3).cloned().collect();
+        for s in &samples {
+            collect(&mut g, s).unwrap();
+        }
+        let lab = id_of(&g, ModuleKind::Lab);
+        g.apply(0, Command::SetPower { module: lab, blocks: 1 }).unwrap();
+        stand_at(&mut g, lab);
+        let ev = g.apply(0, Command::DeliverSamples).unwrap();
+        assert!(ev.contains(&GameEvent::Unlocked(Unlock::Headlamp)));
+        assert!(g.state().region_open(1));
+        assert_eq!(g.state().quests_done, 3);
+    }
+
+    #[test]
+    fn the_finale_has_waves_and_rewards_doing_the_right_thing() {
+        let mut g = game_mode(MapId::Moon, false, Mode::Challenge);
+        assert_eq!(g.state().sols, 1);
+        let mut waves = 0;
+        let mut defeated = None;
+        let mut guard = 0;
+        while g.state().status == Status::Playing && guard < 10_000 {
+            guard += 1;
+            for e in g.tick(0.5) {
+                match e {
+                    GameEvent::BossWave { kind, .. } => {
+                        waves += 1;
+                        // a careful crew: hide from flares, fix meteor damage
+                        match kind {
+                            Wave::Flare => {
+                                g.set_player_pos(0, DOOR.0, DOOR.1);
+                                let _ = g.apply(0, Command::EnterShelter);
+                            }
+                            Wave::Meteor => {
+                                let _ = g.apply(0, Command::ExitShelter);
+                                let hab = g.state().habitat().id;
+                                stand_at(&mut g, hab);
+                                g.apply(0, Command::Repair { module: hab }).unwrap();
+                                let broken: Vec<ModuleId> = g.state().modules.iter().filter(|m| m.broken).map(|m| m.id).collect();
+                                for id in broken {
+                                    stand_at(&mut g, id);
+                                    g.apply(0, Command::Repair { module: id }).unwrap();
+                                }
+                            }
+                            Wave::Dust => {}
+                        }
+                    }
+                    GameEvent::BossDefeated { countered, of } => defeated = Some((countered, of)),
+                    _ => {}
+                }
+            }
+        }
+        assert_eq!(waves, 3);
+        assert_eq!(defeated, Some((3, 3)), "all three waves handled");
+        assert_eq!(g.state().status, Status::Won);
+        assert!(g.state().history.len() == 1 && g.state().boss_done);
+    }
+
+    #[test]
+    fn sandbox_never_loses_and_has_everything_open() {
+        let mut g = game_mode(MapId::Europa, false, Mode::Sandbox);
+        assert!(g.state().region_open(0) && g.state().region_open(1) && g.state().region_open(2));
+        let ox = id_of(&g, ModuleKind::OxygenGen);
+        g.apply(0, Command::SetPower { module: ox, blocks: 0 }).unwrap();
+        for _ in 0..(3.0 * SOL_LEN / 0.5) as usize {
+            g.tick(0.5);
+        }
+        assert_eq!(g.state().status, Status::Playing);
+        assert!(g.state().o2 >= 5.0);
+        let r = g.end_now();
+        assert!(r.won && g.state().status == Status::Won);
+    }
+
+    #[test]
+    fn state_and_commands_travel_over_the_network() {
+        let g = game(MapId::Mars, true);
+        let json = serde_json::to_string(g.state()).unwrap();
+        let back: State = serde_json::from_str(&json).unwrap();
+        assert_eq!(&back, g.state());
+        let cmd = Command::Build { kind: ModuleKind::Garage, x: 3, y: -7 };
+        assert_eq!(serde_json::from_str::<Command>(&serde_json::to_string(&cmd).unwrap()).unwrap(), cmd);
     }
 
     #[test]
@@ -1164,7 +1657,6 @@ mod tests {
         let lab = id_of(&g, ModuleKind::Lab);
         let ox = id_of(&g, ModuleKind::OxygenGen);
         g.apply(0, Command::SetPower { module: ox, blocks: 3 }).unwrap();
-        // 6 supply + 5 battery = 11 blocks; ox 3 + green 2 + antenna 1 = 6 → lab can take 3, but a second lab would not
         assert!(g.apply(0, Command::SetPower { module: lab, blocks: 3 }).is_ok());
         g.s.battery = 0.0;
         assert_eq!(g.apply(0, Command::SetPower { module: ox, blocks: 3 }), Ok(vec![]), "keeping the same level is fine");
@@ -1178,7 +1670,6 @@ mod tests {
     #[test]
     fn lunar_night_without_battery_starves_oxygen() {
         let mut g = game(MapId::Moon, true);
-        // jump to the night sol with an empty battery
         g.s.sol = 4;
         g.s.battery = 0.0;
         g.refresh_power();
@@ -1193,10 +1684,10 @@ mod tests {
     #[test]
     fn samples_need_a_powered_lab() {
         let mut g = game(MapId::Earth, false);
-        let site = g.state().sites.iter().find(|s| s.kind == SiteKind::Sample).unwrap().clone();
+        let site = g.state().sites.iter().find(|s| s.kind == SiteKind::Sample && s.region.is_none()).unwrap().clone();
+        g.set_player_pos(0, 0.0, 0.0);
         assert_eq!(g.apply(0, Command::Collect { site: site.id }), Err(Refusal::TooFar));
-        g.set_player_pos(0, site.x, site.y);
-        g.apply(0, Command::Collect { site: site.id }).unwrap();
+        collect(&mut g, &site).unwrap();
         assert_eq!(g.state().players[0].carried, 1);
         assert_eq!(g.apply(0, Command::DeliverSamples), Err(Refusal::NeedsModule(ModuleKind::Lab)));
         let (x, y) = g.find_free_spot(ModuleKind::Lab).unwrap();
@@ -1206,16 +1697,15 @@ mod tests {
         assert_eq!(g.apply(0, Command::DeliverSamples), Err(Refusal::LabNeedsPower));
         g.apply(0, Command::SetPower { module: lab, blocks: 1 }).unwrap();
         let ev = g.apply(0, Command::DeliverSamples).unwrap();
-        assert_eq!(ev, vec![GameEvent::SamplesDelivered { count: 1, science: 1.5 }]);
+        assert_eq!(ev[0], GameEvent::SamplesDelivered { count: 1, science: 1.5 });
     }
 
     #[test]
     fn collecting_ore_gives_materials_and_removes_the_site() {
         let mut g = game(MapId::Moon, false);
-        let ore = g.state().sites.iter().find(|s| s.kind == SiteKind::Ore).unwrap().clone();
-        g.set_player_pos(0, ore.x + 1.0, ore.y);
+        let ore = g.state().sites.iter().find(|s| s.kind == SiteKind::Ore && s.region.is_none()).unwrap().clone();
         let before = g.state().materials;
-        g.apply(0, Command::Collect { site: ore.id }).unwrap();
+        collect(&mut g, &ore).unwrap();
         assert_eq!(g.state().materials, before + 3);
         assert!(g.state().sites.iter().all(|s| s.id != ore.id));
     }
@@ -1276,7 +1766,6 @@ mod tests {
             arrived |= g.tick(0.5).iter().any(|e| matches!(e, GameEvent::ForecastArrived(_)));
         }
         assert!(arrived);
-        // no antenna power → no forecast
         let ant = id_of(&g, ModuleKind::Antenna);
         g.apply(0, Command::SetPower { module: ant, blocks: 0 }).unwrap();
         let mut last = None;
@@ -1301,16 +1790,10 @@ mod tests {
     #[test]
     fn mission_ends_with_a_result() {
         let mut g = game(MapId::Earth, true);
-        let mut end = None;
-        for _ in 0..(4.0 * SOL_LEN / 0.5) as usize + 10 {
-            for e in g.tick(0.5) {
-                if let GameEvent::MissionEnded(r) = e {
-                    end = Some(r);
-                }
-            }
-        }
+        let end = run_to_end(&mut g).into_iter().find_map(|e| if let GameEvent::MissionEnded(r) = e { Some(r) } else { None });
         let r = end.expect("the mission ends");
         assert_eq!(r.won, g.state().status == Status::Won);
+        assert!(r.boss_done || !r.won, "a won story mission went through the finale");
         assert_eq!(g.apply(0, Command::DeliverSamples), Err(Refusal::MissionOver));
     }
 }

@@ -3,6 +3,7 @@
 
 use crate::data::*;
 use crate::game::{Cause, Forecast, GameEvent, Refusal};
+use crate::MapId;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub enum Lang {
@@ -97,6 +98,22 @@ pub fn event_msg(e: &GameEvent) -> Option<Msg> {
         FeelingRight(f) => Msg::new(Good, FEELINGS[*f].icon, format!("Да, похоже на {}. Как поддержать?", FEELINGS[*f].name_ru), format!("Yes, it looks like {}. How can you help?", FEELINGS[*f].name_en)),
         FeelingTryAgain(_) => Msg::new(Info, "hint", "Может быть. А что ещё? Посмотри на подсказки в истории", "Maybe. What else could it be? Look at the clues in the story"),
         Supported(_) => Msg::new(Good, "heart", "Экипажу стало легче · настроение +20", "The crew feels better · mood +20"),
+        Unlocked(u) => {
+            let d = unlock_def(*u);
+            Msg::new(Badge, d.icon, format!("Новый инструмент: {}! Открыта новая область карты", d.name_ru), format!("New tool: {}! A new map region is open", d.name_en))
+        }
+        QuestStarted(_) | QuestDone { .. } => return None, // use quest_msg / quest_done_msg: they need the map for names
+        BossWave { wave, of, kind } => {
+            let (icon, ru, en) = match kind {
+                Wave::Flare => ("radiation", "беги в купол!", "run into the dome!"),
+                Wave::Dust => ("broom", "чисти солнечные панели!", "clean the solar panels!"),
+                Wave::Meteor => ("hammer", "заделай дыру и почини генератор!", "patch the hole and fix the generator!"),
+            };
+            Msg::new(Danger, icon, format!("Финал, волна {wave} из {of}: {ru}"), format!("Finale, wave {wave} of {of}: {en}"))
+        }
+        WaveCleared { countered: true, .. } => Msg::new(Good, "check", "Волна отбита — ты всё сделал(а) правильно!", "Wave beaten — you did the right thing!"),
+        WaveCleared { countered: false, .. } => Msg::new(Info, "hourglass", "Волна прошла. В следующей — попробуй план «если — то»", "The wave passed. Next time try the if–then plan"),
+        BossDefeated { countered, of } => Msg::new(Badge, "trophy", format!("Финал пройден! Отбито волн: {countered} из {of}"), format!("Finale survived! Waves beaten: {countered} of {of}")),
         LowOxygen => Msg::new(Danger, "oxygen", "Мало кислорода! Дай больше энергии генератору кислорода", "Low oxygen! Give more power to the oxygen generator"),
         BatteryEmpty => Msg::new(Danger, "battery", "Батарея пуста — модули работают слабее. Убавь энергию или построй панели", "Battery empty — modules run weaker. Use less power or build panels"),
         MissionEnded(r) => {
@@ -118,6 +135,7 @@ pub fn forecast_msg(f: Forecast) -> Msg {
         Forecast::Sure(EventKind::Failure) => Msg::new(Warn, "wrench", "Завтра генератор может сломаться", "The generator may fail tomorrow"),
         Forecast::Sure(EventKind::Leak) => Msg::new(Warn, "comet", "Завтра поток микрометеоритов", "Micrometeorite shower tomorrow"),
         Forecast::Night => Msg::new(Warn, "night", "Завтра лунная ночь: зарядите батарею", "Lunar night tomorrow: charge the battery"),
+        Forecast::Finale => Msg::new(Danger, "trophy", "Завтра финал! Зарядите батарею, включите щит, вспомните план «если — то»", "The finale is tomorrow! Charge the battery, raise the shield, remember the if–then plan"),
         Forecast::NoSignal => Msg::new(Warn, "antenna_bars", "…связи нет: Солнце глушит сигнал", "…no signal: the Sun blocks the radio"),
         Forecast::NoAntenna => Msg::new(Warn, "satellite", "Антенна без энергии — прогноз не пришёл", "The antenna has no power — no forecast"),
         _ => Msg::new(Info, "check", "Завтра всё спокойно", "Tomorrow looks calm"),
@@ -133,6 +151,11 @@ pub fn refusal_msg(r: Refusal) -> Msg {
         NotEnoughMaterials => w("rock", "Не хватает материалов. Собери руду вокруг базы", "Not enough materials. Collect ore around the base"),
         CellBusy => w("cross", "Здесь занято", "This spot is taken"),
         OutsideBase => w("cross", "Слишком далеко от купола", "Too far from the dome"),
+        EdgeOfMap => w("map", "Дальше карта заканчивается", "This is the edge of the map"),
+        NeedUnlock(u) => {
+            let d = unlock_def(u);
+            w(d.icon, &format!("Туда нужен инструмент: {}. Его дают задания сюжета", d.name_ru), &format!("You need a tool to go there: {}. Story tasks give it", d.name_en))
+        }
         NotAvailableHere => w("cross", "На этой базе это построить нельзя", "This can't be built at this base"),
         OnlyOne => w("house", "Купол может быть только один", "There can be only one dome"),
         CannotDemolish => w("house", "Купол разбирать нельзя — там живёт экипаж", "The dome can't be removed — the crew lives there"),
@@ -155,6 +178,74 @@ pub fn refusal_msg(r: Refusal) -> Msg {
         NoMood => w("smile", "Всё хорошо, помощь не нужна", "All good, no help needed"),
         NameFeelingFirst => w("speech", "Сначала угадай, что он(а) чувствует", "First guess how they feel"),
         UnknownId => w("cross", "Не найдено", "Not found"),
+    }
+}
+
+fn fill(s: &str, map_id: MapId, ru: bool) -> String {
+    let r = regions(map_id);
+    let b = boss(map_id);
+    let pick = |a: &'static str, e: &'static str| if ru { a } else { e };
+    s.replace("{r0}", pick(r[0].name_ru, r[0].name_en))
+        .replace("{r1}", pick(r[1].name_ru, r[1].name_en))
+        .replace("{r2}", pick(r[2].name_ru, r[2].name_en))
+        .replace("{boss}", pick(b.name_ru, b.name_en))
+}
+
+/// Title of story task `i` on this map (with region and finale names filled in).
+pub fn quest_title(map_id: MapId, i: usize) -> Option<Msg> {
+    let q = STORY.get(i)?;
+    Some(Msg::new(Tone::Info, q.icon, fill(q.title_ru, map_id, true), fill(q.title_en, map_id, false)))
+}
+
+/// The crew / Mission Control line that starts story task `i`.
+pub fn quest_story(map_id: MapId, i: usize) -> Option<Msg> {
+    let q = STORY.get(i)?;
+    Some(Msg::new(Tone::Info, q.icon, fill(q.story_ru, map_id, true), fill(q.story_en, map_id, false)))
+}
+
+/// "3 / 5"-style progress text for the HUD task panel.
+pub fn quest_goal(map_id: MapId, i: usize, progress: u32) -> Option<Msg> {
+    let q = STORY.get(i)?;
+    let r = regions(map_id);
+    let (ru, en) = match q.goal {
+        Goal::Collect(k, n) => {
+            let d = site_def(k);
+            (format!("{}: {progress} / {n}", d.name_ru), format!("{}: {progress} / {n}", d.name_en))
+        }
+        Goal::Build(k) => {
+            let d = module_def(k);
+            (format!("Построй: {}", d.name_ru), format!("Build: {}", d.name_en))
+        }
+        Goal::Deliver(n) => (format!("Образцы в лабораторию: {progress} / {n}"), format!("Samples to the lab: {progress} / {n}")),
+        Goal::Explore(x, n) => {
+            let x = &r[x as usize];
+            (format!("Находки в области «{}»: {progress} / {n}", x.name_ru), format!("Finds in {}: {progress} / {n}", x.name_en))
+        }
+        Goal::Boss => ("Переживи финал в последний сол".into(), "Survive the finale on the last sol".into()),
+    };
+    Some(Msg::new(Tone::Info, q.icon, ru, en))
+}
+
+/// Message for a finished task, with its reward.
+pub fn quest_done_msg(map_id: MapId, i: usize) -> Option<Msg> {
+    let q = STORY.get(i)?;
+    let t = quest_title(map_id, i)?;
+    let mut ru = format!("Задание выполнено: {}!", t.ru);
+    let mut en = format!("Task done: {}!", t.en);
+    if q.reward.materials > 0 {
+        ru += &format!(" +{} материалов", q.reward.materials);
+        en += &format!(" +{} materials", q.reward.materials);
+    }
+    Some(Msg::new(Tone::Badge, "check", ru, en))
+}
+
+/// Like `event_msg`, but also names story tasks (they need the map for region names).
+/// Prefer this one in the HUD.
+pub fn event_msg_on(map_id: MapId, e: &GameEvent) -> Option<Msg> {
+    match e {
+        GameEvent::QuestStarted(i) => quest_story(map_id, *i),
+        GameEvent::QuestDone { quest, .. } => quest_done_msg(map_id, *quest),
+        _ => event_msg(e),
     }
 }
 
@@ -209,6 +300,7 @@ mod tests {
     #[test]
     fn every_refusal_and_cause_has_both_languages() {
         let all = [
+            Refusal::EdgeOfMap, Refusal::NeedUnlock(Unlock::Drill),
             Refusal::MissionOver, Refusal::NotEnoughPower, Refusal::NotEnoughMaterials, Refusal::CellBusy, Refusal::OutsideBase,
             Refusal::NotAvailableHere, Refusal::OnlyOne, Refusal::CannotDemolish, Refusal::NoModuleThere, Refusal::NoPowerSlot,
             Refusal::TooFar, Refusal::InsideShelter, Refusal::NothingToRepair, Refusal::NothingToClean, Refusal::HandsFull,
@@ -237,5 +329,18 @@ mod tests {
             }
         }
         assert!(shown >= 7, "at least one message per sol");
+    }
+
+    #[test]
+    fn story_texts_fill_in_names_for_every_map() {
+        for m in crate::data::MAPS {
+            for i in 0..STORY.len() {
+                for msg in [quest_title(m.id, i), quest_story(m.id, i), quest_goal(m.id, i, 1), quest_done_msg(m.id, i)] {
+                    let msg = msg.unwrap();
+                    assert!(!msg.ru.contains('{') && !msg.en.contains('{'), "{:?} task {i}: {}", m.id, msg.ru);
+                }
+            }
+        }
+        assert!(quest_title(MapId::Moon, 4).unwrap().ru.contains("Малаперт"));
     }
 }

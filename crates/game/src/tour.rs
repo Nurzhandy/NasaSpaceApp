@@ -29,6 +29,8 @@ enum Do {
     Build(bool),
     Speed(f32),
     UntilDebrief,
+    /// fast-forward until a flare (or any finale wave) is on screen; gives up after 40 s
+    UntilFlare,
     Coop,
     Quit,
 }
@@ -60,7 +62,7 @@ const STEPS: &[Do] = &[
     Do::Shot("08_build_mode"),
     Do::Build(false),
     Do::Speed(40.0),
-    Do::Wait(3.0),
+    Do::UntilFlare,
     Do::Speed(1.0),
     Do::Wait(1.0),
     Do::Shot("09_flare"),
@@ -149,6 +151,7 @@ fn run(
     mut speed: ResMut<Speed>,
     mut setup: ResMut<Setup>,
     mut exit: EventWriter<AppExit>,
+    sim: Option<Res<crate::Sim>>,
 ) {
     let Some(step) = steps().get(tour.step) else { return };
     tour.t += time.delta_secs();
@@ -182,6 +185,7 @@ fn run(
             true
         }
         Do::UntilDebrief => *state.get() == AppState::Debrief,
+        Do::UntilFlare => sim.as_ref().map_or(true, |s| s.0.state().flare.is_some() || s.0.state().boss.is_some()) || tour.t > 40.0,
         Do::Coop => {
             setup.coop = true;
             acts.write(Act(Action::Play(true)));

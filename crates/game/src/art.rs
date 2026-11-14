@@ -64,6 +64,7 @@ pub fn module_sprite(kind: ModuleKind) -> &'static str {
         ModuleKind::Shield => "shield",
         ModuleKind::Lab => "lab",
         ModuleKind::Antenna => "antenna",
+        ModuleKind::Garage => "rover",
     }
 }
 
@@ -74,6 +75,7 @@ pub fn module_px(kind: ModuleKind) -> Vec2 {
         ModuleKind::Greenhouse => Vec2::new(48.0, 32.0),
         ModuleKind::Battery => Vec2::new(16.0, 16.0),
         ModuleKind::Antenna => Vec2::new(16.0, 32.0),
+        ModuleKind::Garage => Vec2::new(32.0, 24.0),
         _ => Vec2::new(32.0, 32.0),
     }
 }

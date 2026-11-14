@@ -183,14 +183,18 @@ fn spawn(mut commands: Commands, art: Res<Art>, prof: Res<Prof>, sim: Res<Sim>) 
         });
 }
 
-fn collect(mut ev: EventReader<Happened>, mut refused: EventReader<Refused>, mut alerts: ResMut<Alerts>, prof: Res<Prof>, mut commands: Commands, art: Res<Art>, toasts: Query<Entity, With<Toast>>) {
+fn collect(mut ev: EventReader<Happened>, mut refused: EventReader<Refused>, mut alerts: ResMut<Alerts>, prof: Res<Prof>, sim: Option<Res<Sim>>, mut commands: Commands, art: Res<Art>, toasts: Query<Entity, With<Toast>>) {
     let l = prof.lang();
     for Happened(e) in ev.read() {
         // the flare has its own banner and forecasts go to the radio box
         if matches!(e, GameEvent::ForecastArrived(_) | GameEvent::ForecastSent { .. } | GameEvent::Flare { .. } | GameEvent::MissionEnded(_)) {
             continue;
         }
-        if let Some(m) = i18n::event_msg(e) {
+        let msg = match &sim {
+            Some(s) => i18n::event_msg_on(s.0.state().map, e),
+            None => i18n::event_msg(e),
+        };
+        if let Some(m) = msg {
             let color = match m.tone {
                 Tone::Danger => C_BAD,
                 Tone::Warn => C_WARN,
@@ -291,6 +295,12 @@ fn flare(sim: Res<Sim>, prof: Res<Prof>, mut b: Query<&mut Visibility, With<Flar
     }
     if let Some(f) = &st.flare {
         for mut x in &mut t {
+            if f.event.kind == "FINALE" {
+                // the finale is based on a historical event; it is not NASA DONKI data
+                let when = if f.event.date.is_empty() { String::new() } else { format!(" · {}", f.event.date) };
+                x.0 = format!("{}{when} — {}", l.pick(&f.event.label_ru, &f.event.label_en), l.pick("ФИНАЛ! Беги в купол!", "FINALE! Run into the dome!"));
+                continue;
+            }
             let tag = if f.live { "LIVE · NASA DONKI".to_string() } else { l.pick("АРХИВ · NASA DONKI", "ARCHIVE · NASA DONKI").to_string() };
             let call = i18n::event_msg(&GameEvent::Flare { label_ru: f.event.label_ru.clone(), label_en: f.event.label_en.clone(), date: f.event.date.clone(), live: f.live }).map(|m| m.text(l).to_string()).unwrap_or_default();
             // ja-core's message already names the real DONKI event and its LIVE/archive tag

@@ -110,6 +110,9 @@ impl Profile {
         give(self, "live", r.live);
         give(self, "collector", r.samples_delivered >= 6);
         give(self, "builder", r.flags.built >= 5);
+        give(self, "explorer", r.flags.regions_visited.iter().all(|v| *v));
+        give(self, "story", r.quests_done as usize >= STORY.len());
+        give(self, "boss", r.boss_done);
         if r.won {
             give(self, "scientist", r.science >= r.goal);
             give(self, "moon", r.map == MapId::Moon);
@@ -190,11 +193,11 @@ pub fn save(p: &Profile) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::game::{Flags, MissionResult};
+    use crate::game::{Flags, MissionResult, Mode};
 
     fn result(map_id: MapId, won: bool, points: u32) -> MissionResult {
         MissionResult {
-            map: map_id, won, cause: None, stars: if won { 3 } else { 0 }, points, sol: 4, sols: 4, science: 9.0, goal: 5.0, dose: 10.0,
+            map: map_id, mode: Mode::Story, quests_done: 0, boss_done: won, boss_countered: 0, won, cause: None, stars: if won { 3 } else { 0 }, points, sol: 4, sols: 4, science: 9.0, goal: 5.0, dose: 10.0,
             history: vec![], cadet: false, coop: false, live: false, flags: Flags::default(), samples_delivered: 0,
         }
     }

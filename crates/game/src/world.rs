@@ -128,12 +128,18 @@ fn spawn_world(mut commands: Commands, sim: Res<Sim>, art: Res<Art>, mut collide
             let idx = if v < 6 { 0 } else { v - 5 }.min(3);
             let p = to_world(x as f32, y as f32);
             let shade = if d <= WORLD_R { 1.0 } else { (1.0 - (d - WORLD_R) * 0.08).max(0.45) };
+            let tint = match ja_core::region_at(x as f32 + 0.5, y as f32 + 0.5) {
+                Some(0) => (1.0, 0.94, 0.86),
+                Some(1) => (0.80, 0.80, 0.90),
+                Some(2) => (0.88, 0.96, 1.06),
+                _ => (1.0, 1.0, 1.0),
+            };
             commands.spawn((
                 Sprite {
                     image: tiles.clone(),
                     texture_atlas: Some(TextureAtlas { layout: art.tile_layout.clone(), index: idx }),
                     custom_size: Some(Vec2::splat(CELL)),
-                    color: Color::srgb(shade, shade, shade * 1.05),
+                    color: Color::srgb(shade * tint.0, shade * tint.1, shade * 1.05 * tint.2),
                     anchor: Anchor::BottomLeft,
                     ..default()
                 },
@@ -146,7 +152,7 @@ fn spawn_world(mut commands: Commands, sim: Res<Sim>, art: Res<Art>, mut collide
     colliders.0.clear();
     let tint = art::rock_tint(st.map);
     if st.map != ja_core::MapId::Orbit {
-        for i in 0..110 {
+        for i in 0..900 {
             let a = rng.f(0.0, std::f32::consts::TAU);
             let rad = rng.f(BUILD_R as f32 + 3.0, WORLD_R - 1.0);
             let (x, y) = (a.cos() * rad, a.sin() * rad);
