@@ -99,8 +99,8 @@ pub fn sim_tick(
     mut sfx: crate::audio::Sfx,
     cfg: Res<GameConfig>,
 ) {
-    // modals pause the world in solo play
-    sim.paused = !sim.coop && modal.kind != ModalKind::None;
+    // modals pause the world in solo play; pause/beacon/tutorial pause co-op too
+    sim.paused = modal.kind != ModalKind::None && (!sim.coop || modal.kind.global());
     let n = players.iter().count().max(1) as f32;
     sim.players_sheltered = players.iter().filter(|p| p.in_shelter).count() as f32 / n;
     sim.players_out = 1.0 - sim.players_sheltered;
@@ -118,16 +118,8 @@ pub fn sim_tick(
     if let Some(kind) = sim.fire_pending(&weather) {
         match kind {
             EventKind::Flare => {
+                // the red flare banner in the HUD names the real DONKI event (LIVE / archive)
                 sfx.play("alarm");
-                let (ru, en) = if let Some(f) = &sim.flare {
-                    (
-                        format!("ВСПЫШКА! {} ({}){} — беги в убежище", f.event.label_ru, f.event.date, if f.live { " · LIVE" } else { " · архив" }),
-                        format!("FLARE! {} ({}){} — run to the shelter", f.event.label_en, f.event.date, if f.live { " · LIVE" } else { " · archive" }),
-                    )
-                } else {
-                    ("Вспышка!".into(), "Flare!".into())
-                };
-                alerts.push(Alert::danger_owned("sun", ru, en));
             }
             EventKind::Dust => {
                 sfx.play("alarm");

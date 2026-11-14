@@ -103,8 +103,9 @@ pub const MAPS: &[MapDef] = &[
     },
     MapDef {
         id: MapId::Europa, icon: "ice", name_ru: "Европа (миссия будущего)", name_en: "Europa (future mission)",
-        need: 700, tier: 5, sols: 8, gen: 6, battery_start: 6,
-        dose: 20.0, dose_real_ru: "в тысячи раз выше земной", dose_real_en: "thousands of times Earth’s",
+        need: 700, tier: 5, sols: 8, gen: 7, battery_start: 6,
+        // real surface dose (~5.4 Sv/day) is far beyond any shield: the game base hides under the ice
+        dose: 13.0, dose_real_ru: "≈5 Зв/сут на поверхности — поэтому база спрятана подо льдом", dose_real_en: "≈5 Sv/day on the surface — so the base hides under the ice",
         delay_s: 10.0, delay_real_ru: "35–52 мин (в игре 10 с)", delay_real_en: "35–52 min (10 s in game)", gravity: 0.13,
         night_sols: &[],
         sky: Color::srgb(0.03, 0.05, 0.14), ground: Color::srgb(0.70, 0.86, 0.95), ground2: Color::srgb(0.50, 0.70, 0.85), fog: 220.0,

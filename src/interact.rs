@@ -101,7 +101,7 @@ pub fn interact_system(
                     match kind {
                         StationKind::Generator => {
                             sim.repair_generator();
-                            alerts.push(Alert::good("check", "Генератор починен · −2 ⚡", "Generator fixed · −2 ⚡"));
+                            alerts.push(Alert::good("check", "Генератор починен · −2 батареи", "Generator fixed · −2 battery"));
                         }
                         StationKind::Panels => {
                             sim.clean_panels();
@@ -109,7 +109,7 @@ pub fn interact_system(
                         }
                         StationKind::Leak => {
                             sim.patch_leak();
-                            alerts.push(Alert::good("check", "Утечка заделана · −1 ⚡", "Leak patched · −1 ⚡"));
+                            alerts.push(Alert::good("check", "Утечка заделана · −1 батареи", "Leak patched · −1 battery"));
                         }
                         _ => {}
                     }

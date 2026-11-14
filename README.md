@@ -1,81 +1,146 @@
-# 🚀 Junior Astronaut Mission Trainer / Тренажёр юного астронавта
+# 🚀 Junior Astronaut: Outpost / Юный астронавт: Аванпост
 
 **NASA Space Apps Challenge 2026 — “Build a Junior Astronaut Mission Trainer”**
 
-A browser game for kids aged 7–12. You run an outpost on the Moon, on Mars, in lunar orbit or on Europa, and split a small power budget between **oxygen, food, radiation shielding and science**. No choice is free. Radiation events are **real solar flares and storms from NASA DONKI** (live when the API is reachable, a labeled archive when it isn’t).
+A 3D game for kids aged 7–12, written in **Rust + Bevy 0.16**. You walk around a base on the Moon, Mars, a lunar orbit station or Europa as a third-person astronaut and split a small power budget between **oxygen, food, radiation shielding and science**. No choice is free. Solar flares in the game are **real events from NASA DONKI**: live when the API is reachable, a clearly labeled archive when it isn’t.
 
-Браузерная игра для детей 7–12 лет: управляй базой на Луне и Марсе и дели энергию между кислородом, едой, щитом и наукой. Вспышки в игре — настоящие события из базы NASA DONKI.
+3D-игра для детей 7–12 лет на Rust + Bevy. Ты ходишь по базе на Луне, Марсе, окололунной станции или Европе и делишь энергию между кислородом, едой, щитом и наукой. Вспышки на Солнце в игре — настоящие события из базы NASA DONKI.
+
+![Moon base](docs/screenshots/05_moon_base.jpg)
+
+| | | |
+|---|---|---|
+| ![Menu](docs/screenshots/01_menu.jpg) | ![Power console](docs/screenshots/06_power_console.jpg) | ![Real DONKI flare](docs/screenshots/07_flare.jpg) |
+| ![Crew support](docs/screenshots/08_crew_support.jpg) | ![Debrief](docs/screenshots/11_debrief_reflection.jpg) | ![Split-screen co-op](docs/screenshots/12_coop_split_screen.jpg) |
 
 ## ▶️ How to run / Как запустить
 
-No build, no account, no install. Open `index.html` in a browser, or serve the folder:
+1. Install Rust: https://rustup.rs
+2. **Windows:** install [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with the **“Desktop development with C++”** workload (Rust needs its linker).
+   **Linux:** `sudo apt install libasound2-dev libudev-dev pkg-config`. **macOS:** `xcode-select --install`.
+3. In the project folder:
 
 ```bash
-python3 -m http.server 8765
+cargo run --release
 ```
 
-Then open http://localhost:8765. Online multiplayer needs internet (WebRTC via PeerJS). Everything else works offline. Without internet the game uses the embedded DONKI archive.
+The first build takes about 10 minutes (Bevy is big). Later builds are incremental.
 
-**NASA API key:** the game uses `DEMO_KEY`, which allows only ~30 requests/hour per IP. For demos and judging, get a free key at https://api.nasa.gov (1,000 requests/hour). Paste it on the **“For adults & judges”** page in the game, or change `DEFAULT_KEY` in `js/nasa.js`. Responses are cached for 6 hours.
+**NASA API key (optional):** without a key the game uses `DEMO_KEY`, which allows only ~30 requests per hour per IP. For demos and judging, get a free key at https://api.nasa.gov (1,000 requests/hour) and start the game with it:
 
-## 🎮 What’s inside / Что есть в игре
+```bash
+NASA_API_KEY=your_key cargo run --release
+```
 
-| Mode | What the player does | What it teaches |
-|---|---|---|
-| **Outposts** (5 maps) | Splits power blocks every sol and handles random events | Engineering trade-offs, radiation, power and life support |
-| **Training center** (8 drills) | Pre-launch checklist, rover re-route, robot debug, crew comms, mood remote, crew day, true/myth quiz, space beacon | Attention, flexibility, debugging, communication, feelings, routine |
-| **Multiplayer: Mission Control & Crew** | Mission Control sees the forecast and DONKI data, the crew holds the controls. They talk with preset phrases, delayed like real comms | Communication delay, “say–repeat–confirm”, teamwork |
+On Windows PowerShell: `$env:NASA_API_KEY="your_key"; cargo run --release`. With no internet the game uses the embedded DONKI archive and says so on screen.
 
-**Progression:** missions and drills earn points. **🏅 Total points** unlock maps (Moon 60 → Mars 180 → Lunar orbit 400 → Europa 700) and never go down. **⭐ Stars** are a separate balance spent on skins (suits, visors, accessories, rovers). Buying a skin never relocks a map. There are also 14 mission patches (badges) and a private mission log.
+## 🎮 Controls / Управление
 
-**Ages:** “Cadet 7–9” tracks 3 resources, gets accurate forecasts and has read-aloud on. “Pilot 10–12” tracks 4 resources, gets uncertain forecasts (false alarms and surprise flares) and extra reflection questions.
+| Action | Player 1 | Player 2 (co-op) | Gamepad |
+|---|---|---|---|
+| Walk | WASD | arrows | left stick |
+| Jump | Space | Right Ctrl | X / Y |
+| Action / hold to repair | F or Enter | Right Shift | A |
+| Camera | Q / E, or drag the mouse | `,` `.` | right stick |
+| Pause, close a window | Esc | — | Start / B |
+| Menus | WASD / arrows + Enter, or the mouse | | D-pad + A |
+
+## 🌕 What’s inside / Что есть в игре
+
+- **5 bases:** Desert analog base on Earth → Moon south pole (60 🏅) → Mars, Jezero crater (180 🏅) → Lunar orbit station (400 🏅) → Europa (700 🏅). Each has its own gravity, radiation level, comms delay, day/night and events.
+- **Real-time outpost:** a sol lasts 100 seconds. The **power console** splits energy blocks between oxygen, the greenhouse, the radiation shield and the lab. Using more than the sun gives drains the battery.
+- **Walk up and act:** hide in the dome during a flare, hold F to repair the oxygen generator, patch a micrometeorite leak or clean dusty panels, harvest the greenhouse, unload a cargo ship, carry glowing samples to the lab.
+- **Mission Control** messages arrive after the real comms delay (1.3 s from the Moon; Mars and Europa are sped up and labeled).
+- **Crew support:** a crewmate looks sad, angry or worried. The player names the feeling and picks a way to help.
+- **Space Beacon:** a voluntary breathing pause. It is never scored and it pauses the game.
+- **Debrief** after every mission: what happened, a per-sol oxygen/dose chart, and two reflection questions with no right answers.
+- **Two age modes:** *Cadet 7–9* tracks 3 resources and gets accurate forecasts. *Pilot 10–12* adds food, and flare forecasts can be wrong, just like in real life.
+- **Split-screen co-op** for two players on one computer (keyboard or two gamepads).
+- **Progress:** 🏅 points unlock bases and never go down. ⭐ stars are a separate balance for skins (7 suits, 5 visors, 6 helmet decorations). Buying a skin never relocks a base. 14 mission patches reward actions: sheltering, supporting the crew, trying again.
+- **Russian and English**, switchable any time.
 
 ## 🛰️ NASA data used and why / Какие данные NASA и зачем
 
 | Dataset | Where in the game | Why |
 |---|---|---|
-| **DONKI** (FLR, GST, SEP, CME), live via api.nasa.gov | Home “Space weather” panel, solar flare events, Mission Control radar, “real space weather” mission option | Links the shielding decision to actual current solar activity |
+| **DONKI** (FLR, GST, SEP, CME), live via api.nasa.gov | Main-menu space weather panel; every in-game flare names its real event and date, marked *LIVE* or *archive*; the “real weather” switch in the briefing | Links the shielding decision to actual solar activity |
 | **Curiosity RAD**: Mars surface 0.64 mSv/day, cruise 1.84 mSv/day (Hassler et al., 2014) | Dose rate on the Mars and Lunar orbit maps | Real radiation ratios between places |
 | **Chang’e‑4 LND**: lunar surface 1.369 mSv/day (Zhang et al., 2020) | Dose rate on the Moon map | Shows why the Moon needs more shielding than Mars |
-| **NASA OSDR / Veggie / APEX** | Greenhouse harvest event and facts | Real plant growth in space (ISS lettuce, 2015) |
-| **MOXIE** (Perseverance) | Life-support facts | Oxygen made from Mars air (122 g) |
-| **NASA Space Communications** | 1.3 s Moon delay (real) and 4–24 min Mars delay (sped up and labeled) | The communication-delay mechanic |
-| **NASA-STD-3001** (600 mSv career limit) | Dose limit explanation | Why dose has a limit |
-| **Mars 2018 dust storm / Opportunity**, lunar day 29.5 days | Dust storm and lunar night events | Power drops that really happened |
+| **NASA Veggie / OSDR** | Greenhouse harvest | Real plant growth in space (ISS lettuce, 2015) |
+| **MOXIE** (Perseverance) | Life-support facts | Oxygen made from Mars air |
+| **NASA Space Communications** | Mission Control delay | 1.3 s to the Moon, 4–24 min to Mars |
+| **NASA-STD-3001**, NASA HRP hazards | Dose limit and mission design | Why dose has a limit |
+| **Mars 2018 dust storm**, 29.5-day lunar day | Dust storm and lunar night events | Power drops that really happen |
 
 **Honesty rules in the code:**
-- Game numbers are scaled so kids can do the maths in their heads (dose = real mSv/day × 7.3). Ratios and cause and effect follow the real data.
-- Static data is **never** presented as live. The UI always shows *LIVE*, *saved data* (with its fetch date) or *ARCHIVE*.
+- Game numbers are scaled so kids can follow them. Ratios and cause and effect follow the real data.
+- Archived data is **never** shown as live. Flares are always labeled *LIVE* or *archive* with their date.
+- **No crew deaths.** On failure the crew evacuates safely and the debrief explains why.
+- No accounts, no personal data. Progress is a JSON file in the user’s home folder.
 
-## 🧠 Psychology (from our research doc) / Психологическая основа
+## 🧠 Psychology / Психологическая основа
 
-The research behind this is in `Trenazher_yunyh_astronavtov.docx`:
-- Pause before acting (“Stop, look, choose”), if–then plans before each mission, a thought check after failure, and debriefs that ask “what helped?” and “where else is this useful?”.
-- The **Space Beacon** breathing pause is voluntary and never scored (Obradović et al., 2021).
-- Feedback describes actions (“you raised the shield”), not personality.
-- **No crew deaths.** On failure the crew evacuates safely and the game explains the cause.
-- Hints are free and never reduce rewards. There is no public ranking.
-- Multiplayer chat uses preset phrases only, so it is child-safe. No personal data is collected; progress stays in `localStorage`.
+From our research doc (`Trenazher_yunyh_astronavtov.docx`):
+- An **if–then plan** in every briefing (“If there is a flare — then I run into the dome”).
+- **Pause before acting:** the Space Beacon breathing pause is voluntary and never scored (Obradović et al., 2021).
+- **Emotion naming and crew support** with gentle feedback: a wrong guess is “maybe, what else?”, never a penalty.
+- **Feedback describes actions** (“took shelter during a flare — done”), not personality.
+- **A debrief after every mission:** “what helped?” and “where else is this useful?”, with no scoring.
+- Hints are free. There is no public ranking.
 
 ## 🏆 How we address the judging criteria
 
-- **Impact:** for kids 7–12, playable in any browser with no account. It works in classrooms too: one shared tablet for two players.
-- **Creativity:** an asymmetric co-op mode where Mission Control and the crew are split by a real communication delay. Real solar flares drive the in-game events.
-- **Validity:** dose ratios come from measured data, DONKI events are real, the simulation was balance-tested with Monte Carlo runs, and every source is cited in the game.
-- **Relevance:** covers every challenge objective: life support, radiation shielding, power budgeting, food production, communication delay and real NASA open data.
-- **Presentation:** bilingual (RU/EN), read-aloud, keyboard support, reduced-motion support.
+- **Impact:** for kids 7–12, icon-first UI with big buttons, two languages, two age modes, keyboard/gamepad/mouse, and two players on one screen for classrooms and families.
+- **Creativity:** a walkable 3D base where real solar flares from NASA drive the events, and a Mission Control radio delayed like real comms.
+- **Validity:** dose ratios come from measured data, DONKI events are real and labeled, every source is cited on the in-game “NASA data & sources” page, and the simulation is balance-tested with Monte Carlo runs (below).
+- **Relevance:** life support, radiation shielding, power budgeting, food production, communication delay and real NASA open data.
+- **Presentation:** a 3D world that reacts to the simulation (shield glow, dusty panels, battery bars, warning lamps, a cargo ship landing), and a screenshot tour for slides.
+
+## 🧪 Balance test
+
+The Monte Carlo harness from the HTML prototype is ported to the Rust simulation (`src/sim.rs`, `mod balance`). It plays 400 missions per base, age mode and player style: a careful kid who reacts in ~9 s and hides from flares, and a careless one who ignores forecasts.
+
+```bash
+cargo test --release balance -- --ignored --nocapture
+```
+
+Pilot mode (10–12), 400 missions each:
+
+| Base | Careful kid: win % | avg dose | Careless kid: win % | avg dose |
+|---|---|---|---|---|
+| Earth (tutorial) | 100 | 0 % | 100 | 0 % |
+| Moon | 100 | 49 % | 67 | 91 % |
+| Mars | 100 | 34 % | 100 | 60 % |
+| Lunar orbit | 100 | 42 % | 0 | 100 % |
+| Europa | 100 | 47 % | 0 | 100 % |
+
+Careless players only ever lose to radiation, so the shield and the shelter are what matter. Mars is gentler than the Moon because its measured dose is lower. The test also caught that Europa was unwinnable even for a careful player, so its base was moved under the ice (and labeled that way in the briefing).
+
+## 📸 Screenshot tour
+
+Plays through the menu, a Moon mission, the debrief and co-op by itself, saves PNGs and quits. It uses a throwaway profile, so real progress is untouched:
+
+```bash
+JA_SHOTS=docs/screenshots JA_PROFILE=docs/screenshots/profile.json cargo run --release
+```
 
 ## 📁 Files
 
-- `index.html` — page shell
-- `css/style.css` — styles
-- `js/data.js` — maps, DONKI archive, skins, badges, quiz, sources
-- `js/core.js` — profile/saving, language, sound, read-aloud, avatar
-- `js/nasa.js` — live DONKI fetch, cache and archive fallback
-- `js/sim.js` — outpost simulation (pure, shared by single and multiplayer)
-- `js/ui.js` — screens, outpost game, debrief, beacon, shop, adults page
-- `js/missions.js` — training drills
-- `js/multi.js` — multiplayer (PeerJS online and one-device modes)
-- `js/main.js` — boot and starfield
+- `src/main.rs` — app setup, states, UI camera, system order
+- `src/data.rs` — maps, DONKI archive, skins, patches, feelings, sources
+- `src/sim.rs` — real-time outpost simulation (pure data) and the balance test
+- `src/nasa.rs` — live DONKI fetch in a background thread, archive fallback
+- `src/world.rs` — terrain, sky, base modules, astronaut model, world reacting to the simulation
+- `src/player.rs` — third-person controller, camera, split screen, keyboard/gamepad input
+- `src/interact.rs` — walk up and press / hold the action key
+- `src/game.rs` — mission start, events → alerts, cargo ship, mission end and rewards
+- `src/ui.rs` — HUD, windows (power console, harvest, cargo, crew support, pause, beacon, tutorial), buttons and gamepad navigation
+- `src/menu.rs` — main menu with 3D preview, bases, briefing, shop, patches, sources, debrief
+- `src/audio.rs`, `src/save.rs`, `src/i18n.rs`, `src/tour.rs`
+- `assets/` — OpenMoji icons (CC BY-SA 4.0), Russo One and PT Sans fonts (OFL), generated sound effects
+
+The HTML prototype is kept in git history (commit `46da10d`).
+
+**Status:** the native game is complete. The code also type-checks for `wasm32-unknown-unknown`, but a browser build (wasm-bindgen + a page) and online co-op are not done yet; co-op is split-screen only.
 
 *Educational game. It does not assess readiness for real spaceflight and is not psychological treatment.*

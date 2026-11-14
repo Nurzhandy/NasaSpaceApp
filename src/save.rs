@@ -68,6 +68,10 @@ impl Profile {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn path() -> std::path::PathBuf {
+    // JA_PROFILE lets the screenshot tour (and testers) use a throwaway profile
+    if let Some(p) = std::env::var_os("JA_PROFILE") {
+        return std::path::PathBuf::from(p);
+    }
     let home = std::env::var_os("HOME")
         .or_else(|| std::env::var_os("USERPROFILE"))
         .map(std::path::PathBuf::from)

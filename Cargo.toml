@@ -6,7 +6,7 @@ description = "Junior Astronaut: Outpost — a 3D game about running a Moon/Mars
 license = "MIT"
 
 [dependencies]
-bevy = "0.16.1"
+bevy = { version = "0.16.1", features = ["wav"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 

@@ -55,6 +55,18 @@ impl Weather {
     }
 }
 
+/// API key: `NASA_API_KEY` env var, then the profile, then the public `DEMO_KEY` (~30 req/hour).
+pub fn api_key(profile: &crate::save::Profile) -> String {
+    let env = std::env::var("NASA_API_KEY").unwrap_or_default();
+    if !env.trim().is_empty() {
+        env.trim().to_string()
+    } else if !profile.nasa_key.trim().is_empty() {
+        profile.nasa_key.trim().to_string()
+    } else {
+        "DEMO_KEY".to_string()
+    }
+}
+
 #[derive(Resource)]
 pub struct WeatherRx(pub Mutex<mpsc::Receiver<Weather>>);
 
@@ -70,7 +82,7 @@ impl Plugin for NasaPlugin {
 fn start_fetch(mut commands: Commands, profile: Res<crate::save::Profile>) {
     let (tx, rx) = mpsc::channel();
     commands.insert_resource(WeatherRx(Mutex::new(rx)));
-    let key = if profile.nasa_key.trim().is_empty() { "DEMO_KEY".to_string() } else { profile.nasa_key.trim().to_string() };
+    let key = api_key(&profile);
     #[cfg(not(target_arch = "wasm32"))]
     {
         std::thread::spawn(move || {
@@ -87,12 +99,14 @@ fn start_fetch(mut commands: Commands, profile: Res<crate::save::Profile>) {
 
 fn poll(rx: Option<Res<WeatherRx>>, mut weather: ResMut<Weather>) {
     let Some(rx) = rx else { return };
-    if let Ok(r) = rx.0.lock() {
-        if let Ok(w) = r.try_recv() {
-            *weather = w;
-            weather.loading = false;
-            info!("DONKI: live={} events={}", weather.live, weather.events.len());
-        }
+    let got = match rx.0.lock() {
+        Ok(r) => r.try_recv().ok(),
+        Err(_) => None,
+    };
+    if let Some(w) = got {
+        *weather = w;
+        weather.loading = false;
+        info!("DONKI: live={} events={}", weather.live, weather.events.len());
     }
 }
 

@@ -159,8 +159,13 @@ pub struct Flags {
 
 impl Sim {
     pub fn new(map_id: MapId, cadet: bool, coop: bool, live: bool, weather: &Weather) -> Self {
+        Self::new_seeded(map_id, cadet, coop, live, weather, Rng::seeded().0)
+    }
+
+    /// Same as `new` but reproducible (used by the balance test).
+    pub fn new_seeded(map_id: MapId, cadet: bool, coop: bool, live: bool, weather: &Weather, seed: u64) -> Self {
         let m = map(map_id);
-        let mut rng = Rng::seeded();
+        let mut rng = Rng(seed | 1);
         let mut schedule = HashMap::new();
         let mut last: Option<EventKind> = None;
         let mut used_once: Vec<EventKind> = vec![];
@@ -471,6 +476,133 @@ impl Sim {
         match self.status {
             Status::Won => per * self.stars() + if self.live { 10 } else { 0 } + if self.coop { 10 } else { 0 },
             _ => 10 + (self.sol.saturating_sub(1) * 3).min(20),
+        }
+    }
+}
+
+/// Monte-Carlo balance check on the real simulation (port of the HTML prototype's harness).
+/// Run: `cargo test --release balance -- --ignored --nocapture`
+#[cfg(test)]
+mod balance {
+    use super::*;
+    use crate::nasa::Weather;
+
+    #[derive(Clone, Copy)]
+    struct Policy {
+        /// seconds a kid needs to notice a problem and walk there
+        react: f32,
+        /// share of the time spent outside (dose in a suit is higher)
+        outside: f32,
+        /// follows the forecast and hides from flares
+        careful: bool,
+    }
+
+    const KID: Policy = Policy { react: 9.0, outside: 0.7, careful: true };
+    const CARELESS: Policy = Policy { react: 9.0, outside: 0.9, careful: false };
+
+    #[derive(Default)]
+    struct Stats {
+        runs: u32,
+        wins: u32,
+        stars: u32,
+        dose: f32,
+        o2: u32,
+        food: u32,
+        rad: u32,
+    }
+
+    fn play(map_id: MapId, cadet: bool, seed: u64, pol: Policy) -> Sim {
+        let w = Weather::archive();
+        let mut s = Sim::new_seeded(map_id, cadet, false, false, &w, seed);
+        let dt = 0.2;
+        let (mut t_fix, mut t_flare, mut t_sample) = (0.0f32, 0.0f32, 0.0f32);
+        let mut carried = 0u32;
+        let mut picked = 0u32;
+        while s.status == Status::Playing {
+            s.fire_pending(&w);
+            // --- power allocation, re-decided every tick like a player at the console
+            let ls_mult = if s.gen_broken { 0.5 } else { 1.0 };
+            let leak = if s.leak { 4.0 } else { 0.0 };
+            let mut ls = ((O2_USE + leak) / (O2_PER * ls_mult)).ceil() as u32 + (s.o2 < 45.0) as u32;
+            let mut green = if cadet { 0 } else { (FOOD_USE / FOOD_PER).ceil() as u32 + (s.food < 40.0) as u32 };
+            let flare_soon = s.flare.is_some() || matches!(s.forecast, Some(Forecast::Sure(EventKind::Flare)) | Some(Forecast::Maybe(EventKind::Flare)));
+            let d = s.def().dose;
+            let base_shield = if !pol.careful { 0 } else if d >= 12.0 { SHIELD_MAX } else if d >= 9.0 { 2 } else if d >= 3.0 { 1 } else { 0 };
+            let mut shield = if pol.careful && flare_soon { SHIELD_MAX } else { base_shield };
+            let gen = s.gen_now.max(0.0) as u32;
+            let budget = gen + (s.battery > 3.0) as u32 + (s.battery > 6.0) as u32;
+            while ls + green + shield > budget {
+                if shield > 1 { shield -= 1 } else if green > 1 { green -= 1 } else if shield > 0 { shield -= 1 } else if green > 0 { green -= 1 } else if ls > 1 { ls -= 1 } else { break }
+            }
+            let sci = budget.saturating_sub(ls + green + shield);
+            s.alloc = Alloc { ls, green, shield, sci };
+            // --- walking around: repairs, shelter, samples
+            let problem = s.gen_broken || s.leak || (s.dust_left > 0 && !s.panels_cleaned);
+            t_fix = if problem { t_fix + dt } else { 0.0 };
+            if t_fix > pol.react + 3.0 {
+                if s.gen_broken { s.repair_generator() } else if s.leak { s.patch_leak() } else { s.clean_panels() }
+                t_fix = 0.0;
+            }
+            t_flare = if s.flare.is_some() { t_flare + dt } else { 0.0 };
+            let hide = pol.careful && s.flare.is_some() && t_flare > pol.react * 0.6;
+            s.players_sheltered = if hide { 1.0 } else { 0.0 };
+            s.players_out = if hide { 0.0 } else { pol.outside };
+            if s.harvest_ready { s.harvest_eat() }
+            if s.cargo { if s.battery > 2.0 { s.cargo_all() } else { s.cargo_some() } }
+            if s.emotion.is_some() && s.battery > 1.0 { s.support_crew() }
+            t_sample += dt;
+            if t_sample > 25.0 && picked < s.samples_total {
+                t_sample = 0.0;
+                picked += 1;
+                carried += 1;
+                if s.alloc.sci > 0 { s.deliver_samples(carried); carried = 0; }
+            }
+            s.tick(dt, &w);
+        }
+        s
+    }
+
+    fn run(map_id: MapId, cadet: bool, pol: Policy, n: u32) -> Stats {
+        let mut st = Stats::default();
+        for i in 0..n {
+            let s = play(map_id, cadet, 0x9E37_79B9 ^ (i as u64).wrapping_mul(0x2545_F491_4F6C_DD1D), pol);
+            st.runs += 1;
+            st.dose += s.dose;
+            match s.status {
+                Status::Won => { st.wins += 1; st.stars += s.stars(); }
+                Status::Lost(Cause::Oxygen) => st.o2 += 1,
+                Status::Lost(Cause::Food) => st.food += 1,
+                Status::Lost(Cause::Dose) => st.rad += 1,
+                Status::Playing => {}
+            }
+        }
+        st
+    }
+
+    #[test]
+    #[ignore]
+    fn balance() {
+        let n = 400;
+        println!("{:<8} {:<6} {:<9} {:>5} {:>6} {:>6}  lost: O2/food/dose", "map", "age", "policy", "win%", "stars", "dose");
+        let mut kid_win = std::collections::HashMap::new();
+        for m in MAPS {
+            for cadet in [true, false] {
+                for (name, pol) in [("kid", KID), ("careless", CARELESS)] {
+                    let st = run(m.id, cadet, pol, n);
+                    let win = st.wins as f32 / st.runs as f32 * 100.0;
+                    println!(
+                        "{:<8} {:<6} {:<9} {:>5.0} {:>6.2} {:>6.1}  {}/{}/{}",
+                        format!("{:?}", m.id), if cadet { "7-9" } else { "10-12" }, name, win,
+                        st.stars as f32 / st.wins.max(1) as f32, st.dose / st.runs as f32, st.o2, st.food, st.rad
+                    );
+                    if name == "kid" { kid_win.insert((m.id, cadet), win); }
+                }
+            }
+        }
+        // a careful kid should usually make it; harder maps may be harder, never hopeless
+        for ((id, cadet), win) in kid_win {
+            let floor = if id == MapId::Europa { 40.0 } else { 70.0 };
+            assert!(win >= floor, "{id:?} cadet={cadet}: careful-kid win rate {win:.0}% < {floor}%");
         }
     }
 }

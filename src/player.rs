@@ -128,6 +128,7 @@ pub fn spawn_players(
         commands.entity(root).insert((
             Transform::from_xyz(x, height(map, x, z), z),
             Player { idx: i as u8, vel_y: 0.0, on_ground: true, yaw: std::f32::consts::PI, in_shelter: false, carried: 0, step_timer: 0.0, frozen: false },
+            crate::interact::Hold::default(),
             WalkAnim::default(),
             StateScoped(AppState::Playing),
         ));
@@ -146,7 +147,7 @@ pub fn spawn_players(
 
 /// Keeps camera viewports split when two players are present.
 pub fn split_viewports(window: Query<&Window, With<PrimaryWindow>>, mut cams: Query<(&PlayerCam, &mut Camera)>, cfg: Res<GameConfig>) {
-    let Ok(win) = window.get_single() else { return };
+    let Ok(win) = window.single() else { return };
     let w = win.physical_width();
     let h = win.physical_height();
     if w == 0 || h == 0 {
