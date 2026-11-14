@@ -166,9 +166,10 @@ fn walker(time: Res<Time>, mut q: Query<(&mut Walker, &mut Transform, &mut Sprit
     }
 }
 
-fn build_page(mut commands: Commands, state: Res<State<AppState>>, setup: Res<Setup>, prof: Res<Prof>, music: Res<Music>, saved: Res<SavedMission>, sky: Res<Sky>, art: Res<Art>, last: Option<Res<LastResult>>, mut built: ResMut<Built>, old: Query<Entity, With<Page>>, mut focus: ResMut<kit::Focus>) {
+#[allow(clippy::too_many_arguments)]
+fn build_page(mut commands: Commands, state: Res<State<AppState>>, setup: Res<Setup>, prof: Res<Prof>, music: Res<Music>, saved: Res<SavedMission>, sky: Res<Sky>, art: Res<Art>, last: Option<Res<LastResult>>, mut built: ResMut<Built>, old: Query<Entity, With<Page>>, mut focus: ResMut<kit::Focus>, net: Res<crate::net::Net>, lobby: Res<crate::net::Lobby>) {
     let st = *state.get();
-    let key = (st, setup.refresh, prof.0.lang == Lang::En, sky.loading, format!("{}{}{}{}{}{}", prof.0.stars, prof.0.suit, prof.0.visor, prof.0.hat, prof.0.sound as u8 + music.0 as u8 * 2, prof.0.cadet) + &format!("{:?}", saved.0));
+    let key = (st, setup.refresh, prof.0.lang == Lang::En, sky.loading, format!("{}{}{}{}{}{}", prof.0.stars, prof.0.suit, prof.0.visor, prof.0.hat, prof.0.sound as u8 + music.0 as u8 * 2, prof.0.cadet) + &format!("{:?}{}{}", saved.0, lobby.rev, crate::net::status_line(&net, prof.lang()).0));
     if built.key.as_ref() == Some(&key) {
         return;
     }
@@ -192,6 +193,7 @@ fn build_page(mut commands: Commands, state: Res<State<AppState>>, setup: Res<Se
                 AppState::Shop => shop(p, &art, &prof, l, &setup),
                 AppState::Badges => badges(p, &art, &prof, l),
                 AppState::Info => info(p, &art, l, &sky),
+                AppState::Lobby => crate::net::lobby_page(p, &art, l, &net, &lobby),
                 AppState::Debrief => {
                     if let Some(r) = last.as_deref() {
                         debrief(p, &art, l, r);
@@ -275,20 +277,21 @@ fn main_menu(p: &mut ChildSpawnerCommands, art: &Art, prof: &Prof, music: bool, 
                 });
             }
             c.spawn(kit::row(12.0)).with_children(|r| {
-                kit::tile(r, art, Action::Play(false), 1, "astronaut", l.pick("Играть", "Play"), 170.0, Color::srgb(0.9, 0.42, 0.22));
-                kit::tile(r, art, Action::Play(true), 2, "coop", l.pick("Вдвоём", "2 players"), 170.0, Color::srgb(0.26, 0.48, 0.92));
-                kit::tile(r, art, Action::Go(AppState::Shop), 3, "shop", l.pick("Магазин", "Shop"), 150.0, kit::C_PANEL);
+                kit::tile(r, art, Action::Play(false), 1, "astronaut", l.pick("Играть", "Play"), 150.0, Color::srgb(0.9, 0.42, 0.22));
+                kit::tile(r, art, Action::Play(true), 2, "coop", l.pick("Вдвоём", "2 players"), 150.0, Color::srgb(0.26, 0.48, 0.92));
+                kit::tile(r, art, Action::Go(AppState::Lobby), 3, "satellite", l.pick("По сети", "Network"), 150.0, Color::srgb(0.2, 0.6, 0.55));
+                kit::tile(r, art, Action::Go(AppState::Shop), 4, "shop", l.pick("Магазин", "Shop"), 130.0, kit::C_PANEL);
             });
             c.spawn(kit::row(12.0)).with_children(|r| {
-                kit::tile(r, art, Action::Go(AppState::Badges), 4, "medal", l.pick("Нашивки", "Patches"), 150.0, kit::C_PANEL);
-                kit::tile(r, art, Action::Go(AppState::Info), 5, "book", l.pick("Данные NASA", "NASA data"), 150.0, kit::C_PANEL);
-                kit::tile(r, art, Action::ToggleAge, 6, if prof.0.cadet { "seedling" } else { "rocket" }, if prof.0.cadet { l.pick("Кадет 7–9", "Cadet 7–9") } else { l.pick("Пилот 10–12", "Pilot 10–12") }, 150.0, kit::C_PANEL);
+                kit::tile(r, art, Action::Go(AppState::Badges), 5, "medal", l.pick("Нашивки", "Patches"), 150.0, kit::C_PANEL);
+                kit::tile(r, art, Action::Go(AppState::Info), 6, "book", l.pick("Данные NASA", "NASA data"), 150.0, kit::C_PANEL);
+                kit::tile(r, art, Action::ToggleAge, 7, if prof.0.cadet { "seedling" } else { "rocket" }, if prof.0.cadet { l.pick("Кадет 7–9", "Cadet 7–9") } else { l.pick("Пилот 10–12", "Pilot 10–12") }, 150.0, kit::C_PANEL);
             });
             c.spawn(kit::row(8.0)).with_children(|r| {
-                kit::button(r, art, Action::ToggleLang, 7, "globe", if prof.0.lang == Lang::En { "EN" } else { "RU" }, false);
-                kit::button(r, art, Action::ToggleSound, 8, if prof.0.sound { "sound" } else { "mute" }, "", false);
-                kit::button(r, art, Action::ToggleMusic, 9, if music { "s_music" } else { "mute" }, "", false);
-                kit::button(r, art, Action::Quit, 10, "exit", "", false);
+                kit::button(r, art, Action::ToggleLang, 8, "globe", if prof.0.lang == Lang::En { "EN" } else { "RU" }, false);
+                kit::button(r, art, Action::ToggleSound, 9, if prof.0.sound { "sound" } else { "mute" }, "", false);
+                kit::button(r, art, Action::ToggleMusic, 10, if music { "s_music" } else { "mute" }, "", false);
+                kit::button(r, art, Action::Quit, 11, "exit", "", false);
             });
         });
         row.spawn(kit::col(14.0)).insert(Node { flex_direction: FlexDirection::Column, row_gap: Val::Px(14.0), align_items: AlignItems::Center, ..default() }).with_children(|c| {

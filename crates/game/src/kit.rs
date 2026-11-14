@@ -51,6 +51,11 @@ pub enum Action {
     Reflect(u8),
     BuildPick(usize),
     Quit,
+    /// network game (net.rs)
+    NetHost,
+    NetJoin(u8),
+    NetJoinTyped,
+    NetStop,
 }
 
 #[derive(Event, Clone, Copy, Debug)]
@@ -98,11 +103,13 @@ impl Plugin for KitPlugin {
     }
 }
 
-fn read_inputs(keys: Res<ButtonInput<KeyCode>>, pads: Query<(Entity, &Gamepad)>, mut inputs: ResMut<Inputs>, setup: Res<crate::Setup>, state: Res<State<AppState>>) {
+fn read_inputs(keys: Res<ButtonInput<KeyCode>>, pads: Query<(Entity, &Gamepad)>, mut inputs: ResMut<Inputs>, setup: Res<crate::Setup>, state: Res<State<AppState>>, net: Res<crate::net::Net>) {
     let ax = |n: bool, p: bool| (p as i32 - n as i32) as f32;
     let k = |c: KeyCode| keys.pressed(c);
     let j = |c: KeyCode| keys.just_pressed(c);
-    let coop = setup.coop && *state.get() == AppState::Playing;
+    let playing = *state.get() == AppState::Playing;
+    // network co-op: one astronaut per computer, so the whole keyboard is this player's
+    let coop = setup.coop && playing && !net.active();
     let mut p1 = Pad {
         mv: Vec2::new(ax(k(KeyCode::KeyA), k(KeyCode::KeyD)), ax(k(KeyCode::KeyS), k(KeyCode::KeyW))),
         act: j(KeyCode::KeyF) || j(KeyCode::KeyE) || (!coop && j(KeyCode::Enter)),
@@ -151,7 +158,12 @@ fn read_inputs(keys: Res<ButtonInput<KeyCode>>, pads: Query<(Entity, &Gamepad)>,
     }
     p1.mv = p1.mv.clamp_length_max(1.0);
     p2.mv = p2.mv.clamp_length_max(1.0);
-    inputs.0 = [p1, p2];
+    inputs.0 = match net.remote_idx() {
+        // the guest plays astronaut 1, the host astronaut 0; the other one is moved by the network
+        Some(0) if playing => [Pad::default(), p1],
+        Some(1) if playing => [p1, Pad::default()],
+        _ => [p1, p2],
+    };
 }
 
 fn buttons(mut q: Query<(&Interaction, &UiAction, &mut BackgroundColor, Option<&Base>), Changed<Interaction>>, mut out: EventWriter<Act>) {

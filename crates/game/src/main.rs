@@ -8,6 +8,7 @@ mod camera;
 mod hud;
 mod kit;
 mod menu;
+mod net;
 mod player;
 mod save;
 mod story;
@@ -35,6 +36,8 @@ pub enum AppState {
     Shop,
     Badges,
     Info,
+    /// network game: create or join (net.rs)
+    Lobby,
     Playing,
     Debrief,
 }
@@ -134,7 +137,7 @@ fn main() {
         .configure_sets(Update, (Set::Input, Set::Logic, Set::View).chain())
         .add_systems(Startup, (art::load, start_weather, spawn_camera))
         .add_systems(Update, poll_weather)
-        .add_plugins((kit::KitPlugin, audio::AudioFx, menu::MenuPlugin, world::WorldPlugin, player::PlayerPlugin, camera::CameraPlugin, build::BuildPlugin, hud::HudPlugin, windows::WindowsPlugin, tour::TourPlugin, save::SavePlugin, story::StoryPlugin))
+        .add_plugins((kit::KitPlugin, audio::AudioFx, menu::MenuPlugin, world::WorldPlugin, player::PlayerPlugin, camera::CameraPlugin, build::BuildPlugin, hud::HudPlugin, windows::WindowsPlugin, tour::TourPlugin, save::SavePlugin, story::StoryPlugin, net::NetPlugin))
         .add_systems(OnEnter(AppState::Playing), start_mission)
         .run();
 }
@@ -177,7 +180,13 @@ fn poll_weather(rx: Option<Res<SkyRx>>, mut sky: ResMut<Sky>) {
     }
 }
 
-fn start_mission(mut commands: Commands, mut setup: ResMut<Setup>, prof: Res<Prof>, sky: Res<Sky>, resume: Res<save::Resume>) {
+fn start_mission(mut commands: Commands, mut setup: ResMut<Setup>, prof: Res<Prof>, sky: Res<Sky>, resume: Res<save::Resume>, net_start: Option<Res<net::NetStart>>) {
+    if let Some(ns) = net_start {
+        // network guest: the host's mission; its state replaces ours as soon as it arrives
+        commands.insert_resource(Sim::start(ns.0, &sky.weather, setup.plan));
+        commands.remove_resource::<net::NetStart>();
+        return;
+    }
     let seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos() as u64).unwrap_or(7);
     let cfg = MissionConfig { map: setup.map, cadet: prof.0.cadet, coop: setup.coop, live: setup.live, seed };
     save::begin(&mut commands, &mut setup, resume.0, cfg, &sky.weather);

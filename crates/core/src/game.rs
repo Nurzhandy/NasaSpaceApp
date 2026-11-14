@@ -490,6 +490,9 @@ pub struct Game {
     next_id: u32,
     low_o2_warned: bool,
     battery_warned: bool,
+    /// network guest: the state comes from the host, commands go back to it
+    mirror: bool,
+    outbox: Vec<(u8, Command)>,
 }
 
 impl Game {
@@ -599,7 +602,7 @@ impl Game {
             history: vec![],
             flags: Flags::default(),
         };
-        let mut g = Game { s, rng, weather: weather.clone(), schedule, false_alarm, pending: vec![], next_id: 1, low_o2_warned: false, battery_warned: false };
+        let mut g = Game { s, rng, weather: weather.clone(), schedule, false_alarm, pending: vec![], next_id: 1, low_o2_warned: false, battery_warned: false, mirror: false, outbox: vec![] };
         g.starting_base(cfg.cadet, mode == Mode::Challenge);
         g.starting_sites();
         g.refresh_power();
@@ -609,6 +612,20 @@ impl Game {
 
     pub fn state(&self) -> &State {
         &self.s
+    }
+
+    /// Network guest: show the host's state. From now on `tick` does nothing (the host simulates)
+    /// and `apply` queues commands for the host instead of running them (see `take_outbox`).
+    pub fn mirror(&mut self, state: State) {
+        self.s = state;
+        self.mirror = true;
+    }
+    pub fn is_mirror(&self) -> bool {
+        self.mirror
+    }
+    /// Commands a network guest made since the last call, to send to the host.
+    pub fn take_outbox(&mut self) -> Vec<(u8, Command)> {
+        std::mem::take(&mut self.outbox)
     }
 
     /// Pause the world (menus, the Space Beacon, solo modal windows).
@@ -983,7 +1000,7 @@ impl Game {
     /// Advance the world by `dt` real seconds.
     pub fn tick(&mut self, dt: f32) -> Vec<GameEvent> {
         let mut ev = vec![];
-        if self.s.status != Status::Playing || self.s.paused || dt <= 0.0 {
+        if self.mirror || self.s.status != Status::Playing || self.s.paused || dt <= 0.0 {
             return ev;
         }
         self.s.elapsed += dt;
@@ -1211,6 +1228,11 @@ impl Game {
     pub fn apply(&mut self, player: u8, cmd: Command) -> Result<Vec<GameEvent>, Refusal> {
         if self.s.status != Status::Playing {
             return Err(Refusal::MissionOver);
+        }
+        if self.mirror {
+            // the host decides; its answer comes back with the next state
+            self.outbox.push((player, cmd));
+            return Ok(vec![]);
         }
         let pi = (player as usize).min(self.s.players.len() - 1);
         let mut ev = match cmd {
@@ -1609,6 +1631,28 @@ mod tests {
         assert!(g.state().o2 >= 5.0);
         let r = g.end_now();
         assert!(r.won && g.state().status == Status::Won);
+    }
+
+    #[test]
+    fn a_mirrored_game_shows_the_host_and_forwards_commands() {
+        let mut host = game(MapId::Moon, false);
+        let mut guest = game(MapId::Moon, false);
+        for _ in 0..20 {
+            host.tick(0.5);
+        }
+        guest.mirror(host.state().clone());
+        assert!(guest.is_mirror());
+        assert_eq!(guest.tick(0.5), vec![]);
+        assert_eq!(guest.state(), host.state(), "the guest never simulates on its own");
+        let (x, y) = host.find_free_spot(ModuleKind::Solar).unwrap();
+        let cmd = Command::Build { kind: ModuleKind::Solar, x, y };
+        assert_eq!(guest.apply(1, cmd), Ok(vec![]));
+        let out = guest.take_outbox();
+        assert_eq!(out, vec![(1, cmd)]);
+        assert!(guest.take_outbox().is_empty());
+        host.apply(out[0].0, out[0].1).unwrap();
+        guest.mirror(host.state().clone());
+        assert_eq!(guest.state().count(ModuleKind::Solar), host.state().count(ModuleKind::Solar));
     }
 
     #[test]

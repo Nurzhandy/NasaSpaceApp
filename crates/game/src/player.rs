@@ -117,7 +117,7 @@ fn push_rect(p: &mut Vec2, x: f32, y: f32, w: f32, h: f32) {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn walk(time: Res<Time>, inputs: Res<Inputs>, modal: Res<Modal>, colliders: Res<Colliders>, mut sim: ResMut<Sim>, mut q: Query<&mut Player>, mut play: EventWriter<Play>, mut refused: EventWriter<Refused>, mut step_t: Local<f32>, mut warn_t: Local<f32>) {
+fn walk(time: Res<Time>, inputs: Res<Inputs>, modal: Res<Modal>, colliders: Res<Colliders>, mut sim: ResMut<Sim>, mut q: Query<&mut Player>, mut play: EventWriter<Play>, mut refused: EventWriter<Refused>, mut step_t: Local<f32>, mut warn_t: Local<f32>, net: Res<crate::net::Net>) {
     let dt = time.delta_secs().min(0.05);
     let rects: Vec<(f32, f32, f32, f32)> = sim.0.state().modules.iter().map(|m| (m.x as f32, m.y as f32, m.w as f32, m.h as f32)).collect();
     let mut moved_any = false;
@@ -129,6 +129,22 @@ fn walk(time: Res<Time>, inputs: Res<Inputs>, modal: Res<Modal>, colliders: Res<
             p.pos = Vec2::new(ps.pos.0, ps.pos.1);
         }
         p.was_inside = ps.inside;
+        if net.remote_idx() == Some(p.idx) {
+            // the other computer moves this astronaut: glide to where the network says it is
+            let target = Vec2::new(ps.pos.0, ps.pos.1);
+            let d = target - p.pos;
+            if d.length() > 6.0 {
+                p.pos = target;
+            } else if d.length() > 0.02 {
+                p.facing = d.normalize();
+                p.dir = if d.x.abs() > d.y.abs() { if d.x < 0.0 { 1 } else { 2 } } else if d.y > 0.0 { 3 } else { 0 };
+                p.anim += dt * 9.0;
+                p.pos += d * (12.0 * dt).min(1.0);
+            } else {
+                p.anim = 0.0;
+            }
+            continue;
+        }
         let pad = inputs.0[p.idx as usize];
         if modal.blocks(p.idx) || ps.inside {
             p.anim = 0.0;
@@ -338,17 +354,19 @@ fn prompts(
     mut texts: Query<&mut Text2d, With<PromptText>>,
     mut bars: Query<&mut Sprite, (With<PromptBar>, Without<PromptIcon>, Without<PromptBg>)>,
     mut bgs: Query<&mut Sprite, (With<PromptBg>, Without<PromptIcon>, Without<PromptBar>)>,
+    net: Res<crate::net::Net>,
 ) {
     let st = sim.0.state();
     let l = prof.lang();
     for (v, mut tr, mut vis, children) in &mut views {
         let Some(p) = players.iter().find(|p| p.idx == v.0) else { continue };
-        let target = if modal.blocks(p.idx) || (build.active && build.player == p.idx) { None } else { find_target(st, p.idx, p.pos, crew.0) };
+        let remote = net.remote_idx() == Some(p.idx);
+        let target = if remote || modal.blocks(p.idx) || (build.active && build.player == p.idx) { None } else { find_target(st, p.idx, p.pos, crew.0) };
         let Some(t) = target else {
             *vis = Visibility::Hidden;
             continue;
         };
-        let key = if st.coop && p.idx == 1 { "Shift" } else { "F" };
+        let key = if st.coop && p.idx == 1 && !net.active() { "Shift" } else { "F" };
         let mname = |id: ModuleId| st.module(id).map(|m| { let d = module_def(m.kind); l.pick(d.name_ru, d.name_en) }).unwrap_or("");
         let (ic, label, warn): (&str, String, bool) = match t {
             Target::Exit => ("exit", l.pick("Выйти наружу", "Go outside").into(), false),

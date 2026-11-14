@@ -143,4 +143,12 @@ The HTML prototype is kept in git history (commit `46da10d`).
 
 **Status:** the native game is complete. The code also type-checks for `wasm32-unknown-unknown`, but a browser build (wasm-bindgen + a page) and online co-op are not done yet; co-op is split-screen only.
 
+## 🛰️ 2D game and network co-op / 2D-игра и игра по сети
+
+The newer 2D pixel-art version lives in `crates/game` (rules in `crates/core`, see `docs/PLAN_2D.md`). Run it with `cargo run -p game --release`.
+
+**Two laptops on the same Wi‑Fi:** on one, choose **Network → Create a game**, pick a base and launch. On the other, choose **Network** and click the game that appears, or type the host's IP. The second player controls the blue astronaut with their own keyboard or gamepad. If Windows asks about network access, allow it (UDP ports 7777 and 7778). The host runs the rules; the guest mirrors the host's state, so the two computers never drift apart.
+
+![Network lobby](docs/screenshots_2d/14_network_lobby.jpg)
+
 *Educational game. It does not assess readiness for real spaceflight and is not psychological treatment.*

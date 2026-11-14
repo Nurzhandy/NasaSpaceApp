@@ -84,7 +84,7 @@ impl Plugin for WorldPlugin {
             .init_resource::<CrewPos>()
             .init_resource::<Views>()
             .add_systems(Update, spawn_world.run_if(resource_added::<Sim>))
-            .add_systems(Update, tick_rules.in_set(Set::Logic).run_if(in_state(AppState::Playing)))
+            .add_systems(Update, tick_rules.in_set(Set::Logic).in_set(TickRules).run_if(in_state(AppState::Playing)))
             .add_systems(Update, (sync_modules, sync_sites, crewmate, cargo, shield_glow, sky_fx, mission_end).in_set(Set::View).run_if(in_state(AppState::Playing)))
             .add_systems(OnExit(AppState::Playing), |mut v: ResMut<Views>| *v = Views::default());
     }
@@ -213,6 +213,10 @@ fn spawn_world(mut commands: Commands, sim: Res<Sim>, art: Res<Art>, mut collide
         scoped,
     ));
 }
+
+/// The rules tick (the network host feeds the guest's commands in just before it).
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TickRules;
 
 fn tick_rules(time: Res<Time>, speed: Res<Speed>, paused: Res<Paused>, mut sim: ResMut<Sim>, mut out: EventWriter<Happened>) {
     if paused.0 {

@@ -171,6 +171,9 @@ impl Recording {
     pub fn coop(&self) -> bool {
         self.coop
     }
+    pub fn seed(&self) -> u64 {
+        self.seed
+    }
     fn config(&self) -> MissionConfig {
         MissionConfig { map: self.map_id(), cadet: self.cadet, coop: self.coop, live: self.live, seed: self.seed }
     }
@@ -204,10 +207,15 @@ impl Sim {
     }
 
     pub fn apply(&mut self, player: u8, cmd: Command) -> Result<Vec<GameEvent>, Refusal> {
-        self.1.ops.push(Op::C(player, cmd.into()));
+        if !self.0.is_mirror() {
+            self.1.ops.push(Op::C(player, cmd.into()));
+        }
         self.0.apply(player, cmd)
     }
     pub fn tick(&mut self, dt: f32) -> Vec<GameEvent> {
+        if self.0.is_mirror() {
+            return vec![];
+        }
         self.1.ops.push(Op::T(dt));
         let ev = self.0.tick(dt);
         self.1.sol = self.0.state().sol;
@@ -220,16 +228,22 @@ impl Sim {
         }
         if self.1.last_pos[i] != (x, y) {
             self.1.last_pos[i] = (x, y);
-            self.1.ops.push(Op::P(player, x, y));
+            if !self.0.is_mirror() {
+                self.1.ops.push(Op::P(player, x, y));
+            }
             self.0.set_player_pos(player, x, y);
         }
     }
     pub fn set_paused(&mut self, on: bool) {
+        if self.0.is_mirror() {
+            return;
+        }
         self.1.ops.push(Op::Z(on));
         self.0.set_paused(on);
     }
     fn unfinished(&self) -> bool {
-        self.0.state().status == Status::Playing
+        // a network guest's mission belongs to the host: nothing to save here
+        self.0.state().status == Status::Playing && !self.0.is_mirror()
     }
 }
 

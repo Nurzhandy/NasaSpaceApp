@@ -128,6 +128,9 @@ pub struct TourPlugin;
 impl Plugin for TourPlugin {
     fn build(&self, app: &mut App) {
         let Some(dir) = std::env::var_os("JA_SHOTS") else { return };
+        if std::env::var_os("JA_NET_TEST").is_some() {
+            return; // the network test drives the game itself
+        }
         let dir = PathBuf::from(dir);
         let _ = std::fs::create_dir_all(&dir);
         app.insert_resource(Tour { dir, t: 0.0, step: 0 }).add_systems(Startup, unlock).add_systems(Update, run.after(crate::Set::View));
