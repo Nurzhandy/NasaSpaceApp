@@ -1,0 +1,49 @@
+* { box-sizing: border-box; margin: 0; }
+
+body {
+  min-height: 100vh;
+  background: #05060f;
+  color: #e8ecff;
+  font-family: system-ui, -apple-system, sans-serif;
+  overflow-x: hidden;
+}
+
+#stars {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+}
+
+main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 64px 16px;
+  text-align: center;
+}
+
+h1 { font-size: clamp(2rem, 6vw, 3.5rem); margin-bottom: 12px; }
+p { color: #a9b1d6; margin-bottom: 40px; }
+
+.planets {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.planet {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+  text-align: left;
+}
+
+.planet .dot {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  margin-bottom: 12px;
+}
+
+.planet h2 { font-size: 1.1rem; margin-bottom: 6px; }
+.planet span { color: #a9b1d6; font-size: 0.9rem; }
