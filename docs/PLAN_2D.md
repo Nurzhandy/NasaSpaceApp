@@ -51,75 +51,76 @@ NasaSpaceApp/
 
 ---
 
-## 3. Контракт между частями (делаем ВМЕСТЕ в первый день)
+## 3. Контракт между частями — ГОТОВ (`crates/core`, пакет `ja-core`)
 
-Обе части общаются только через публичный API крейта `core`. Часть B не меняет правила игры, часть A ничего не рисует. Контракт лежит в `crates/core/src/lib.rs`; любое его изменение — отдельный маленький PR, который смотрят оба.
+> Пакет называется `ja-core`, а не `core`: имя `core` занято стандартной библиотекой Rust.
+> Заглушка `mock` не понадобилась: настоящая логика уже готова и покрыта тестами, часть B подключает её сразу.
+
+Подключение в `crates/game/Cargo.toml`: `ja-core = { path = "../core" }`, и добавить `"crates/game"` в `members` корневого `Cargo.toml`.
 
 ```rust
-// crates/core/src/lib.rs — набросок, уточнить в первый день
-pub struct MissionConfig { pub map: MapId, pub cadet: bool, pub coop: bool, pub live: bool, pub seed: u64 }
+use ja_core::{Game, MissionConfig, MapId, Command, GameEvent, Refusal, ModuleKind, Weather, Profile, i18n, progress, weather};
 
-pub struct Game { /* всё состояние миссии */ }
+// старт: погода NASA в фоне (один раз при запуске приложения)
+let rx = weather::spawn_fetch(weather::api_key(&profile.nasa_key)); // rx.try_recv() каждый кадр → Weather (LIVE или АРХИВ)
+let mut game = Game::new(MissionConfig { map: MapId::Moon, cadet: profile.cadet, coop: false, live: true, seed: rng_seed }, &weather);
 
-impl Game {
-    pub fn new(cfg: MissionConfig, weather: &Weather) -> Game;
-    /// Продвинуть время на dt секунд; вернуть, что случилось (для звуков, анимаций, тревог).
-    pub fn tick(&mut self, dt: f32) -> Vec<GameEvent>;
-    /// Действие игрока. Ошибка объясняет, почему нельзя (показываем ребёнку).
-    pub fn apply(&mut self, player: u8, cmd: Command) -> Result<Vec<GameEvent>, Refusal>;
-    /// Только чтение: всё, что нужно нарисовать.
-    pub fn state(&self) -> &State;
+// каждый кадр
+game.set_player_pos(0, x_cells, y_cells);       // где стоит астронавт (в клетках сетки)
+for e in game.tick(dt) { /* звук, анимация, i18n::event_msg(&e) */ }
+
+// действие игрока
+match game.apply(0, Command::Build { kind: ModuleKind::Shield, x, y }) {
+    Ok(events) => { /* показать i18n::event_msg */ }
+    Err(r) => { /* показать i18n::refusal_msg(r) */ }
 }
+game.can_build(kind, x, y)      // призрак стройки: Ok — зелёный, Err(причина) — красный
+game.find_free_spot(kind)       // подсказка «куда поставить»
+game.set_paused(true)           // меню, маяк-дыхание, окна в одиночной игре
+let s = game.state();           // всё для отрисовки: modules, sites, players, o2, food, dose, battery, flare, mc, forecast…
 
-pub enum Command {
-    Build { kind: ModuleKind, x: i32, y: i32 },
-    Demolish { x: i32, y: i32 },
-    SetPower { module: ModuleId, blocks: u8 },
-    Repair { module: ModuleId },          // игра B вызывает после «держи F 3 секунды»
-    PickSample { site: SiteId },
-    DeliverSamples,
-    EnterShelter, ExitShelter,
-    ChooseHarvest(bool), ChooseCargo(bool),
-    NameFeeling(FeelingId), Support(usize),
-}
-
-pub enum GameEvent {
-    Flare { label_ru: String, label_en: String, date: String, live: bool },
-    FlareEnded, NewSol(u32), ModuleBroken(ModuleId), Leak(ModuleId), DustStorm,
-    HarvestReady, CargoLanding, CrewNeedsSupport(MoodId), ForecastArrived(Forecast),
-    BadgeEarned(&'static str), MissionEnded(MissionResult),
-}
-
-pub enum Refusal { NotEnoughPower, NotEnoughMaterials, CellBusy, TooFar, NeedsModule(ModuleKind), /* … */ }
+// конец миссии: GameEvent::MissionEnded(result)
+let rewards = profile.finish(&result); progress::save(&profile);
 ```
 
-Правила контракта:
-- Координаты — клетки сетки (`i32`), время — секунды (`f32`), цвета в `core` не храним.
-- Все тексты, которые видит ребёнок, лежат в `core::i18n` (RU/EN), чтобы часть B не придумывала формулировки.
-- Пока часть A не готова, часть B работает с **заглушкой** `core::mock::Game` с тем же API.
+**Команды** (`Command`): `Build{kind,x,y}`, `Demolish{x,y}`, `SetPower{module,blocks}`, `Repair{module}` (после «держи F 3 с»), `Clean{module}` (пыльная панель), `Collect{site}` (образец, руда, обломки, лёд), `DeliverSamples`, `EnterShelter`, `ExitShelter`, `ChooseHarvest(eat)`, `ChooseCargo(all)`, `NameFeeling(i)`, `Support(i)`.
+
+**Правила для части B:**
+- Координаты — клетки сетки (`f32` для игроков и находок, `i32` для модулей). Купол занимает клетки −1..1, дверь — `game::DOOR`, площадка груза — `game::CARGO_PAD`. Строить можно в квадрате ±`BUILD_R` (11) клеток, исследовать — в радиусе `WORLD_R` (36).
+- «Подойди и нажми» проверяет ядро: игрок должен быть не дальше `NEAR` (2,5 клетки). Иначе придёт `Refusal::TooFar`.
+- Все тексты для ребёнка: `i18n::event_msg`, `refusal_msg`, `forecast_msg`, `cause_msg`, `TUTORIAL`, `IF_THEN`, `REFLECT_HELPED`, `REFLECT_WHERE`, а также имена и описания в `data` (`MAPS`, `MODULES`, `SITES`, `SUITS` / `VISORS` / `HATS`, `BADGES`, `MOODS`, `SOURCES`). Сам ничего не пиши.
+- Цвета карт и скинов — `[f32; 3]` sRGB: `Color::srgb(c[0], c[1], c[2])`.
+- Нашивку «маяк» выдаёт B: `profile.award("beacon")` после двух спокойных вдохов.
+- Сборка с живыми данными NASA (фича `live`, по умолчанию) требует VS Build Tools на Windows. Без них: `--no-default-features`, тогда всегда будет архив.
+- Изменения API ядра — только по договорённости.
 
 ---
 
-## 4. Часть A — сокомандник с GPT: «Мозг игры» (`crates/core`)
+## 4. Часть A — «Мозг игры» (`crates/core`) — ВЫПОЛНЕНО
 
-Только чистый Rust, без Bevy, всё покрыто тестами (`cargo test -p core`).
-
-| # | Задача | Готово, когда |
+| # | Задача | Статус |
 |---|---|---|
-| A0 | Вместе с B написать контракт (раздел 3) и заглушку `mock` | `cargo build` проходит у обоих |
-| A1 | Перенести `sim.rs`, `data.rs`, `nasa.rs`, `save.rs` из 3D-версии в `core`, убрать зависимость от Bevy (`Color` → `[f32; 3]` или убрать совсем) | Старые формулы и баланс-тест работают в `core` |
-| A2 | **Строительство:** сетка базы, типы модулей, стоимость (энергия + материалы), соседство (панели рядом с батареей, щит покрывает радиус), снос | Тесты: нельзя строить на занятой клетке, нельзя без материалов |
-| A3 | **Энергия по модулям:** каждый модуль потребляет блоки, панели дают по солнцу (день/ночь, пыль), батарея копит | Тест: ночью на Луне без батареи кислород падает |
-| A4 | **Исследование:** точки интереса на карте (образцы, кратеры, обломки), материалы для стройки, наука за доставку в лабораторию | Тест: доставка образцов даёт науку только при запитанной лаборатории |
-| A5 | **События:** вспышки DONKI (live/архив), пыльная буря, поломки, утечка, урожай, груз, эмоции экипажа, прогноз ЦУП с задержкой связи | Каждое событие возвращает `GameEvent`; тест расписания по сиду |
-| A6 | **Прогресс:** очки открывают карты (Земля → Луна 60 → Марс 180 → Орбита 400 → Европа 700), звёзды → скины, 14 нашивок, сохранение профиля | Тест: покупка скина не закрывает карту |
-| A7 | **Баланс:** Монте-Карло (аккуратный и небрежный игрок) на новой симуляции | Аккуратный выигрывает ≥ 70% на каждой карте, небрежный заметно хуже |
-| A8 | **Тексты RU/EN** для всех событий, подсказок, брифингов, разбора | Нет строк, которые часть B пишет сама |
+| A0 | Контракт (раздел 3) | ✅ без заглушки: сразу настоящий API |
+| A1 | Перенос симуляции, данных, DONKI, профиля без Bevy | ✅ `game.rs`, `data.rs`, `weather.rs`, `progress.rs` |
+| A2 | Строительство: сетка, 9 типов модулей, стоимость, снос (½ материалов назад) | ✅ |
+| A3 | Энергия по модулям: панели (день/ночь/пыль), РИТЭГ, батареи +5, потребители по блокам | ✅ |
+| A4 | Исследование: образцы → лаборатория (только запитанная), руда +3, обломки +6, лёд +10 O₂ | ✅ |
+| A5 | События: вспышки DONKI LIVE/АРХИВ, буря, поломка, утечка, урожай, груз, эмоции, затмение связи, прогноз ЦУП с задержкой (без энергии антенны прогноза нет) | ✅ |
+| A6 | Прогресс: очки → карты, звёзды → скины, 15 нашивок (+ «Строитель базы»), сохранение `~/.junior_astronaut_outpost.json` (`JA_PROFILE` — свой путь) | ✅ |
+| A7 | Баланс Монте-Карло через публичный API | ✅ таблица ниже |
+| A8 | Тексты RU/EN для всех событий, отказов, прогнозов, причин, обучения, плана «если — то», рефлексии | ✅ |
 
-**Как работать с GPT:**
-- Давай ему этот файл и `crates/core/src/lib.rs` целиком.
-- Проси по одной задаче из таблицы, а в конце: «напиши тесты и не меняй публичный API без согласования».
-- Перед каждым PR запускай `cargo test -p core` и `cargo clippy -p core`.
+**Тесты:** `cargo test -p ja-core` — 21 тест. **Баланс:** `cargo test -p ja-core --release balance -- --ignored --nocapture`.
+
+| База | Аккуратный: побед | доза | Небрежный: побед | доза |
+|---|---|---|---|---|
+| Земля (обучение) | 100% | 0% | 100% | 0% |
+| Луна | 100% | 58% | 68% | 93% |
+| Марс | 100% | 37% | 100% | 61% |
+| Окололунная станция | 100% | 55% | 0% | 100% |
+| Европа | 100% | 63% | 0% | 100% |
+
+«Аккуратный» строит щит, слушает прогноз и прячется от вспышек; «небрежный» — нет. Небрежный проигрывает только из-за радиации. Значит, щит и убежище действительно решают исход. Третью звезду (доза < 50%) аккуратный игрок на Луне, Орбите и Европе получает не всегда: это задача для тех, кто играет лучше.
 
 ---
 
@@ -151,10 +152,10 @@ pub enum Refusal { NotEnoughPower, NotEnoughMaterials, CellBusy, TooFar, NeedsMo
 
 | Этап | Часть A (GPT) | Часть B (Claude) | Встреча |
 |---|---|---|---|
-| День 1 | A0, A1 | B0, начать B1 | Утверждаем контракт |
-| День 2 | A2, A3 | B1, B2, B3 | Демо: ходим по базе на `mock` |
-| День 3 | A4, A5 | B4, B5 | **Переключаем B с `mock` на настоящий `core`** |
-| День 4 | A6, A7, A8 | B6, B7 | Полный круг игры |
+| День 1 | ✅ A0, A1 | B0, начать B1 | Утверждаем контракт |
+| День 2 | ✅ A2, A3 | B1, B2, B3 | Демо: ходим по базе на `mock` |
+| День 3 | ✅ A4, A5 | B4, B5 | B уже на настоящем `ja-core` |
+| День 4 | ✅ A6, A7, A8 | B6, B7 | Полный круг игры |
 | День 5 | Правки баланса по игре | B8, B9 | Плейтест на ребёнке 7–12, запись видео |
 
 ---
