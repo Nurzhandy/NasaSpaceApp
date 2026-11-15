@@ -11,13 +11,32 @@ pub enum Lang {
     #[default]
     Ru,
     En,
+    /// Kazakh: texts from `assets/content/ui.json`; where there is no translation yet the
+    /// Russian text is shown (the team's native speakers fill the gaps)
+    Kk,
 }
 
 impl Lang {
+    /// Old two-language texts: Kazakh falls back to Russian.
     pub fn pick<'a>(self, ru: &'a str, en: &'a str) -> &'a str {
         match self {
-            Lang::Ru => ru,
+            Lang::Ru | Lang::Kk => ru,
             Lang::En => en,
+        }
+    }
+    /// Language button order: RU → KK → EN.
+    pub fn next(self) -> Lang {
+        match self {
+            Lang::Ru => Lang::Kk,
+            Lang::Kk => Lang::En,
+            Lang::En => Lang::Ru,
+        }
+    }
+    pub fn code(self) -> &'static str {
+        match self {
+            Lang::Ru => "RU",
+            Lang::Kk => "ҚАЗ",
+            Lang::En => "EN",
         }
     }
 }

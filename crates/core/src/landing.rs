@@ -196,6 +196,15 @@ impl Lander {
     }
 
     /// Hover seconds left: how long the engine could hold the lander still (what "60 seconds!" meant).
+    /// The pilot's bonus: fuller tanks (more hover time). Call right after `new`.
+    pub fn with_pilot(mut self, pilot: bool) -> Lander {
+        if pilot {
+            self.fuel_max *= crate::role::PILOT_FUEL;
+            self.fuel = self.fuel_max;
+        }
+        self
+    }
+
     pub fn hover_left(&self) -> f32 {
         self.fuel / (MOON_G / THRUST)
     }
@@ -306,7 +315,8 @@ impl Lander {
     pub fn retry(&mut self) {
         let attempts = self.attempts.saturating_add(1);
         let boulders = std::mem::take(&mut self.boulders);
-        *self = Lander { boulders, attempts, alarm_done: true, ..Lander::new(self.site, self.junior, 0) };
+        let fuel_max = self.fuel_max;
+        *self = Lander { boulders, attempts, alarm_done: true, fuel: fuel_max, fuel_max, ..Lander::new(self.site, self.junior, 0) };
     }
 
     /// Coins the landing brings to the base: stars and saved fuel.

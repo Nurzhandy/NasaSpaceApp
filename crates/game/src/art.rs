@@ -13,8 +13,10 @@ pub struct Art {
     pub astro_layout: Handle<TextureAtlasLayout>,
     pub tile_layout: Handle<TextureAtlasLayout>,
     pub hat_layout: Handle<TextureAtlasLayout>,
+    /// title font: Russo One, or PT Sans for Kazakh (Russo One has no Ә Ғ Қ Ң Ө Ұ Ү Һ)
     pub head: Handle<Font>,
     pub body: Handle<Font>,
+    pub head_main: Handle<Font>,
 }
 
 impl Art {
@@ -50,6 +52,7 @@ pub fn load(mut commands: Commands, server: Res<AssetServer>, mut layouts: ResMu
         hat_layout: layouts.add(TextureAtlasLayout::from_grid(UVec2::new(16, 16), 5, 1, None, None)),
         head: server.load("fonts/RussoOne-Regular.ttf"),
         body: server.load("fonts/PTSans-Bold.ttf"),
+        head_main: server.load("fonts/RussoOne-Regular.ttf"),
     });
 }
 
@@ -137,5 +140,14 @@ pub fn hat_index(id: &str) -> Option<usize> {
         "crown" => Some(3),
         "alien" => Some(4),
         _ => None,
+    }
+}
+
+/// Kazakh needs letters the title font lacks: titles switch to the body font while it is on.
+pub fn sync_head_font(prof: Res<crate::Prof>, art: Option<ResMut<Art>>) {
+    let Some(mut art) = art else { return };
+    let want = if prof.0.lang == ja_core::Lang::Kk { art.body.clone() } else { art.head_main.clone() };
+    if art.head != want {
+        art.head = want;
     }
 }

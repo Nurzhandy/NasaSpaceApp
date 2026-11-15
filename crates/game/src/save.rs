@@ -14,7 +14,7 @@ use bevy::window::WindowCloseRequested;
 use ja_core::data::{MAPS, MODULES};
 use ja_core::weather::WeatherEvent;
 use ja_core::survival::UPGRADES;
-use ja_core::{Command, Game, GameEvent, MapId, MissionConfig, Mode, ModuleKind, Refusal, Status, Weather};
+use ja_core::{Command, Game, GameEvent, MapId, MissionConfig, Mode, ModuleKind, Refusal, Role, Status, Weather};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -142,19 +142,24 @@ pub struct Start {
     pub mode: Mode,
     pub site: u8,
     pub landing_coins: u32,
+    /// the astronauts' roles (bonuses only)
+    #[serde(default)]
+    pub roles: [Role; 2],
 }
 impl Default for Start {
     fn default() -> Self {
-        Self { mode: Mode::Story, site: 1, landing_coins: 0 }
+        Self { mode: Mode::Story, site: 1, landing_coins: 0, roles: [Role::None; 2] }
     }
 }
 impl Start {
     pub fn game(&self, cfg: MissionConfig, weather: &Weather) -> Game {
-        match self.mode {
+        let mut g = match self.mode {
             Mode::Survival => Game::survival(cfg, self.site, self.landing_coins, weather),
             Mode::Story => Game::new(cfg, weather),
             m => Game::with_mode(cfg, m, weather),
-        }
+        };
+        g.set_roles(self.roles);
+        g
     }
 }
 
@@ -428,7 +433,7 @@ pub fn begin(commands: &mut Commands, setup: &mut Setup, resume: bool, cfg: Miss
             return;
         }
     }
-    let start = Start { mode: setup.mode, site: setup.site, landing_coins: setup.landing_coins };
+    let start = Start { mode: setup.mode, site: setup.site, landing_coins: setup.landing_coins, roles: setup.roles };
     commands.insert_resource(Sim::start_with(cfg, start, weather, setup.plan));
 }
 
@@ -506,8 +511,8 @@ mod tests {
             roundtrip(m.id, i % 2 == 1, 1000 + i as u64);
         }
         for (i, site) in [0u8, 1, 2].into_iter().enumerate() {
-            roundtrip_with(MapId::Moon, i == 1, 77 + i as u64, Start { mode: Mode::Survival, site, landing_coins: 7 });
+            roundtrip_with(MapId::Moon, i == 1, 77 + i as u64, Start { mode: Mode::Survival, site, landing_coins: 7, roles: [Role::Engineer, Role::LifeSupport] });
         }
-        roundtrip_with(MapId::Moon, false, 5, Start { mode: Mode::Sandbox, site: 1, landing_coins: 0 });
+        roundtrip_with(MapId::Moon, false, 5, Start { mode: Mode::Sandbox, site: 1, landing_coins: 0, roles: [Role::Researcher, Role::None] });
     }
 }

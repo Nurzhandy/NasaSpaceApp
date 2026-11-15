@@ -97,7 +97,7 @@ fn acts(mut commands: Commands, mut acts: EventReader<Act>, mut d: ResMut<Descen
     for Act(a) in acts.read() {
         match *a {
             Action::PickSite(i) => {
-                let l = Lander::new(i, prof.0.cadet, seed());
+                let l = Lander::new(i, prof.0.cadet, seed()).with_pilot(setup.roles.contains(&ja_core::Role::Pilot));
                 for e in &scene {
                     commands.entity(e).despawn();
                 }
@@ -137,7 +137,7 @@ fn acts(mut commands: Commands, mut acts: EventReader<Act>, mut d: ResMut<Descen
     }
 }
 
-fn fly(time: Res<Time>, keys: Res<ButtonInput<KeyCode>>, inputs: Res<Inputs>, mut d: ResMut<Descent>, prof: Res<Prof>, mut play: EventWriter<Play>) {
+fn fly(time: Res<Time>, keys: Res<ButtonInput<KeyCode>>, inputs: Res<Inputs>, mut d: ResMut<Descent>, mut prof: ResMut<Prof>, mut setup: ResMut<Setup>, mut play: EventWriter<Play>) {
     let dt = time.delta_secs();
     let l = prof.lang();
     if let Some((_, t)) = d.call.as_mut() {
@@ -202,7 +202,11 @@ fn fly(time: Res<Time>, keys: Res<ButtonInput<KeyCode>>, inputs: Res<Inputs>, mu
                 play.write(Play("radio"));
                 d.call = Some((format!("{} {s} {}", l.pick("ЦУП: «", "Mission Control: “"), l.pick("секунд!»", "seconds!”")), 2.5));
             }
-            LandingEvent::Touchdown { .. } => {
+            LandingEvent::Touchdown { stars, .. } => {
+                // pilot achievements (shown later on the debrief)
+                let tiers = prof.0.record_landing(stars as u32);
+                prof.save();
+                setup.new_tiers.extend(tiers);
                 play.write(Play("badge"));
                 d.call = None;
                 d.ui += 1;

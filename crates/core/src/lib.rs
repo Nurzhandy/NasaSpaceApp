@@ -13,13 +13,16 @@
 //!
 //! Tests: `cargo test -p ja-core` · balance report: `cargo test -p ja-core --release balance -- --ignored --nocapture`.
 
+pub mod achieve;
 pub mod data;
 pub mod game;
 pub mod i18n;
 pub mod landing;
 pub mod progress;
+pub mod role;
 pub mod rng;
 pub mod survival;
+pub mod ui_text;
 pub mod weather;
 
 #[cfg(test)]
@@ -28,7 +31,9 @@ mod balance;
 pub use data::{EventKind, Goal, MapId, ModuleKind, SiteKind, SkinSlot, Unlock, Wave};
 pub use game::{region_at, BossState, Cause, Command, Forecast, Game, GameEvent, MissionConfig, MissionResult, Mode, ModuleId, Refusal, SiteId, State, Status};
 pub use i18n::{Lang, Msg, Tone};
-pub use progress::Profile;
+pub use achieve::{Track, TRACKS};
+pub use progress::{Book, Profile, Stats};
+pub use role::{Role, ROLES};
 pub use survival::{Body, EventReport, ReportLine, Survival, Threat, Tonight, Upgrade};
 pub use landing::{Lander, LanderInput, LandingEvent};
 pub use weather::Weather;

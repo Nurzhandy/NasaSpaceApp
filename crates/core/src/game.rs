@@ -14,6 +14,7 @@
 
 use crate::data::*;
 use crate::rng::Rng;
+use crate::role::Role;
 use crate::survival::{build_cost, Body, EventReport, Survival, Tonight, Upgrade};
 use crate::weather::{Weather, WeatherEvent};
 use serde::{Deserialize, Serialize};
@@ -282,6 +283,9 @@ pub struct Player {
     /// suit oxygen, fatigue, suit condition, heartbeat (survival)
     #[serde(default)]
     pub body: Body,
+    /// optional specialty: a small bonus, never a restriction (see `role.rs`)
+    #[serde(default)]
+    pub role: Role,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -347,6 +351,9 @@ pub struct Flags {
     /// survival: evening threats met / handled the right way
     pub threats: u32,
     pub countered: u32,
+    /// survival: base upgrades bought
+    #[serde(default)]
+    pub upgrades: u32,
 }
 
 /// Snapshot for the debrief and for `progress::Profile::finish`.
@@ -372,6 +379,9 @@ pub struct MissionResult {
     pub quests_done: u32,
     pub boss_done: bool,
     pub boss_countered: u8,
+    /// landing site (survival), for the expedition history
+    #[serde(default)]
+    pub site: Option<u8>,
 }
 
 /// Everything the app needs to draw. Read-only for part B.
@@ -595,7 +605,7 @@ impl Game {
             }
         }
 
-        let players = (0..if cfg.coop { 2 } else { 1 }).map(|i| Player { pos: (DOOR.0 - 0.8 + i as f32 * 1.6, DOOR.1 + 1.0), inside: false, carried: 0, body: Body::default() }).collect();
+        let players = (0..if cfg.coop { 2 } else { 1 }).map(|i| Player { pos: (DOOR.0 - 0.8 + i as f32 * 1.6, DOOR.1 + 1.0), inside: false, carried: 0, body: Body::default(), role: Role::None }).collect();
         let open_all = mode != Mode::Story;
         let s = State {
             map: cfg.map,
@@ -698,6 +708,13 @@ impl Game {
     pub fn set_player_pos(&mut self, player: u8, x: f32, y: f32) {
         if let Some(p) = self.s.players.get_mut(player as usize) {
             p.pos = (x, y);
+        }
+    }
+
+    /// Give the astronauts their roles (before the first tick; the save replays it).
+    pub fn set_roles(&mut self, roles: [Role; 2]) {
+        for (p, r) in self.s.players.iter_mut().zip(roles) {
+            p.role = r;
         }
     }
 
@@ -1240,6 +1257,7 @@ impl Game {
             quests_done: s.quests_done,
             boss_done: s.boss_done,
             boss_countered: s.boss_countered,
+            site: (s.mode == Mode::Survival).then_some(s.surv.site),
         }
     }
 
@@ -1366,7 +1384,7 @@ impl Game {
                 self.require_near_module(pi, module)?;
                 let kind = self.s.module(module).map(|m| (m.kind, m.broken)).ok_or(Refusal::UnknownId)?;
                 if self.s.mode == Mode::Survival {
-                    self.survival_repair(module)?;
+                    self.survival_repair(pi, module)?;
                     self.s.coins += 2;
                     self.s.flags.repairs += 1;
                     return self.finish_apply(vec![GameEvent::Repaired(module)]);
@@ -1444,7 +1462,7 @@ impl Game {
                 if self.s.powered(ModuleKind::Lab) == 0 {
                     return Err(Refusal::LabNeedsPower);
                 }
-                let science = count as f32 * 1.5;
+                let science = count as f32 * 1.5 * if self.s.players[pi].role == Role::Researcher { crate::role::RESEARCHER_SCIENCE } else { 1.0 };
                 self.s.science += science;
                 if self.s.mode == Mode::Survival {
                     self.s.coins += count;
