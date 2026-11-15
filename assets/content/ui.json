@@ -205,7 +205,7 @@
   "role.life_support.bonus": {
    "ru": "Баллон скафандра тратится на 25% медленнее",
    "kk": null,
-   "en": "Suit oxygen lasts 25% longer"
+   "en": "Suit oxygen drains 25% slower"
   },
   "role.note": {
    "ru": "Роль даёт бонус, но ничего не запрещает: чинить, собирать и летать могут все.",

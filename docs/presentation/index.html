@@ -1,0 +1,188 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>SPACE EXPLORERS — NASA Space Apps 2026</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400..700&family=Inter:wght@400;600&display=swap"><style>
+@page { size: 1920px 1080px; margin: 0 } * { margin: 0 } html,body{background:#0E1424} body { font: 32px/1.2 sans-serif } body > section { width: 1920px; height: 1080px; overflow: hidden; box-sizing: border-box; position: relative; break-after: page; page-break-after: always } aside { display: none } h1 { font-size: 96px; font-weight: 600 } h2 { font-size: 64px; font-weight: 600 } h3 { font-size: 44px; font-weight: 600 } table { width: 100%; border-collapse: separate; border-spacing: 0; border: solid #fff3; border-width: 2px 0 0 2px } th, td { padding: .35em .6em; text-align: left; border: solid #fff3; border-width: 0 2px 2px 0 } .rise{animation:none!important}
+:root {
+  --navy: #0E1424;
+  --navy2: #161E33;
+  --card: #1C2540;
+  --line: #2E3A5C;
+  --light: #F4F1EA;
+  --muted: #B8C2D6;
+  --orange: #F5A030;
+  --blue: #6CB4FF;
+}
+section {
+  background: var(--navy);
+  color: var(--light);
+  font-family: 'Inter', Arial, sans-serif;
+  padding: 112px 128px 128px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  counter-increment: page;
+}
+section.alt { background: var(--navy2); }
+h1, h2, h3 { font-family: 'Space Grotesk', Arial, sans-serif; color: var(--light); }
+h2 { font-size: 72px; font-weight: 700; line-height: 1.05; letter-spacing: -1px; }
+h2 .hl, h1 .hl, p .hl { color: var(--orange); }
+h3 { font-size: 36px; font-weight: 700; line-height: 1.15; }
+p { font-size: 28px; line-height: 1.4; color: var(--muted); }
+.eyebrow { font-family: 'Space Grotesk', Arial, sans-serif; font-size: 24px; font-weight: 700; letter-spacing: 3px; color: var(--orange); }
+.row { display: flex; gap: 32px; }
+.col { display: flex; flex-direction: column; gap: 24px; }
+.card { background: var(--card); border: 2px solid var(--line); border-radius: 20px; padding: 32px; display: flex; flex-direction: column; gap: 12px; }
+.card.hot { border-color: var(--orange); }
+.card p { font-size: 26px; }
+.big { font-family: 'Space Grotesk', Arial, sans-serif; font-size: 72px; font-weight: 700; color: var(--orange); line-height: 1; }
+.shot { border-radius: 16px; border: 3px solid var(--line); background: #0A0F1C; object-fit: contain; }
+.shot.hot { border-color: var(--orange); }
+.cap { font-size: 24px; color: var(--muted); }
+.foot { position: absolute; left: 128px; bottom: 56px; width: 1664px; font-size: 24px; color: var(--muted); }
+.pill { font-size: 24px; font-weight: 600; color: var(--navy); background: var(--orange); border-radius: 999px; padding: 6px 18px; }
+.pill.blue { background: var(--blue); }
+.data { font-size: 26px; color: var(--light); }
+.rise { animation: rise 600ms ease-out both; animation-delay: calc(var(--i, 0) * 120ms); }
+@keyframes rise { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+
+</style></head><body>
+<section id="cover" data-transition="fade" style="flex-direction:row; align-items:center; gap:64px;">
+<div class="col" style="flex:1; gap:26px;">
+<p class="eyebrow">NASA SPACE APPS CHALLENGE 2026</p>
+<h1 style="font-size:120px; font-weight:700; line-height:0.95; letter-spacing:-2px;">SPACE<br><span class="hl">EXPLORERS</span></h1>
+<p style="font-size:34px; color:#F4F1EA; line-height:1.3;">An interactive educational game that builds the skills future astronauts need — where <span class="hl">every watt is a choice</span>.</p>
+<div class="card hot" style="padding:22px 28px; gap:4px;">
+<p style="font-size:24px; color:#F5A030; font-weight:600;">CHALLENGE</p>
+<p style="font-size:28px; color:#F4F1EA;">Build a Junior Astronaut Mission Trainer</p>
+</div>
+<div class="col" style="gap:6px;">
+<p style="font-size:28px; color:#F4F1EA;"><b>Team MilkyWay Kazakhstan</b></p>
+<p style="font-size:24px;">Nurzhandy · Dinmukhammed · Madiyar · Indira · Yasmina · Samina</p>
+<p style="font-size:24px;">Ages 7–12 · Windows, macOS, Linux · works offline · English, Russian, Kazakh (beta)</p>
+</div>
+</div>
+<div class="col" style="gap:12px;">
+<img class="shot hot" src="img/20_menu.jpg" alt="SPACE EXPLORERS main menu with a NASA space-weather panel" style="width:860px; height:511px;">
+<p class="cap">Real in-game screenshot</p>
+</div>
+<aside>SPACE EXPLORERS is an interactive educational game that introduces kids 7 to 12 to space and builds the skills future astronauts need. We are team MilkyWay Kazakhstan, answering the Junior Astronaut Mission Trainer challenge. The game runs on Windows, macOS and Linux and works offline. The interface is in English and Russian; the Kazakh translation is in beta and still needs a native-speaker check.</aside>
+</section>
+
+<section id="problem" class="alt" data-transition="fade">
+<p class="eyebrow">THE PROBLEM AND OUR GOAL</p>
+<h2>Kids see the outcome, <span class="hl">not the decisions</span> behind it</h2>
+<div class="row" style="align-items:stretch; gap:24px;">
+<div class="card rise" style="flex:1; --i:1; padding:26px;"><h3>Too abstract</h3><p>Posters and facts: the child never decides anything.</p></div>
+<div class="card rise" style="flex:1; --i:2; padding:26px;"><h3>Too complex</h3><p>Real mission dashboards are built for adult engineers.</p></div>
+<div class="card rise" style="flex:1; --i:3; padding:26px;"><h3>The result</h3><p>Kids know missions succeed or fail, but not why.</p></div>
+</div>
+<p style="font-size:30px; color:#F4F1EA;"><b class="hl" style="color:#F5A030;">Our goal:</b> make space a hands-on experience that trains real skills — each one through a game mechanic.</p>
+<table style="width:1664px; font-size:26px; color:#F4F1EA;">
+<tr><th style="width:24%; color:#F5A030;">Skill</th><th style="width:76%; color:#F5A030;">How the game trains it</th></tr>
+<tr><td>Concentration</td><td>23 mini-games at the ship’s consoles: wiring, engine burns, finding leaks</td></tr>
+<tr><td>Logical thinking</td><td>Splitting a power budget that never covers oxygen, food and radio at once</td></tr>
+<tr><td>Fast decisions</td><td>An evening threat with a countdown: prepare the base before it hits</td></tr>
+<tr><td>Coordination</td><td>Landing the module by hand: thrust and tilt in lunar gravity</td></tr>
+<tr><td>Teamwork</td><td>Up to 4 players, each with a role: pilot, engineer, researcher, life support</td></tr>
+</table>
+<aside>The challenge brief names the gap: space content for kids is either too abstract or too technical, so kids see outcomes, not decisions. Our goal is to make space a hands-on experience and to train the skills future explorers need. We don’t just claim these skills: each one is tied to a mechanic you can see in the game — mini-games for concentration, the power budget for logic, a countdown for fast decisions, manual landing for coordination, and crew roles for teamwork.</aside>
+</section>
+
+<section id="acts" data-transition="fade">
+<p class="eyebrow">HOW IT WORKS — STORY MODE + SURVIVAL MODE</p>
+<h2>One mission, <span class="hl">three acts</span></h2>
+<div class="row" style="gap:40px; align-items:flex-start;">
+<div class="col rise" style="flex:1; --i:1; gap:16px;">
+<h3><span class="hl">01</span> Fly the ship</h3>
+<img class="shot" src="img/ship.jpg" alt="Ship Aurora with crew rooms and consoles" style="width:512px; height:304px;">
+<p><b style="color:#F4F1EA;">Story mode.</b> A 2-day flight (shortened for play; Apollo took about 3). Crew dialogues, physics cards, 23 mini-games and asteroid alerts.</p>
+</div>
+<div class="col rise" style="flex:1; --i:2; gap:16px;">
+<h3><span class="hl">02</span> Land it yourself</h3>
+<img class="shot" src="img/51_landing_abort_table.jpg" alt="Landing abort screen with a was versus needed table" style="width:512px; height:304px;">
+<p>Thrust and tilt in real lunar gravity, <b style="color:#F4F1EA;">1.62 m/s²</b>. A live checklist; on abort, a “was / needed” table shows the mistake.</p>
+</div>
+<div class="col rise" style="flex:1; --i:3; gap:16px;">
+<h3><span class="hl">03</span> Keep the base alive</h3>
+<img class="shot" src="img/29_report.jpg" alt="Evening report: dome fell from 21 to 11 degrees, with insulation it would be 15" style="width:512px; height:304px;">
+<p><b style="color:#F4F1EA;">Survival mode</b> near the lunar south pole: morning forecast, daytime work, evening threat, then a report on why.</p>
+</div>
+</div>
+<aside>One mission in three acts. Act one is story mode on the ship Aurora: a two-day flight — shortened for play, since Apollo crews took about three days — with crew dialogues, physics cards, 23 mini-games and asteroid alerts. Act two: the player lands the module by hand in real lunar gravity, 1.62 m/s², with a live checklist. A failed landing aborts safely and shows what the speed was and what was needed. Act three is survival mode near the south pole: forecast in the morning, work by day, a threat in the evening — cold, dust, meteors, a power crisis, a failure or a solar flare — and a report explaining the outcome. There is also a creative sandbox mode.</aside>
+</section>
+
+<section id="tradeoff" class="alt" data-transition="fade">
+<p class="eyebrow">THE TRADE-OFF MECHANIC</p>
+<h2>There is <span class="hl">never enough power</span> for everything</h2>
+<div class="row" style="gap:48px; align-items:flex-start;">
+<div class="col" style="width:620px; gap:18px;">
+<div class="card rise" style="--i:1; flex-direction:row; align-items:center; gap:24px; padding:22px 28px;"><p class="big" style="width:130px;">+6</p><p><b style="color:#F4F1EA;">Oxygen:</b> 1 power block gives +6 a sol, but the crew breathes 12. One block leaves you <b style="color:#F5A030;">6 short</b>.</p></div>
+<div class="card rise" style="--i:2; flex-direction:row; align-items:center; gap:24px; padding:22px 28px;"><p class="big" style="width:130px;">+5</p><p><b style="color:#F4F1EA;">Food:</b> 1 block gives +5 a sol, but the crew eats 10. One block leaves you <b style="color:#F5A030;">5 short</b>.</p></div>
+<div class="card rise" style="--i:3; flex-direction:row; align-items:center; gap:24px; padding:22px 28px;"><p class="big" style="width:130px;">0</p><p><b style="color:#F4F1EA;">Antenna unpowered:</b> Mission Control can’t send the forecast. Even when it can, the signal takes 1.3 s.</p></div>
+<div class="card rise" style="--i:4; flex-direction:row; align-items:center; gap:24px; padding:22px 28px;"><p class="big" style="width:130px; min-width:130px; font-size:40px; white-space:nowrap;">21→11°</p><p><b style="color:#F4F1EA;">Cold snap:</b> the dome fell from 21 °C to 11 °C. With insulation level 1 it would be 15 °C.</p></div>
+</div>
+<div class="col" style="flex:1; gap:12px;">
+<img class="shot hot" src="img/07_power_console.jpg" alt="Power console splitting 9 power blocks between oxygen, greenhouse and antenna" style="width:1000px; height:594px;">
+<p class="cap">In this mission the Sun gives 9 blocks a sol. The landing site, dust on the panels and night change it — at night only the battery works.</p>
+</div>
+</div>
+<aside>This is the core of the challenge: no choice is free. These numbers are taken straight from the game screens. One block of oxygen gives plus six while the crew breathes twelve; one block of food gives plus five while the crew eats ten. Leave the antenna unpowered and Mission Control can’t send tonight’s forecast — and even with power, the signal takes 1.3 seconds from Earth. Skip insulation and the dome drops from 21 to 11 degrees; the report tells you that with insulation level 1 it would have been 15.</aside>
+</section>
+
+<section id="data" data-transition="fade">
+<p class="eyebrow">NASA DATA — CORE, NOT DECORATION</p>
+<h2>Game events come from <span class="hl">real space data</span></h2>
+<div class="row" style="gap:48px; align-items:flex-start;">
+<table style="width:860px; font-size:26px; color:#F4F1EA;">
+<tr><th style="width:38%; color:#F5A030;">Source</th><th style="width:62%; color:#F5A030;">What it does in the game</th></tr>
+<tr><td>NASA DONKI API</td><td>Real flares, storms, particle events and CMEs become the evening threat</td></tr>
+<tr><td>Curiosity RAD; LND on Chang’e-4</td><td>Daily dose: 0.64 mSv on Mars, 1.369 mSv on the Moon — about 2×</td></tr>
+<tr><td>NASA Veggie</td><td>The greenhouse grows food, like the lettuce astronauts ate on the ISS in 2015</td></tr>
+<tr><td>NASA LCROSS</td><td>The base is at the south pole, where water ice was confirmed in 2009</td></tr>
+<tr><td>NASA Space Communications</td><td>Mission Control’s messages arrive after 1.3 s</td></tr>
+<tr><td>NASA-STD-3001, HRP</td><td>Why radiation dose has a limit: 600 mSv in a career</td></tr>
+</table>
+<div class="col" style="flex:1; gap:16px;">
+<img class="shot hot" src="img/donki_panel.png" alt="In-game space-weather panel listing real NASA DONKI events with dates, including the G5 storm of 10 May 2024" style="width:804px; height:349px;">
+<p class="cap">In-game space-weather panel: real DONKI events with their dates</p>
+<div class="row" style="gap:12px;"><p class="pill">LIVE</p><p class="pill blue">ARCHIVE</p></div>
+<p style="font-size:26px;">Each alert names the real event and its date. Offline, the game uses a built-in archive of real events and labels it ARCHIVE. All sources are listed on the in-game “NASA data” screen.</p>
+</div>
+</div>
+<aside>NASA data drives the game. With internet, it calls the NASA DONKI API for solar flares, geomagnetic storms, solar particle events and coronal mass ejections; each becomes an evening threat labeled with the real name and date — for example the G5 storm of 10 May 2024 shown in this panel. Offline, it uses a built-in archive of real events, labeled ARCHIVE, never presented as live. Radiation: 0.64 mSv per day on Mars from Curiosity RAD, 1.369 on the Moon from the LND detector built by Kiel University and flown on Chang’e-4 (Zhang et al., Science Advances 2020). Every source is listed inside the game.</aside>
+</section>
+
+<section id="safe" class="alt" data-transition="fade">
+<p class="eyebrow">VALIDITY &amp; SAFETY</p>
+<h2>Tested, honest and <span class="hl">safe for kids</span></h2>
+<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:24px;">
+<div class="card hot rise" style="--i:1;"><h3>1,200 test missions</h3><p>Bots played 300 Moon missions per level and style. Bots that followed the forecast won 599 of 600; bots that ignored it lost all 600.</p></div>
+<div class="card rise" style="--i:2;"><h3>Fail safely</h3><p>Nobody dies: a bad landing returns to orbit, and a lost base ends in evacuation with a debrief and an “if–then” tip.</p></div>
+<div class="card rise" style="--i:3;"><h3>Mental readiness</h3><p>“If–then” plans, a calm-breathing action that lowers the astronaut’s heart rate, and crew support moments.</p></div>
+<div class="card rise" style="--i:4;"><h3>Safe space</h3><p>No accounts or personal data: callsigns are picked from a list, online chat is quick phrases only, no real money.</p></div>
+<div class="card rise" style="--i:5;"><h3>Easy to play</h3><p>Junior (7–9) and Advanced (10–12) levels. Keyboard, gamepad or touch. Terms like “sol” explained in context.</p></div>
+<div class="card rise" style="--i:6;"><h3>Multiplayer</h3><p>2 players on one computer, or up to 4 computers on the same Wi-Fi with a room code — on the ship and on the Moon. No internet or server needed.</p></div>
+</div>
+<aside>Validity: we tested balance with automated players. 1,200 simulated Moon missions: 300 for each level and play style. Bots that followed the forecast and sheltered won 599 of 600; bots that ignored it lost all 600. That proves preparation matters. Nobody dies in the game: a bad landing goes back to orbit, and a lost base ends in a safe evacuation with an if-then tip. There are no accounts and no personal data — callsigns come from a list and online chat uses quick phrases. Kids can play together: two on one computer, or up to four computers on the same Wi-Fi with a 4-digit room code, both on the ship and on the Moon. It needs no internet and no server, which matters for schools with weak internet.</aside>
+</section>
+
+<section id="next">
+<p class="eyebrow">IMPACT &amp; ACTION PLAN</p>
+<h2>A child leaves with <span class="hl">a real constraint</span>, not just a high score</h2>
+<div class="row" style="align-items:stretch; gap:48px;">
+<div class="col" style="flex:1; gap:18px;">
+<h3 style="color:#F5A030;">What kids take away</h3>
+<div class="card" style="padding:24px 28px;"><p class="data">Why astronauts hide from the Sun, and what a radiation dose is</p></div>
+<div class="card" style="padding:24px 28px;"><p class="data">Power is shared: oxygen, food and contact with Earth compete</p></div>
+<div class="card" style="padding:24px 28px;"><p class="data">Why the base sits at the lunar south pole: water ice</p></div>
+</div>
+<div class="col" style="flex:1; gap:18px;">
+<h3 style="color:#F5A030;">Our action plan</h3>
+<div class="card" style="padding:24px 28px;"><p class="data"><b>1. Free release</b> on Steam for Windows, macOS and Linux</p></div>
+<div class="card" style="padding:24px 28px;"><p class="data"><b>2. School pilots</b> in classes and clubs, with teacher feedback; Kazakh text checked by native speakers</p></div>
+<div class="card" style="padding:24px 28px;"><p class="data"><b>3. A physical trainer</b>: a capsule with a seat, a console and screens</p></div>
+</div>
+</div>
+<p class="foot">Team MilkyWay Kazakhstan — from the country of Baikonur, where Gagarin’s flight began · <span style="color:#F5A030;">github.com/nurzhandy/nasaspaceapp</span></p>
+<aside>The challenge asks that a young player walks away understanding a real constraint. These are the three we teach. Our plan: first, a free release on Steam for all three platforms. Second, pilots in schools and clubs with teacher feedback, and a native-speaker check of the Kazakh text. Third, a physical trainer capsule with a seat, console and screens. We are from Kazakhstan, home of Baikonur, where Yuri Gagarin’s flight began in 1961. The code is open on GitHub.</aside>
+</section>
+
+</body></html>
