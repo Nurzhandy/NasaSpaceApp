@@ -77,14 +77,14 @@ impl Plugin for ShipPlugin {
             .add_systems(Startup, load_content)
             .add_systems(Update, (start_expedition, reload_f5).after(Set::Input))
             .add_systems(OnEnter(AppState::Ship), (spawn_ship, crate::ship::reset_camera))
-            .add_systems(Update, decor::animate.run_if(in_state(AppState::Ship)))
+            .add_systems(Update, (decor::animate, decor::animate_doors).run_if(in_state(AppState::Ship)))
             .add_systems(OnExit(AppState::Ship), |mut ui: ResMut<ShipUi>, mut busy: ResMut<UiBusy>| {
                 *ui = ShipUi::default();
                 busy.0 = false;
             })
             .add_systems(
                 Update,
-                (walk, interact, crate::minigames::digit_keys, ship_actions, crate::minigames::hold_buttons, tick_campaign)
+                (walk, interact, crate::minigames::pointer, ship_actions, tick_campaign)
                     .chain()
                     .in_set(Set::Logic)
                     .run_if(in_state(AppState::Ship))
@@ -92,7 +92,7 @@ impl Plugin for ShipPlugin {
             )
             .add_systems(
                 Update,
-                (draw_crew, markers, hud, windows, crate::touch_panel::update_rocks, toasts)
+                (draw_crew, markers, hud, windows, crate::minigames::draw, crate::minigames::progress_bar, crate::touch_panel::update_rocks, toasts, pet, task_timer)
                     .chain()
                     .in_set(Set::View)
                     .run_if(in_state(AppState::Ship))
@@ -337,6 +337,7 @@ fn ship_actions(mut acts: EventReader<Act>, mut camp: ResMut<Camp>, mut ui: ResM
             Action::DialogSkip => camp.0.apply(0, CampaignCommand::DialogSkip),
             Action::CloseCard => camp.0.apply(0, CampaignCommand::CloseCard),
             Action::CloseBreather => camp.0.apply(0, CampaignCommand::CloseBreather),
+            Action::CloseLesson => camp.0.apply(0, CampaignCommand::CloseLesson),
             Action::RestartDay => camp.0.apply(0, CampaignCommand::RestartDay),
             Action::NextDay => camp.0.apply(0, CampaignCommand::NextDay),
             Action::ShipResume => {
@@ -401,14 +402,20 @@ fn report(evs: &[CampaignEvent], ui: &mut ShipUi, camp: &Campaign, l: Lang, play
             CampaignEvent::DayStarted(d) => (c.day(*d).map(|x| x.title.get(l).to_string()), kit::C_ACCENT, "radio"),
             CampaignEvent::TaskOffered { id, .. } => (Some(format!("{} {}", l.pick("Новое задание:", "New task:"), title(id))), C_TEXT, "radio"),
             CampaignEvent::ProblemStarted { id, .. } => (Some(format!("{} {}", l.pick("СРОЧНО:", "URGENT:"), title(id))), C_BAD, "alarm"),
-            CampaignEvent::TaskDone { id, coins, .. } => (Some(format!("{} · +{coins}", title(id))), C_GOOD, "coin"),
+            CampaignEvent::TaskDone { id, coins, .. } => {
+                info!("TASK done {id}");
+                (Some(format!("{} · +{coins}", title(id))), C_GOOD, "coin")
+            }
             CampaignEvent::TaskFailed { id, .. } => (Some(c.task(id).and_then(|t| t.advice.as_ref()).map(|a| a.get(l).to_string()).unwrap_or_else(|| format!("{} {}", l.pick("Не успели:", "Missed:"), title(id)))), C_WARN, "bad"),
             CampaignEvent::AsteroidHit { room } => (Some(match room {
                 Some(r) => format!("{} {}", l.pick("Удар! Пробоина:", "Hit! Hole in:"), c.room(r).map(|x| x.name.get(l)).unwrap_or("")),
                 None => l.pick("Удар по корпусу!", "Hull hit!").into(),
             }), C_BAD, "bad"),
             CampaignEvent::WaveOver { hits } => (Some(format!("{} {hits}", l.pick("Волна пройдена. Попаданий:", "Wave over. Hits:"))), C_GOOD, "good"),
-            CampaignEvent::Mistake => (None, C_TEXT, "bad"),
+            CampaignEvent::Mistake => {
+                info!("MINI mistake");
+                (None, C_TEXT, "bad")
+            }
             CampaignEvent::GameOver(_) => (None, C_TEXT, "launch"),
             CampaignEvent::Card(_) | CampaignEvent::Breather(_) => (None, C_TEXT, "badge"),
             CampaignEvent::Landing => (None, C_TEXT, "launch"),
@@ -557,6 +564,29 @@ fn hud(mut commands: Commands, camp: Res<Camp>, art: Res<Art>, prof: Res<Prof>, 
                 });
             }
         });
+        // the crew's log of laws and the pet
+        p.spawn((Node { position_type: PositionType::Absolute, left: Val::Px(10.0), top: Val::Px(470.0), padding: UiRect::all(Val::Px(10.0)), flex_direction: FlexDirection::Column, row_gap: Val::Px(6.0), ..default() }, BackgroundColor(kit::C_BG), BorderRadius::all(Val::Px(8.0)))).with_children(|b| {
+            b.spawn(kit::row(6.0)).with_children(|r| {
+                kit::icon(r, &art, "book", 22.0);
+                let total = c.tasks.iter().filter(|t| t.law.is_some()).count();
+                kit::text(r, format!("{} {} / {}", l.pick("Журнал законов:", "Law log:"), st.laws.len(), total), &art.head, 14.0, kit::C_ACCENT);
+            });
+            if let Some(pet) = &st.pet {
+                let (icon, ru, en) = ja_core::minigame::PETS[pet.kind as usize % 3];
+                b.spawn(kit::row(6.0)).with_children(|r| {
+                    kit::icon(r, &art, icon, 24.0);
+                    kit::text(r, l.pick(ru, en), &art.body, 14.0, C_TEXT);
+                    let col = if pet.mood >= 50.0 { C_GOOD } else { C_WARN };
+                    kit::icon(r, &art, "heart", 16.0);
+                    kit::text(r, format!("{:.0}%", pet.mood), &art.head, 14.0, col);
+                });
+                if pet.mood < 50.0 {
+                    kit::text(b, l.pick("Питомец голоден — бонус не работает", "The pet is hungry — no bonus"), &art.body, 12.0, C_WARN);
+                } else {
+                    kit::text(b, l.pick("Питомец рад: +2 монеты за задание", "Happy pet: +2 coins per task"), &art.body, 12.0, C_MUTED);
+                }
+            }
+        });
         // day + coins
         let day = match st.phase {
             Phase::Ship { day } => c.day(day).map(|d| d.title.get(l).to_string()).unwrap_or_default(),
@@ -596,6 +626,56 @@ fn hud(mut commands: Commands, camp: Res<Camp>, art: Res<Art>, prof: Res<Prof>, 
     });
 }
 
+#[derive(Component)]
+struct TaskTimer;
+
+/// The open problem's countdown, updated in place.
+fn task_timer(camp: Res<Camp>, ui: Res<ShipUi>, mut q: Query<&mut Text, With<TaskTimer>>) {
+    let Some(x) = ui.open.and_then(|(_, uid)| camp.0.state().tasks.iter().find(|t| t.uid == uid)).and_then(|t| t.t_left) else { return };
+    for mut t in &mut q {
+        let s = format!("{:.0}", x.max(0.0));
+        if t.0 != s {
+            t.0 = s;
+        }
+    }
+}
+
+#[derive(Component)]
+struct PetSprite(u8);
+
+/// The ship's pet floats after its owner, bobbing in weightlessness; a sad face when hungry.
+fn pet(mut commands: Commands, camp: Res<Camp>, art: Res<Art>, time: Res<Time>, crew: Query<&Crew>, mut q: Query<(Entity, &PetSprite, &mut Transform, &mut Sprite)>) {
+    let st = camp.0.state();
+    let Some(pet) = &st.pet else {
+        for (e, ..) in &q {
+            commands.entity(e).despawn();
+        }
+        return;
+    };
+    let t = time.elapsed_secs();
+    let owner = crew.iter().find(|c| c.idx == pet.owner).map(|c| c.pos).unwrap_or(Vec2::new(3.5, 7.5));
+    let want = to_px(owner.x - 0.7, owner.y + 0.4) + Vec2::new(0.0, (t * 2.2).sin() * 6.0);
+    let mut found = false;
+    for (_, p, mut tr, mut s) in &mut q {
+        if p.0 != pet.kind {
+            continue;
+        }
+        found = true;
+        let cur = tr.translation.truncate();
+        let n = cur + (want - cur) * (3.0 * time.delta_secs()).min(1.0);
+        tr.translation = Vec3::new(n.x, n.y, 2.5);
+        tr.rotation = Quat::from_rotation_z((t * 1.3).sin() * 0.15);
+        s.color = if pet.mood < 50.0 { Color::srgb(0.7, 0.7, 0.8) } else { Color::WHITE };
+    }
+    if !found {
+        for (e, ..) in &q {
+            commands.entity(e).despawn();
+        }
+        let icon = ja_core::minigame::PETS[pet.kind as usize % 3].0;
+        commands.spawn((Sprite { image: art.icon(icon), custom_size: Some(Vec2::splat(34.0)), ..default() }, Transform::from_xyz(want.x, want.y, 2.5), PetSprite(pet.kind), StateScoped(AppState::Ship)));
+    }
+}
+
 fn toasts(mut commands: Commands, time: Res<Time>, mut ui: ResMut<ShipUi>, art: Res<Art>, root: Query<Entity, With<ToastBox>>, mut shown: Local<usize>) {
     let dt = time.delta_secs();
     let before = ui.toasts.len();
@@ -630,14 +710,15 @@ fn windows(mut commands: Commands, camp: Res<Camp>, ui: Res<ShipUi>, art: Res<Ar
     let l = prof.lang();
     let open_task = ui.open.and_then(|(_, uid)| st.tasks.iter().find(|t| t.uid == uid));
     let k = format!(
-        "{:?}|{:?}|{:?}|{:?}|{}|{:?}|{:?}|{}",
+        "{:?}|{:?}|{:?}|{:?}|{:?}|{}|{:?}|{:?}|{}",
         st.phase,
         st.dialog,
         st.card,
         st.breather,
+        st.lesson,
         ui.paused,
-        open_task.map(|t| (t.uid, &t.mini)),
-        open_task.and_then(|t| t.t_left.map(|x| x as i32)),
+        open_task.map(|t| (t.uid, t.mini.as_ref().map(|m| m.mistakes))),
+        open_task.map(|t| t.t_left.is_some()),
         l == Lang::En
     );
     if *key == k {
@@ -703,6 +784,11 @@ fn windows(mut commands: Commands, camp: Res<Camp>, ui: Res<ShipUi>, art: Res<Ar
         commands.entity(root).with_children(|p| crate::dialog_ui::build(p, &art, c, d, level, l));
         return;
     }
+    if let Some(ls) = &st.lesson {
+        let root = overlay(&mut commands, 0.6, false);
+        commands.entity(root).with_children(|p| card::lesson(p, &art, c, ls, st.laws.len(), level, l));
+        return;
+    }
     if let Some(id) = &st.card {
         let root = overlay(&mut commands, 0.6, false);
         commands.entity(root).with_children(|p| card::build(p, &art, c, id, level, l));
@@ -736,7 +822,8 @@ fn windows(mut commands: Commands, camp: Res<Camp>, ui: Res<ShipUi>, art: Res<Ar
                     kit::text(r, def.map(|d| d.title.get(l)).unwrap_or(""), &art.head, 24.0, if t.kind == TaskKind::Problem { C_BAD } else { kit::C_ACCENT });
                     if let Some(x) = t.t_left {
                         kit::icon(r, &art, "stopwatch", 26.0);
-                        kit::text(r, format!("{:.0}", x.max(0.0)), &art.head, 22.0, C_WARN);
+                        let e = kit::text(r, format!("{:.0}", x.max(0.0)), &art.head, 22.0, C_WARN);
+                        r.commands().entity(e).insert(TaskTimer);
                     }
                 });
                 if let Some(d) = def {
@@ -749,7 +836,15 @@ fn windows(mut commands: Commands, camp: Res<Camp>, ui: Res<ShipUi>, art: Res<Ar
                 if t.kind == TaskKind::Asteroids {
                     crate::touch_panel::build(b, &art, l);
                 } else if let Some(m) = &t.mini {
-                    crate::minigames::build(b, &art, t.uid, m, l);
+                    crate::minigames::build(b, t.uid);
+                    b.spawn(kit::row(12.0)).with_children(|r| {
+                        r.spawn((Node { width: Val::Px(420.0), height: Val::Px(12.0), ..default() }, BackgroundColor(Color::srgba(1.0, 1.0, 1.0, 0.12)), BorderRadius::all(Val::Px(6.0)))).with_children(|x| {
+                            x.spawn((Node { width: Val::Percent(m.progress() * 100.0), height: Val::Percent(100.0), ..default() }, BackgroundColor(C_GOOD), BorderRadius::all(Val::Px(6.0)), crate::minigames::MiniProgress));
+                        });
+                        if m.mistakes > 0 {
+                            kit::text(r, format!("{} {}", l.pick("Ошибок:", "Mistakes:"), m.mistakes), &art.body, 15.0, C_WARN);
+                        }
+                    });
                 }
                 kit::button(b, &art, Action::CloseTask, 900, "back", l.pick("Отойти (Esc)", "Step away (Esc)"), false);
             });
@@ -768,6 +863,9 @@ impl Plugin for ShipTestPlugin {
             return;
         }
         app.add_systems(Update, ship_test.after(Set::View));
+        if std::env::var_os("JA_MOUSE_TEST").is_some() {
+            app.add_systems(Update, mouse_drive.in_set(Set::Input).before(crate::minigames::pointer));
+        }
     }
 }
 
@@ -874,6 +972,14 @@ fn ship_test(
         acts.write(Act(Action::CloseBreather));
         return;
     }
+    if st.lesson.is_some() {
+        shot(&mut commands, &mut run, "28_ship_lesson");
+        if run.t > 1.2 {
+            acts.write(Act(Action::CloseLesson));
+            run.t = 0.0;
+        }
+        return;
+    }
     // wait for an urgent problem once, to show it in the HUD
     let problem = st.tasks.iter().find(|t| t.kind == TaskKind::Problem);
     if run.step == 1 {
@@ -881,8 +987,11 @@ fn ship_test(
         run.step = 2;
     }
     if run.step == 3 && problem.is_none() {
-        speed.0 = 4.0;
-        return;
+        // fast-forward while waiting — but not while the real mouse plays a timed game
+        speed.0 = if std::env::var_os("JA_MOUSE_TEST").is_some() && ui.open.is_some() { 1.0 } else { 4.0 };
+        if speed.0 > 1.0 || ui.open.is_none() {
+            return;
+        }
     }
     if run.step == 3 && problem.is_some() {
         speed.0 = 1.0;
@@ -920,12 +1029,100 @@ fn ship_test(
     }
     if let Some(m) = &task.mini {
         shot(&mut commands, &mut run, "22_ship_minigame");
-        for i in m.solution() {
-            acts.write(Act(Action::Mini(task.uid, i)));
+        let name: &'static str = Box::leak(format!("mg_{}", task.id).into_boxed_str());
+        shot(&mut commands, &mut run, name);
+        // JA_MOUSE_TEST: the first jobs are played with the real mouse cursor (mouse_drive)
+        if !(std::env::var_os("JA_MOUSE_TEST").is_some() && MOUSE_TASKS.contains(&task.id.as_str())) {
+            for i in m.solution() {
+                acts.write(Act(Action::Mini(task.uid, i)));
+            }
         }
     }
     if run.step == 2 && st.done.len() >= 2 {
         run.step = 3;
     }
     run.t = 0.0;
+}
+
+const MOUSE_TASKS: [&str; 3] = ["go_nogo", "systems_check", "tli_burn"];
+
+/// `JA_MOUSE_TEST=1` (with `JA_SHIP_TEST`): plays the first mini-games by moving the real cursor
+/// and pressing the real mouse button, so the canvas → `MiniInput` path is checked end to end.
+#[allow(clippy::too_many_arguments)]
+fn mouse_drive(
+    camp: Option<Res<Camp>>,
+    ui: Option<Res<ShipUi>>,
+    canvas: Query<(&crate::minigames::Canvas, &ComputedNode, &GlobalTransform)>,
+    mut windows: Query<&mut Window>,
+    mut mouse: ResMut<ButtonInput<MouseButton>>,
+    time: Res<Time>,
+    speed: Res<Speed>,
+    mut q: Local<(u32, Vec<ja_core::MiniInput>, u8, f32)>,
+) {
+    use ja_core::MiniInput as M;
+    let (Some(camp), Some(ui)) = (camp, ui) else { return };
+    let Some((_, uid)) = ui.open else { return };
+    let Some(task) = camp.0.state().tasks.iter().find(|t| t.uid == uid) else { return };
+    if !MOUSE_TASKS.contains(&task.id.as_str()) {
+        return;
+    }
+    let Ok((_, node, gt)) = canvas.single() else { return };
+    let Ok(mut win) = windows.single_mut() else { return };
+    if q.0 != uid {
+        let Some(m) = &task.mini else { return };
+        // merge back-to-back waits: frame-by-frame waiting would add a frame of delay to each
+        let mut moves: Vec<ja_core::MiniInput> = vec![];
+        for i in m.solution() {
+            match (moves.last_mut(), i) {
+                (Some(M::Wait(a)), M::Wait(b)) => *a += b,
+                _ => moves.push(i),
+            }
+        }
+        *q = (uid, moves, 0, 0.0);
+        info!("MOUSE-TEST start {} ({} moves)", task.id, q.1.len());
+    }
+    // canvas pixels → physical window pixels
+    let size = node.size();
+    let top_left = gt.translation().truncate() - size / 2.0;
+    let to_win = |x: f32, y: f32| bevy::math::DVec2::new((top_left.x + x / ja_core::minigame::CW * size.x) as f64, (top_left.y + y / ja_core::minigame::CH * size.y) as f64);
+    if q.3 > 0.0 {
+        q.3 -= time.delta_secs().min(0.1) * speed.0;
+        return;
+    }
+    let Some(step) = q.1.first().copied() else { return };
+    // each pointer move takes two frames: move the cursor, then (next frame) press / release
+    match (step, q.2) {
+        (M::Wait(t), _) => {
+            q.3 = t;
+            q.1.remove(0);
+        }
+        (M::Press(x, y) | M::Release(x, y) | M::Drag(x, y), 0) => {
+            win.set_physical_cursor_position(Some(to_win(x, y)));
+            q.2 = 1;
+            if matches!(step, M::Drag(..)) {
+                q.1.remove(0);
+                q.2 = 0;
+            }
+        }
+        (M::Press(..), _) => {
+            mouse.press(MouseButton::Left);
+            q.1.remove(0);
+            q.2 = 0;
+        }
+        (M::Release(..), _) => {
+            mouse.release(MouseButton::Left);
+            q.1.remove(0);
+            q.2 = 0;
+        }
+        (M::Space(on), _) => {
+            info!("MOUSE-TEST space {on}");
+            q.1.remove(0);
+        }
+        _ => {
+            q.1.remove(0);
+        }
+    }
+    if q.1.is_empty() {
+        info!("MOUSE-TEST moves sent for {}", task.id);
+    }
 }

@@ -27,6 +27,18 @@ pub struct Blink {
 /// Engine flame flicker.
 #[derive(Component)]
 pub struct Flame(pub f32);
+/// One half of a sliding metal door: slides into the wall when someone comes close.
+#[derive(Component)]
+pub struct DoorLeaf {
+    /// door centre in cells
+    pub at: Vec2,
+    pub vertical: bool,
+    pub side: f32,
+    pub open: f32,
+}
+/// The little light on a door frame: red closed, green open.
+#[derive(Component)]
+pub struct DoorLamp(pub Vec2);
 
 type Ms<'a> = (&'a mut Assets<Mesh>, &'a mut Assets<ColorMaterial>);
 
@@ -92,6 +104,7 @@ pub fn spawn(commands: &mut Commands, layout: &ShipLayout, meshes: &mut Assets<M
         walls(&mut p, layout, r);
         label(&mut p, art, r, l);
     }
+    doors(&mut p, layout);
 }
 
 // ---------------------------------------------------------------- space
@@ -245,9 +258,19 @@ fn floor(p: &mut Painter, r: &Room) {
             }
         }
     }
-    // soft light pool in the middle of the room
+    // soft light pool in the middle of the room, shadows along the walls (depth)
     let (_, _, accent) = palette(&r.id);
     p.cells(x + 1.0, y + 1.0, w - 2.0, h - 2.0, hexa(accent, 0.05), -2.7);
+    p.cells(x, y + h - 0.45, w, 0.45, hexa(0x000000, 0.28), -2.65);
+    p.cells(x, y, 0.3, h, hexa(0x000000, 0.18), -2.65);
+    p.cells(x + w - 0.3, y, 0.3, h, hexa(0x000000, 0.12), -2.65);
+    // floor vents and handrails like on the ISS (things to hold on to in weightlessness)
+    p.cells(x + w - 1.3, y + 0.25, 0.8, 0.3, hex(0x2a2f45), -2.6);
+    for i in 0..4 {
+        p.cells(x + w - 1.25 + i as f32 * 0.19, y + 0.29, 0.1, 0.22, hex(0x6a7390), -2.55);
+    }
+    p.cells(x + 1.7, y + h - 0.62, 1.1, 0.13, hex(0xff9a3d), -2.5);
+    p.cells(x + w - 2.8, y + h - 0.62, 1.1, 0.13, hex(0xff9a3d), -2.5);
 }
 
 /// Furniture, machines and lights. Placed around the consoles and the doorways.
@@ -320,22 +343,28 @@ fn props(p: &mut Painter, m: &mut Ms, r: &Room) {
             p.blink(e, 1.4, 0.0, 1.0);
         }
         "habitat" => {
-            // two sleeping pods
-            for py in [0.3, 1.3] {
-                p.cells(x + 4.6, y + py, 2.1, 0.8, hex(0x3a3f5a), z);
-                p.cells(x + 4.7, y + py + 0.1, 1.5, 0.6, hex(0x6f8cff), z + 0.1);
-                p.cells(x + 6.2, y + py + 0.1, 0.4, 0.6, hex(0xffffff), z + 0.1);
+            // a sleeping pod under the top wall (right of the door)
+            p.cells(x + 4.6, y + 3.85, 2.1, 0.8, hex(0x3a3f5a), z);
+            p.cells(x + 4.7, y + 3.95, 1.5, 0.6, hex(0x6f8cff), z + 0.1);
+            p.cells(x + 6.2, y + 3.95, 0.4, 0.6, hex(0xffffff), z + 0.1);
+            p.cells(x + 4.7, y + 4.25, 1.5, 0.08, hex(0xffcc33), z + 0.2);
+            // round table with two chairs (strapped down)
+            let c = to_px(x + 5.6, y + 2.7);
+            for dx in [-0.85, 0.85] {
+                p.circle(m, c + Vec2::new(dx * SC, 0.0), 0.28 * SC, hex(0xffd36b), z);
             }
-            // round table with chairs
-            let c = to_px(x + 5.3, y + 3.5);
-            for (dx, dy) in [(-0.85, 0.0), (0.85, 0.0), (0.0, -0.85)] {
-                p.circle(m, c + Vec2::new(dx * SC, dy * SC), 0.28 * SC, hex(0xffd36b), z);
-            }
-            p.circle(m, c, 0.6 * SC, hex(0xf0e6d2), z + 0.1);
+            p.circle(m, c, 0.55 * SC, hex(0xf0e6d2), z + 0.1);
             p.circle(m, c + Vec2::new(6.0, 4.0), 0.12 * SC, hex(0xff6f5a), z + 0.2);
-            // plant
-            p.cells(x + 0.3, y + 0.3, 0.6, 0.6, hex(0x8a5a3a), z);
-            p.circle(m, to_px(x + 0.6, y + 1.0), 0.4 * SC, hex(0x4fbf6a), z + 0.1);
+            // the pet corner: a soft rug around the pet console
+            p.cells(x + 2.55, y + 2.55, 1.9, 1.9, hex(0xe8a0c8), z - 0.05);
+            p.cells(x + 2.7, y + 2.7, 1.6, 1.6, hex(0xf2b8d8), z - 0.04);
+            // a plant by the medkit
+            p.cells(x + 0.2, y + 2.15, 0.55, 0.55, hex(0x8a5a3a), z);
+            p.circle(m, to_px(x + 0.47, y + 2.85), 0.32 * SC, hex(0x4fbf6a), z + 0.1);
+            // family photos on the wall
+            for i in 0..3 {
+                p.cells(x + 0.15, y + 3.4 + i as f32 * 0.4, 0.22, 0.3, hex([0xffd36b, 0x6fd3ff, 0xff8a8a][i]), z);
+            }
         }
         "gym" => {
             // treadmill belt and weights
@@ -462,8 +491,57 @@ fn walls(p: &mut Painter, layout: &ShipLayout, r: &Room) {
             }
             let mid = (c0 + c1) / 2.0;
             let (at, size) = if vertical { (to_px(a.0, mid), Vec2::new(t * SC, (c1 - c0) * SC)) } else { (to_px(mid, a.1), Vec2::new((c1 - c0) * SC, t * SC)) };
-            p.px(at, size, hexa(0x6fd3ff, 0.35), -0.58);
+            p.px(at, size, hexa(0x6fd3ff, 0.35), -0.7);
         }
+    }
+}
+
+/// Sliding metal doors: two leaves per doorway, a yellow-black safety edge, a lamp on the frame.
+fn doors(p: &mut Painter, layout: &ShipLayout) {
+    for &(dx, dy) in &layout.doors {
+        let vertical = dx.fract() == 0.0;
+        let at = Vec2::new(dx, dy);
+        for side in [-1.0f32, 1.0] {
+            let size = if vertical { Vec2::new(0.42 * SC, 0.8 * SC) } else { Vec2::new(0.8 * SC, 0.42 * SC) };
+            let c = to_px(dx, dy);
+            p.c.spawn((Sprite { color: hex(0xc3cbdc), custom_size: Some(size), ..default() }, Transform::from_xyz(c.x, c.y, -0.65), DoorLeaf { at, vertical, side, open: 0.0 }, p.sc.clone()))
+                .with_children(|l| {
+                    // a groove down the middle and the safety stripes at the meeting edge
+                    let (g, e, eo) = if vertical {
+                        (Vec2::new(size.x * 0.25, size.y - 6.0), Vec2::new(size.x, 5.0), Vec3::new(0.0, -side * (size.y / 2.0 - 2.5), 0.02))
+                    } else {
+                        (Vec2::new(size.x - 6.0, size.y * 0.25), Vec2::new(5.0, size.y), Vec3::new(-side * (size.x / 2.0 - 2.5), 0.0, 0.02))
+                    };
+                    // dark outline behind the leaf, rivets on it
+                    l.spawn((Sprite { color: hex(0x1c2030), custom_size: Some(size + Vec2::splat(4.0)), ..default() }, Transform::from_xyz(0.0, 0.0, -0.01)));
+                    l.spawn((Sprite { color: hex(0x6a7390), custom_size: Some(g), ..default() }, Transform::from_xyz(0.0, 0.0, 0.01)));
+                    for k in [-1.0f32, 1.0] {
+                        let rv = if vertical { Vec3::new(0.0, k * size.y * 0.3, 0.02) } else { Vec3::new(k * size.x * 0.3, 0.0, 0.02) };
+                        l.spawn((Sprite { color: hex(0x4a5068), custom_size: Some(Vec2::splat(3.0)), ..default() }, Transform::from_translation(rv)));
+                    }
+                    l.spawn((Sprite { color: hex(0xffcc33), custom_size: Some(e), ..default() }, Transform::from_translation(eo)));
+                    l.spawn((Sprite { color: hex(0xdfe5f2), custom_size: Some(if vertical { Vec2::new(size.x, 2.0) } else { Vec2::new(2.0, size.y) }), ..default() }, Transform::from_xyz(0.0, 0.0, 0.015)));
+                });
+        }
+        let lamp = to_px(dx, dy) + if vertical { Vec2::new(0.0, 0.95 * SC) } else { Vec2::new(0.95 * SC, 0.0) };
+        p.c.spawn((Sprite { color: hex(0xff4a4a), custom_size: Some(Vec2::splat(6.0)), ..default() }, Transform::from_xyz(lamp.x, lamp.y, -0.4), DoorLamp(at), p.sc.clone()));
+    }
+}
+
+/// Doors slide open when a crew member is near and close behind them.
+pub fn animate_doors(time: Res<Time>, crew: Query<&super::Crew>, mut leaves: Query<(&mut Transform, &mut DoorLeaf)>, mut lamps: Query<(&mut Sprite, &DoorLamp)>) {
+    let dt = time.delta_secs();
+    let near = |at: Vec2| crew.iter().any(|c| c.pos.distance(at) < 1.7);
+    for (mut tr, mut d) in &mut leaves {
+        let want = if near(d.at) { 1.0 } else { 0.0 };
+        d.open += (want - d.open).clamp(-dt * 3.0, dt * 4.0);
+        let off = d.side * (0.4 + d.open * 0.78) * SC;
+        let c = to_px(d.at.x, d.at.y);
+        tr.translation.x = c.x + if d.vertical { 0.0 } else { off };
+        tr.translation.y = c.y + if d.vertical { off } else { 0.0 };
+    }
+    for (mut s, l) in &mut lamps {
+        s.color = if near(l.0) { hex(0x5aff8a) } else { hex(0xff4a4a) };
     }
 }
 

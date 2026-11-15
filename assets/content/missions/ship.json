@@ -1,124 +1,1253 @@
 {
-  "tasks": [
-    { "id": "go_nogo", "kind": "story", "room": "cockpit", "console": "comms", "minigame": "sorting", "reward": 10, "draft": true,
-      "title": { "ru": "Опрос «Go / No-Go»", "kk": null, "en": "Go / No-Go poll" },
-      "brief": { "junior": { "ru": "Перед стартом каждый пост ЦУП отвечает: «готов» или «не готов». Разложи ответы по местам.", "kk": null, "en": "Before launch every Mission Control station answers “go” or “no go”. Sort the answers." },
-                 "advanced": { "ru": "Руководитель полёта опрашивает посты: двигатели, навигация, связь, погода. Старт — только если все ответили «Go».", "kk": null, "en": "The flight director polls every station: propulsion, guidance, comms, weather. Launch only if all say “Go”." } } },
-    { "id": "systems_check", "kind": "routine", "room": "cockpit", "console": "pilot", "minigame": "wires", "reward": 8, "draft": true,
-      "title": { "ru": "Проверка систем", "kk": null, "en": "Systems check" },
-      "brief": { "junior": { "ru": "Соедини провода одного цвета, чтобы все лампы стали зелёными.", "kk": null, "en": "Connect wires of the same colour until every light is green." },
-                 "advanced": { "ru": "На «Артемиде II» экипаж первые сутки проверял системы «Ориона», прежде чем лететь к Луне.", "kk": null, "en": "On Artemis II the crew spent the first day checking Orion's systems before heading to the Moon." } },
-      "history": { "ru": "история: «Артемида II», 2026", "kk": null, "en": "history: Artemis II, 2026" } },
-    { "id": "tli_burn", "kind": "story", "room": "engine", "console": "thrusters", "minigame": "transmitter", "reward": 12, "draft": true,
-      "title": { "ru": "Разгон к Луне", "kk": null, "en": "Burn to the Moon" },
-      "brief": { "junior": { "ru": "Держи кнопку, пока двигатель разгоняет корабль, потом поверни ручку в зелёную зону.", "kk": null, "en": "Hold the button while the engine speeds the ship up, then turn the dial into the green zone." },
-                 "advanced": { "ru": "Манёвр TLI: двигатель работает несколько минут и увеличивает скорость корабля на ~3 км/с. Потом двигатель выключен — корабль летит по инерции.", "kk": null, "en": "The TLI burn: the engine fires for minutes and adds ~3 km/s. Then it is off — the ship coasts by inertia." } } },
-    { "id": "lightning_sce", "kind": "problem", "room": "cockpit", "console": "pilot", "minigame": "wires", "timer": 30, "reward": 15, "draft": true,
-      "title": { "ru": "Молния при старте!", "kk": null, "en": "Lightning at launch!" },
-      "brief": { "junior": { "ru": "В ракету ударила молния, приборы показывают ерунду. Переключи питание на запасное!", "kk": null, "en": "Lightning hit the rocket and the gauges show nonsense. Switch to backup power!" },
-                 "advanced": { "ru": "Аполлон‑12: после удара молнии инженер Джон Аарон подсказал «SCE to AUX» — переключить преобразователь сигналов на запасное питание.", "kk": null, "en": "Apollo 12: after the lightning strike, engineer John Aaron said “SCE to AUX” — switch the signal converter to auxiliary power." } },
-      "history": { "ru": "история: Аполлон‑12, 1969", "kk": null, "en": "history: Apollo 12, 1969" },
-      "penalty": { "energy": 8 },
-      "advice": { "ru": "ЦУП: «Ничего страшного, мы перезапустили приборы с Земли. Энергии стало меньше».", "kk": null, "en": "Mission Control: “It's OK, we rebooted the gauges from Earth. We lost some energy.”" } },
-    { "id": "space_sickness", "kind": "problem", "room": "habitat", "console": "galley", "minigame": "sorting", "timer": 40, "reward": 12, "draft": true,
-      "title": { "ru": "Космическая болезнь", "kk": null, "en": "Space sickness" },
-      "brief": { "junior": { "ru": "Тимуру плохо: в невесомости кружится голова. Выбери, что поможет: вода, отдых, дыхание.", "kk": null, "en": "Timur feels sick: zero gravity makes his head spin. Pick what helps: water, rest, breathing." },
-                 "advanced": { "ru": "Вестибулярный аппарат не понимает, где верх. В первые сутки так бывает у многих астронавтов, потом мозг привыкает.", "kk": null, "en": "The inner ear can't tell which way is up. Many astronauts feel it on day one, then the brain adapts." } },
-      "penalty": { "o2": 2 },
-      "advice": { "ru": "Ая: «Ничего, он отдохнёт. В следующий раз начнём с дыхания-маяка».", "kk": null, "en": "Aya: “It's fine, he'll rest. Next time let's start with the beacon breathing.”" } },
-    { "id": "water_filter", "kind": "routine", "room": "life_support", "console": "water", "minigame": "filter_pressure", "reward": 6, "fixes": { "o2": 2 }, "draft": true,
-      "title": { "ru": "Чистая вода", "kk": null, "en": "Clean water" },
-      "brief": { "junior": { "ru": "Почисти фильтр воды и выстави давление в зелёную зону.", "kk": null, "en": "Clean the water filter and set the pressure into the green zone." },
-                 "advanced": { "ru": "На МКС перерабатывают около 98% воды — даже пот и пар из воздуха.", "kk": null, "en": "The ISS recycles about 98% of its water — even sweat and vapour from the air." } } },
-    { "id": "exercise", "kind": "routine", "room": "gym", "console": "treadmill", "minigame": "sorting", "reward": 6, "draft": true,
-      "title": { "ru": "Зарядка", "kk": null, "en": "Workout" },
-      "brief": { "junior": { "ru": "Без тяжести мышцы слабеют. Сделай упражнения по порядку.", "kk": null, "en": "Without weight muscles get weak. Do the exercises in order." },
-                 "advanced": { "ru": "На МКС астронавты занимаются около 2 часов в день против потери мышц и костей.", "kk": null, "en": "ISS astronauts exercise about 2 hours a day against muscle and bone loss." } } },
-    { "id": "meal", "kind": "routine", "room": "habitat", "console": "galley", "minigame": "filter_pressure", "reward": 5, "draft": true,
-      "title": { "ru": "Обед", "kk": null, "en": "Lunch" },
-      "brief": { "junior": { "ru": "Еду разводят водой из бортового крана. Налей воды столько, сколько нужно.", "kk": null, "en": "Space food is mixed with water from the onboard tap. Pour just enough." },
-                 "advanced": { "ru": "Сухая еда весит меньше: воду не берут с Земли, её получают на борту.", "kk": null, "en": "Dry food weighs less: the water is made on board instead of launched from Earth." } } },
-    { "id": "star_nav", "kind": "routine", "room": "observatory", "console": "sextant", "minigame": "coordinates", "reward": 8, "draft": true,
-      "title": { "ru": "Навигация по звёздам", "kk": null, "en": "Star navigation" },
-      "brief": { "junior": { "ru": "Введи координаты звезды, чтобы найти её в секстант.", "kk": null, "en": "Type the star's coordinates to find it in the sextant." },
-                 "advanced": { "ru": "Майкл Коллинз на Аполлоне‑11 мерил звёзды секстантом — на случай, если связь с Землёй пропадёт.", "kk": null, "en": "Michael Collins on Apollo 11 measured stars with a sextant — in case the link to Earth was lost." } },
-      "history": { "ru": "история: Аполлон‑11, 1969", "kk": null, "en": "history: Apollo 11, 1969" } },
-    { "id": "course_correction", "kind": "story", "room": "cockpit", "console": "pilot", "minigame": "transmitter", "reward": 10, "draft": true,
-      "title": { "ru": "Коррекция курса", "kk": null, "en": "Course correction" },
-      "brief": { "junior": { "ru": "Корабль чуть сбился. Короткий толчок двигателем — и мы снова летим к Луне.", "kk": null, "en": "The ship drifted a little. A short engine kick — and we head for the Moon again." },
-                 "advanced": { "ru": "Аполлоны делали 1–4 маленьких коррекции по пути. Траектория — это линия полёта, её меняет сила двигателя.", "kk": null, "en": "Apollo crews made 1–4 small corrections on the way. The trajectory is the flight path; engine force changes it." } } },
-    { "id": "comms", "kind": "routine", "room": "cockpit", "console": "comms", "minigame": "transmitter", "reward": 6, "draft": true,
-      "title": { "ru": "Связь с Землёй", "kk": null, "en": "Call Earth" },
-      "brief": { "junior": { "ru": "Передай данные на Землю и настрой частоту антенны.", "kk": null, "en": "Send data to Earth and tune the antenna frequency." },
-                 "advanced": { "ru": "Сеть дальней связи NASA — антенны в Голдстоуне, Мадриде и Канберре: какая-то из них всегда «видит» корабль.", "kk": null, "en": "NASA's Deep Space Network has antennas in Goldstone, Madrid and Canberra: one of them always sees the ship." } } },
-    { "id": "asteroid_wave", "kind": "asteroids", "room": "cockpit", "console": "pilot", "reward": 25, "draft": true,
-      "title": { "ru": "Пояс камней", "kk": null, "en": "Rock field" },
-      "brief": { "junior": { "ru": "Впереди камни! Касайся карты, чтобы увести корабль.", "kk": null, "en": "Rocks ahead! Touch the map to steer the ship away." },
-                 "advanced": { "ru": "Игровая условность: между Землёй и Луной почти нет астероидов. Настоящая угроза — микрометеороиды размером с песчинку.", "kk": null, "en": "A game convention: there are almost no asteroids between Earth and the Moon. The real threat is sand-sized micrometeoroids." } } },
-    { "id": "toilet_fan", "kind": "problem", "room": "toilet", "console": "toilet", "minigame": "wires", "timer": 45, "reward": 14, "penalty": { "co2": 10 }, "draft": true,
-      "title": { "ru": "Туалет сломался!", "kk": null, "en": "The toilet broke!" },
-      "brief": { "junior": { "ru": "Заклинило вентилятор туалета. Почини провода, пока не стало неприятно.", "kk": null, "en": "The toilet fan jammed. Fix the wires before it gets unpleasant." },
-                 "advanced": { "ru": "На «Артемиде II» у туалета «Ориона» заклинило вентилятор, а потом замёрзла трубка слива. Экипаж чинил его по указаниям ЦУП.", "kk": null, "en": "On Artemis II Orion's toilet fan jammed, then a drain line froze. The crew fixed it with Mission Control's help." } },
-      "history": { "ru": "история: «Артемида II», 2026", "kk": null, "en": "history: Artemis II, 2026" },
-      "advice": { "ru": "ЦУП: «Поверните корабль к Солнцу — лёд в трубке растает».", "kk": null, "en": "Mission Control: “Turn the ship toward the Sun — the ice in the line will melt.”" } },
-    { "id": "solar_flare", "kind": "problem", "room": "airlock", "console": "bags", "minigame": "sorting", "timer": 35, "reward": 15, "penalty": { "energy": 5, "o2": 2 }, "draft": true,
-      "title": { "ru": "Солнечная вспышка!", "kk": null, "en": "Solar flare!" },
-      "brief": { "junior": { "ru": "Летят опасные частицы. Сложи сумки в укрытие и спрячь экипаж.", "kk": null, "en": "Dangerous particles are coming. Stack the bags into a shelter and hide the crew." },
-                 "advanced": { "ru": "На «Артемиде II» проверяли укрытие из сумок с водой и едой: плотный слой задерживает частицы.", "kk": null, "en": "Artemis II tested a shelter made of water and food bags: a thick layer stops particles." } },
-      "advice": { "ru": "ЦУП: «Вспышка прошла. Электроника перезагрузилась, энергии меньше».", "kk": null, "en": "Mission Control: “The flare is over. The electronics rebooted; we lost some energy.”" } },
-    { "id": "suit_check", "kind": "routine", "room": "airlock", "console": "suits", "minigame": "patch_shield", "reward": 8, "draft": true,
-      "title": { "ru": "Проверка скафандра", "kk": null, "en": "Suit check" },
-      "brief": { "junior": { "ru": "Найди, где скафандр пропускает воздух (пузырьки!), заклей и проверь.", "kk": null, "en": "Find where the suit leaks (bubbles!), patch it and test." },
-                 "advanced": { "ru": "На «Артемиде II» на 5-й день проверяли скафандры: их надевают при опасности и перед посадкой.", "kk": null, "en": "Artemis II tested the suits on day 5: they are worn in danger and before landing." } } },
-    { "id": "experiment", "kind": "routine", "room": "lab", "console": "bench", "minigame": "sorting", "reward": 10, "draft": true,
-      "title": { "ru": "Научный опыт", "kk": null, "en": "Experiment" },
-      "brief": { "junior": { "ru": "Разложи образцы по ячейкам нужного цвета.", "kk": null, "en": "Put the samples into the cells of the right colour." },
-                 "advanced": { "ru": "Опыт AVATAR на «Артемиде II»: клетки экипажа на чипах показывают, как космос влияет на организм.", "kk": null, "en": "The AVATAR experiment on Artemis II: crew cells on chips show how space affects the body." } } },
-    { "id": "call_home", "kind": "routine", "room": "habitat", "console": "call", "minigame": "transmitter", "reward": 5, "draft": true,
-      "title": { "ru": "Звонок семье", "kk": null, "en": "Call home" },
-      "brief": { "junior": { "ru": "Настрой связь и поговори с семьёй. Это тоже важная работа.", "kk": null, "en": "Tune the link and talk to your family. This is important work too." },
-                 "advanced": { "ru": "Психологическая поддержка — часть программы полёта: звонки домой помогают экипажу.", "kk": null, "en": "Psychological support is part of the flight plan: calls home help the crew." } } },
-    { "id": "photo_earth", "kind": "routine", "room": "observatory", "console": "window", "minigame": "coordinates", "reward": 5, "draft": true,
-      "title": { "ru": "Фото Земли", "kk": null, "en": "Photo of Earth" },
-      "brief": { "junior": { "ru": "Набери настройки камеры и сфотографируй Землю в иллюминатор.", "kk": null, "en": "Type the camera settings and photograph Earth through the window." },
-                 "advanced": { "ru": "Снимок «Восход Земли» сделал экипаж Аполлона‑8 в 1968 году.", "kk": null, "en": "The “Earthrise” photo was taken by the Apollo 8 crew in 1968." } } },
-    { "id": "asteroid_wave_2", "kind": "asteroids", "room": "cockpit", "console": "pilot", "reward": 30, "draft": true,
-      "title": { "ru": "Пояс камней 2", "kk": null, "en": "Rock field 2" },
-      "brief": { "junior": { "ru": "Камней больше и они быстрее. Уводи корабль!", "kk": null, "en": "More rocks, and faster. Steer away!" },
-                 "advanced": { "ru": "Импульс камня p = m·v: чем он тяжелее и быстрее, тем сильнее удар.", "kk": null, "en": "A rock's momentum is p = m·v: heavier and faster means a harder hit." } } },
-    { "id": "co2_filter", "kind": "problem", "room": "life_support", "console": "co2", "minigame": "filter_pressure", "timer": 50, "reward": 15, "penalty": { "co2": 25 }, "fixes": { "co2": 30 }, "draft": true,
-      "title": { "ru": "CO₂ растёт!", "kk": null, "en": "CO₂ is rising!" },
-      "brief": { "junior": { "ru": "В воздухе слишком много углекислого газа. Почисти фильтр и выставь давление.", "kk": null, "en": "There is too much carbon dioxide in the air. Clean the filter and set the pressure." },
-                 "advanced": { "ru": "Аполлон‑13: квадратные фильтры не влезали в круглые гнёзда. Экипаж собрал переходник из шланга, картона и скотча.", "kk": null, "en": "Apollo 13: square filters didn't fit round sockets. The crew built an adapter from a hose, cardboard and tape." } },
-      "history": { "ru": "история: Аполлон‑13, 1970", "kk": null, "en": "history: Apollo 13, 1970" },
-      "advice": { "ru": "ЦУП: «Мы нашли решение на Земле, повторяйте за нами шаг за шагом».", "kk": null, "en": "Mission Control: “We worked it out on the ground — follow us step by step.”" } },
-    { "id": "overheat", "kind": "problem", "room": "engine", "console": "radiator", "minigame": "transmitter", "timer": 40, "reward": 12, "penalty": { "energy": 6, "hull": 3 }, "draft": true,
-      "title": { "ru": "Одна сторона перегрелась", "kk": null, "en": "One side is overheating" },
-      "brief": { "junior": { "ru": "Корабль перестал вращаться, и Солнце греет один бок. Запусти вращение снова!", "kk": null, "en": "The ship stopped turning and the Sun heats one side. Start the roll again!" },
-                 "advanced": { "ru": "«Барбекю-вращение»: корабль медленно вращают, чтобы Солнце грело все стороны равномерно.", "kk": null, "en": "The “barbecue roll”: the ship turns slowly so the Sun heats every side evenly." } },
-      "advice": { "ru": "ЦУП: «Вращение восстановили с Земли, но электроника немного перегрелась».", "kk": null, "en": "Mission Control: “We restarted the roll from here, but the electronics got a bit hot.”" } },
-    { "id": "leak_patch", "kind": "problem", "room": "lab", "console": "bench", "minigame": "patch_shield", "timer": 45, "reward": 12, "draft": true,
-      "title": { "ru": "Утечка воздуха!", "kk": null, "en": "Air leak!" },
-      "brief": { "junior": { "ru": "Камень пробил стенку, воздух шипит! Заделай все дырки и включи щит.", "kk": null, "en": "A rock punched the wall and air is hissing! Patch every hole and turn on the shield." },
-                 "advanced": { "ru": "В вакууме воздух выходит через дыру сам: давление в кабине падает. Чем больше дыра, тем быстрее.", "kk": null, "en": "In a vacuum air rushes out by itself: cabin pressure drops. The bigger the hole, the faster." } },
-      "advice": { "ru": "ЦУП: «Временная заплатка держит, но герметичность хуже».", "kk": null, "en": "Mission Control: “The temporary patch holds, but the seal is weaker.”" } },
-    { "id": "loi", "kind": "story", "room": "cockpit", "console": "pilot", "minigame": "coordinates", "reward": 15, "draft": true,
-      "title": { "ru": "Выход на орбиту Луны", "kk": null, "en": "Lunar orbit insertion" },
-      "brief": { "junior": { "ru": "Мы за Луной, связи нет. Введи координаты сам, без подсказок ЦУП!", "kk": null, "en": "We're behind the Moon with no radio. Type the coordinates yourself — no help from Mission Control!" },
-                 "advanced": { "ru": "За обратной стороной Луны связь пропадает (на «Артемиде II» — ~40 минут). Гравитация Луны «ловит» корабль, если вовремя затормозить.", "kk": null, "en": "Behind the far side the radio is lost (~40 minutes on Artemis II). The Moon's gravity captures the ship if it brakes in time." } } },
-    { "id": "transfer_lander", "kind": "story", "room": "airlock", "console": "suits", "minigame": "wires", "reward": 15, "draft": true,
-      "title": { "ru": "В посадочный модуль", "kk": null, "en": "Into the lander" },
-      "brief": { "junior": { "ru": "Подключи питание посадочного модуля и переходи в него. Впереди посадка!", "kk": null, "en": "Power up the lander and move into it. Landing is next!" },
-                 "advanced": { "ru": "На Аполлонах двое переходили в лунный модуль, а один оставался на орбите в командном модуле.", "kk": null, "en": "On Apollo two astronauts moved to the lunar module while one stayed in orbit in the command module." } } }
-  ],
-  "days": [
-    { "day": 1, "title": { "ru": "День 1. Старт", "kk": null, "en": "Day 1. Launch" },
-      "scripted": ["go_nogo", "systems_check", "tli_burn"], "problems": ["lightning_sce", "space_sickness"], "fillers": ["water_filter", "exercise"] },
-    { "day": 2, "title": { "ru": "День 2. Путь", "kk": null, "en": "Day 2. On the way" },
-      "scripted": ["exercise", "meal", "star_nav", "course_correction", "asteroid_wave"], "problems": ["toilet_fan", "solar_flare"], "fillers": ["water_filter", "comms"] },
-    { "day": 3, "title": { "ru": "День 3. Далеко от дома", "kk": null, "en": "Day 3. Far from home" },
-      "scripted": ["suit_check", "experiment", "call_home", "asteroid_wave_2"], "problems": ["co2_filter", "overheat", "solar_flare"], "fillers": ["photo_earth", "water_filter"] },
-    { "day": 4, "title": { "ru": "День 4. Луна", "kk": null, "en": "Day 4. The Moon" },
-      "scripted": ["loi", "photo_earth", "transfer_lander"], "problems": ["co2_filter", "overheat"], "fillers": ["water_filter"] }
-  ]
+ "tasks": [
+  {
+   "id": "go_nogo",
+   "kind": "story",
+   "room": "cockpit",
+   "console": "comms",
+   "minigame": "go_no_go",
+   "reward": 12,
+   "title": {
+    "ru": "Опрос «Go / No-Go»",
+    "kk": null,
+    "en": "The Go / No-Go poll"
+   },
+   "brief": {
+    "junior": {
+     "ru": "Перед стартом каждая служба ЦУП говорит «GO» (готовы) или «NO-GO» (стоп). Проверь стрелки и исправь то, что не в норме.",
+     "kk": null,
+     "en": "Before launch every Mission Control station says GO or NO-GO. Check the needles and fix what is off."
+    },
+    "advanced": {
+     "ru": "Руководитель полёта опрашивает службы: погода, топливо, траектория… Один NO-GO — и старт откладывают, пока причину не устранят.",
+     "kk": null,
+     "en": "The flight director polls every station: weather, fuel, trajectory… One NO-GO and the launch waits until the cause is fixed."
+    }
+   },
+   "why": {
+    "junior": {
+     "ru": "Ракета — это тысячи деталей. Если хоть одна не готова, старт опасен. Поэтому люди проверяют всё вместе и по списку.",
+     "kk": null,
+     "en": "A rocket is thousands of parts. If even one isn't ready, launch is dangerous. So people check everything together, from a list."
+    },
+    "advanced": {
+     "ru": "Проверочные списки и опрос служб придумали после аварий: одна незамеченная неисправность может погубить миссию. Так же проверяют самолёты и операции в больницах.",
+     "kk": null,
+     "en": "Checklists and station polls came from accidents: one unnoticed fault can ruin a mission. Planes and hospital surgeries are checked the same way."
+    }
+   },
+   "law": {
+    "ru": "Правило: старт — только когда все службы «GO»",
+    "kk": null,
+    "en": "Rule: launch only when every station says GO"
+   }
+  },
+  {
+   "id": "systems_check",
+   "kind": "story",
+   "room": "cockpit",
+   "console": "panel",
+   "minigame": "wires",
+   "reward": 12,
+   "title": {
+    "ru": "Проверка систем",
+    "kk": null,
+    "en": "Systems check"
+   },
+   "brief": {
+    "junior": {
+     "ru": "После старта часть разъёмов разболталась. Соедини провода с гнёздами того же цвета — замкни цепь.",
+     "kk": null,
+     "en": "After launch some plugs came loose. Connect each wire to the socket of its colour — close the circuit."
+    },
+    "advanced": {
+     "ru": "Цветная и цифровая маркировка проводов не даёт перепутать линии питания. Неправильное соединение — короткое замыкание.",
+     "kk": null,
+     "en": "Colour and number marks keep power lines apart. A wrong connection is a short circuit."
+    }
+   },
+   "why": {
+    "junior": {
+     "ru": "Ток течёт только по замкнутой цепи. Пока провод не воткнут — прибор не работает.",
+     "kk": null,
+     "en": "Current flows only in a closed circuit. Until the wire is plugged in, the device is dead."
+    },
+    "advanced": {
+     "ru": "Электрический ток — движение зарядов по замкнутому контуру. Разрыв цепи останавливает ток во всём контуре, поэтому на корабле питание дублируют.",
+     "kk": null,
+     "en": "Electric current is charge moving round a closed loop. A break stops it in the whole loop, so ships duplicate power lines."
+    }
+   },
+   "law": {
+    "ru": "Закон: ток идёт только по замкнутой цепи",
+    "kk": null,
+    "en": "Law: current flows only in a closed circuit"
+   }
+  },
+  {
+   "id": "tli_burn",
+   "kind": "story",
+   "room": "engine",
+   "console": "thrusters",
+   "minigame": "burn",
+   "reward": 18,
+   "title": {
+    "ru": "Разгон к Луне",
+    "kk": null,
+    "en": "Burn to the Moon"
+   },
+   "brief": {
+    "junior": {
+     "ru": "Включи двигатель и держи, пока скорость не попадёт в зелёную зону. Перегонишь — придётся начать заново.",
+     "kk": null,
+     "en": "Fire the engine and hold until the speed is in the green. Overshoot and you start again."
+    },
+    "advanced": {
+     "ru": "Манёвр TLI: двигатель добавляет ~3 км/с. Топливо сгорает, корабль легчает — и при той же силе тяги ускорение растёт (a = F / m).",
+     "kk": null,
+     "en": "The TLI burn adds ~3 km/s. Fuel burns, the ship gets lighter — and with the same thrust the acceleration grows (a = F / m)."
+    }
+   },
+   "why": {
+    "junior": {
+     "ru": "Без разгона корабль так и кружил бы вокруг Земли. Нужная скорость уносит его к Луне, а дальше он летит сам — по инерции.",
+     "kk": null,
+     "en": "Without the burn the ship would keep circling Earth. The right speed sends it to the Moon, then it coasts by inertia."
+    },
+    "advanced": {
+     "ru": "Второй закон Ньютона: a = F / m. Ракета теряет массу — ускорение растёт. Лишняя скорость — промах мимо Луны, поэтому двигатель выключают точно вовремя.",
+     "kk": null,
+     "en": "Newton's second law: a = F / m. The rocket loses mass, so acceleration grows. Too fast misses the Moon, so the engine is cut exactly on time."
+    }
+   },
+   "law": {
+    "ru": "Закон Ньютона: a = F / m",
+    "kk": null,
+    "en": "Newton's law: a = F / m"
+   }
+  },
+  {
+   "id": "pet_adopt",
+   "kind": "routine",
+   "room": "habitat",
+   "console": "petbed",
+   "minigame": "pet_choose",
+   "reward": 8,
+   "title": {
+    "ru": "Питомец на борту",
+    "kk": null,
+    "en": "A pet on board"
+   },
+   "brief": {
+    "junior": {
+     "ru": "Выбери питомца и обустрой его уголок. Счастливый питомец поднимает настроение: +2 монеты за каждое задание!",
+     "kk": null,
+     "en": "Pick a pet and set up its corner. A happy pet cheers the crew: +2 coins for every task!"
+    },
+    "advanced": {
+     "ru": "Выбери питомца. В невесомости всё пристёгивают и закрепляют — даже миску.",
+     "kk": null,
+     "en": "Pick a pet. In weightlessness everything is strapped down — even the bowl."
+    }
+   },
+   "why": {
+    "junior": {
+     "ru": "Долгий полёт — это трудно: экипаж далеко от дома. Забота о ком-то помогает не скучать и держаться вместе.",
+     "kk": null,
+     "en": "A long flight is hard: the crew is far from home. Caring for someone helps beat boredom and keeps the team close."
+    },
+    "advanced": {
+     "ru": "Психологи NASA считают настроение экипажа такой же важной «системой», как кислород. На МКС выращивают растения и летают роботы Astrobee.",
+     "kk": null,
+     "en": "NASA psychologists treat crew mood as a system as vital as oxygen. The ISS grows plants and has Astrobee robots flying around."
+    }
+   },
+   "law": {
+    "ru": "Правило: в невесомости всё нужно закреплять",
+    "kk": null,
+    "en": "Rule: in weightlessness everything must be fastened"
+   }
+  },
+  {
+   "id": "meal",
+   "kind": "routine",
+   "room": "habitat",
+   "console": "galley",
+   "minigame": "meal",
+   "reward": 12,
+   "title": {
+    "ru": "Обед",
+    "kk": null,
+    "en": "Lunch"
+   },
+   "brief": {
+    "junior": {
+     "ru": "Собери обед по меню. Сухую еду полей водой из крана. Хлеб и газировку — нельзя!",
+     "kk": null,
+     "en": "Make lunch by the menu. Pour tap water on dry food. No bread and no soda!"
+    },
+    "advanced": {
+     "ru": "Еду берут сухой: она легче. Воду добавляют на борту. Крошки, крупная соль и газировка в невесомости опасны.",
+     "kk": null,
+     "en": "Food flies dry: it's lighter. Water is added on board. Crumbs, salt grains and soda are dangerous in weightlessness."
+    }
+   },
+   "why": {
+    "junior": {
+     "ru": "Каждый килограмм, который летит в космос, стоит топлива. Сухая еда лёгкая, а крошки могут попасть в глаза и приборы.",
+     "kk": null,
+     "en": "Every kilogram sent to space costs fuel. Dry food is light, and crumbs could get into eyes and machines."
+    },
+    "advanced": {
+     "ru": "В невесомости ничего не падает вниз: крошка летает, пока не врежется во что-то. Поэтому вместо хлеба — тортильи, а соль и перец — жидкие.",
+     "kk": null,
+     "en": "In weightlessness nothing falls: a crumb floats until it hits something. That's why astronauts eat tortillas and use liquid salt and pepper."
+    }
+   },
+   "law": {
+    "ru": "Закон: в невесомости вещи не падают, а летают",
+    "kk": null,
+    "en": "Law: in weightlessness things don't fall, they float"
+   }
+  },
+  {
+   "id": "exercise",
+   "kind": "routine",
+   "room": "gym",
+   "console": "treadmill",
+   "minigame": "rhythm",
+   "reward": 12,
+   "title": {
+    "ru": "Тренировка",
+    "kk": null,
+    "en": "Workout"
+   },
+   "brief": {
+    "junior": {
+     "ru": "Шагай на дорожке в ритм: жми, когда кружок на линии. Промахнёшься — шаг придётся повторить.",
+     "kk": null,
+     "en": "Step on the treadmill to the beat: press when a circle is on the line. Miss and you redo the step."
+    },
+    "advanced": {
+     "ru": "На дорожке астронавта притягивают резинками к полотну — иначе он улетит. Тренировка — 2 часа в день.",
+     "kk": null,
+     "en": "On the treadmill bungee cords hold the astronaut down — or they'd float away. 2 hours a day."
+    }
+   },
+   "why": {
+    "junior": {
+     "ru": "Без нагрузки мышцы и кости слабеют. Если не тренироваться, после полёта будет трудно даже ходить.",
+     "kk": null,
+     "en": "Without load muscles and bones weaken. Without exercise, even walking is hard after the flight."
+    },
+    "advanced": {
+     "ru": "Кости укрепляются, когда на них давит вес. В невесомости веса нет — астронавт теряет до 1–2% костной массы в месяц. Тренажёры заменяют тяжесть.",
+     "kk": null,
+     "en": "Bones grow strong when weight presses on them. In weightlessness there is none — astronauts lose up to 1–2% of bone mass a month. Machines replace gravity."
+    }
+   },
+   "law": {
+    "ru": "Факт: без нагрузки кости и мышцы слабеют",
+    "kk": null,
+    "en": "Fact: without load bones and muscles weaken"
+   }
+  },
+  {
+   "id": "asteroid_wave",
+   "kind": "asteroids",
+   "room": "cockpit",
+   "console": "pilot",
+   "reward": 25,
+   "title": {
+    "ru": "Пояс камней",
+    "kk": null,
+    "en": "Rock belt"
+   },
+   "brief": {
+    "junior": {
+     "ru": "Камни летят навстречу! Касайся карты или жми стрелки — уводи корабль от них.",
+     "kk": null,
+     "en": "Rocks ahead! Touch the map or use the arrows — steer the ship away."
+    },
+    "advanced": {
+     "ru": "Каждый удар — урон корпусу и пробоина. Кооператив: корабль летит к среднему касанию всех игроков.",
+     "kk": null,
+     "en": "Every hit damages the hull and makes a hole. Co-op: the ship flies to everyone's average touch."
+    }
+   },
+   "why": {
+    "junior": {
+     "ru": "Даже маленький камень на огромной скорости бьёт как пуля. Поэтому корабли уводят с пути обломков.",
+     "kk": null,
+     "en": "Even a tiny rock at huge speed hits like a bullet. So ships dodge debris."
+    },
+    "advanced": {
+     "ru": "Энергия удара E = m·v²/2: при скорости 10 км/с песчинка несёт энергию как пуля. МКС несколько раз в год делает манёвр уклонения.",
+     "kk": null,
+     "en": "Impact energy E = m·v²/2: at 10 km/s a grain of sand carries a bullet's energy. The ISS dodges debris several times a year."
+    }
+   },
+   "law": {
+    "ru": "Закон: энергия удара растёт как квадрат скорости",
+    "kk": null,
+    "en": "Law: impact energy grows with the square of speed"
+   }
+  },
+  {
+   "id": "lightning_sce",
+   "kind": "problem",
+   "room": "cockpit",
+   "console": "panel",
+   "minigame": "switches",
+   "reward": 15,
+   "timer": 45,
+   "penalty": {
+    "energy": 10
+   },
+   "title": {
+    "ru": "Молния при старте!",
+    "kk": null,
+    "en": "Lightning at launch!"
+   },
+   "brief": {
+    "junior": {
+     "ru": "В ракету ударила молния, приборы сходят с ума. Щёлкай переключатели строго по списку ЦУП!",
+     "kk": null,
+     "en": "Lightning hit the rocket and the gauges went mad. Flip the switches exactly by Mission Control's list!"
+    },
+    "advanced": {
+     "ru": "Аполлон‑12: инженер Джон Аарон узнал сбой и сказал: «SCE to AUX». Переключение на запасное питание спасло миссию.",
+     "kk": null,
+     "en": "Apollo 12: engineer John Aaron recognised the fault and said “SCE to AUX”. Switching to auxiliary power saved the mission."
+    }
+   },
+   "history": {
+    "ru": "история: Аполлон‑12, 1969",
+    "kk": null,
+    "en": "history: Apollo 12, 1969"
+   },
+   "advice": {
+    "ru": "ЦУП: «Мы перезапустили приборы с Земли. Энергии стало меньше».",
+    "kk": null,
+    "en": "Mission Control: “We rebooted the gauges from Earth. We lost some energy.”"
+   },
+   "why": {
+    "junior": {
+     "ru": "Когда что-то ломается, важно не паниковать и делать шаги по порядку. Запасное питание держит корабль живым.",
+     "kk": null,
+     "en": "When something breaks, don't panic and do the steps in order. Backup power keeps the ship alive."
+    },
+    "advanced": {
+     "ru": "У корабля есть дублирующие системы: если основная линия сгорела, работает запасная. А чёткий порядок действий не даёт сделать хуже.",
+     "kk": null,
+     "en": "Ships have backup systems: if a main line fails, the spare works. A strict order of steps keeps you from making it worse."
+    }
+   },
+   "law": {
+    "ru": "Правило: у важных систем всегда есть запасные",
+    "kk": null,
+    "en": "Rule: vital systems always have a backup"
+   }
+  },
+  {
+   "id": "space_sickness",
+   "kind": "problem",
+   "room": "habitat",
+   "console": "medkit",
+   "minigame": "steady",
+   "reward": 14,
+   "timer": 60,
+   "penalty": {
+    "energy": 4
+   },
+   "title": {
+    "ru": "Космическая болезнь",
+    "kk": null,
+    "en": "Space sickness"
+   },
+   "brief": {
+    "junior": {
+     "ru": "Астронавта мутит: мозг запутался, где верх, где низ. Держи кольцо на шарике равновесия, пока не станет легче.",
+     "kk": null,
+     "en": "An astronaut feels sick: the brain is confused about up and down. Keep the ring on the balance ball until it gets better."
+    },
+    "advanced": {
+     "ru": "Внутреннее ухо (вестибулярный аппарат) ощущает тяжесть. В невесомости его сигналы спорят с глазами — отсюда тошнота первые 2–3 дня.",
+     "kk": null,
+     "en": "The inner ear senses gravity. In weightlessness it argues with the eyes — that's the sickness of the first 2–3 days."
+    }
+   },
+   "advice": {
+    "ru": "ЦУП: «Пусть отдохнёт. Работы стало больше остальным».",
+    "kk": null,
+    "en": "Mission Control: “Let them rest. Everyone else has more work.”"
+   },
+   "why": {
+    "junior": {
+     "ru": "Почти половину астронавтов в первые дни мутит. Это проходит, когда мозг привыкает.",
+     "kk": null,
+     "en": "Almost half of astronauts feel sick in the first days. It passes as the brain gets used to it."
+    },
+    "advanced": {
+     "ru": "Мозг сравнивает сигналы глаз и внутреннего уха. Когда они не совпадают, мозг думает, что что-то не так. Через пару дней он перестраивается.",
+     "kk": null,
+     "en": "The brain compares the eyes and the inner ear. When they disagree it thinks something is wrong. In a couple of days it adapts."
+    }
+   },
+   "law": {
+    "ru": "Факт: в невесомости вестибулярный аппарат «теряет» низ",
+    "kk": null,
+    "en": "Fact: in weightlessness the inner ear loses “down”"
+   }
+  },
+  {
+   "id": "toilet_fan",
+   "kind": "problem",
+   "room": "toilet",
+   "console": "toilet",
+   "minigame": "bolts",
+   "reward": 16,
+   "timer": 70,
+   "penalty": {
+    "co2": 8
+   },
+   "title": {
+    "ru": "Туалет сломался!",
+    "kk": null,
+    "en": "The toilet broke!"
+   },
+   "brief": {
+    "junior": {
+     "ru": "Вентилятор туалета забился. Открути болты, замени вентилятор и закрути обратно.",
+     "kk": null,
+     "en": "The toilet fan is clogged. Unscrew the bolts, swap the fan and screw them back."
+    },
+    "advanced": {
+     "ru": "В космосе вода и всё прочее не падает вниз — туалет работает потоком воздуха, как пылесос. Без вентилятора им нельзя пользоваться.",
+     "kk": null,
+     "en": "In space nothing falls down — the toilet works with airflow, like a vacuum. Without the fan it can't be used."
+    }
+   },
+   "advice": {
+    "ru": "ЦУП: «Временный пакет. Почините при первой возможности».",
+    "kk": null,
+    "en": "Mission Control: “Use a bag for now. Fix it when you can.”"
+   },
+   "why": {
+    "junior": {
+     "ru": "Без туалета в полёте никак! А без силы тяжести его работу делает поток воздуха.",
+     "kk": null,
+     "en": "No flight works without a toilet! Without gravity, airflow does its job."
+    },
+    "advanced": {
+     "ru": "Сила тяжести — то, что тянет всё вниз. Где её нет, движение создают иначе: насосами, вентиляторами, пружинами.",
+     "kk": null,
+     "en": "Gravity is what pulls things down. Where it's missing, motion is made other ways: pumps, fans, springs."
+    }
+   },
+   "law": {
+    "ru": "Правило: без тяжести всё двигают воздухом и насосами",
+    "kk": null,
+    "en": "Rule: without gravity, air and pumps move things"
+   }
+  },
+  {
+   "id": "leak_patch",
+   "kind": "problem",
+   "room": "airlock",
+   "console": "hull",
+   "minigame": "seal",
+   "reward": 16,
+   "timer": 60,
+   "penalty": {
+    "seal": 12
+   },
+   "fixes": {
+    "seal": 6
+   },
+   "title": {
+    "ru": "Трещина в корпусе!",
+    "kk": null,
+    "en": "A crack in the hull!"
+   },
+   "brief": {
+    "junior": {
+     "ru": "Воздух шипит из трещины! Веди герметиком точно по трещине от начала до конца.",
+     "kk": null,
+     "en": "Air hisses out of a crack! Trace it with sealant from start to end."
+    },
+    "advanced": {
+     "ru": "Внутри корабля давление ~101 кПа, снаружи — вакуум. Воздух всегда течёт туда, где давление ниже, — прямо в космос.",
+     "kk": null,
+     "en": "Inside is ~101 kPa, outside is vacuum. Air always flows to lower pressure — straight into space."
+    }
+   },
+   "advice": {
+    "ru": "ЦУП: «Временная заплатка. Герметичность упала».",
+    "kk": null,
+    "en": "Mission Control: “Temporary patch. Airtightness went down.”"
+   },
+   "why": {
+    "junior": {
+     "ru": "Если не заделать трещину, воздух уйдёт в космос и дышать будет нечем.",
+     "kk": null,
+     "en": "If the crack stays open, the air leaks into space and there's nothing to breathe."
+    },
+    "advanced": {
+     "ru": "Газ перетекает из области высокого давления в низкое. На МКС экипаж искал утечку по шипению и пузырькам — и заделал её герметиком.",
+     "kk": null,
+     "en": "Gas flows from high to low pressure. On the ISS the crew found a leak by hiss and bubbles — and sealed it."
+    }
+   },
+   "law": {
+    "ru": "Закон: газ течёт туда, где давление ниже",
+    "kk": null,
+    "en": "Law: gas flows towards lower pressure"
+   }
+  },
+  {
+   "id": "water_filter",
+   "kind": "routine",
+   "room": "life_support",
+   "console": "water",
+   "minigame": "recycle",
+   "reward": 10,
+   "fixes": {
+    "o2": 6
+   },
+   "title": {
+    "ru": "Чистая вода",
+    "kk": null,
+    "en": "Clean water"
+   },
+   "brief": {
+    "junior": {
+     "ru": "В баке плавает мусор. Мусор — в ведро для отходов, чистые капли — в бак чистой воды. Не перепутай!",
+     "kk": null,
+     "en": "Rubbish floats in the tank. Rubbish into the waste bin, clean drops into the clean-water tank. Don't mix them up!"
+    },
+    "advanced": {
+     "ru": "Бортовая система очищает воду из пота, дыхания и даже… туалета. На МКС возвращают до 98% воды.",
+     "kk": null,
+     "en": "The ship recycles water from sweat, breath and even… the toilet. The ISS recovers up to 98% of its water."
+    }
+   },
+   "why": {
+    "junior": {
+     "ru": "Воды с Земли мало: каждую каплю очищают и пьют снова. А из воды получают ещё и кислород!",
+     "kk": null,
+     "en": "There's little water from Earth: every drop is cleaned and drunk again. Water even gives oxygen!"
+    },
+    "advanced": {
+     "ru": "Электролиз: ток разлагает воду H₂O на водород и кислород O₂. Так на МКС получают воздух для дыхания.",
+     "kk": null,
+     "en": "Electrolysis: current splits water H₂O into hydrogen and oxygen O₂. That's how the ISS makes breathing air."
+    }
+   },
+   "law": {
+    "ru": "Закон: из воды можно получить кислород (электролиз)",
+    "kk": null,
+    "en": "Law: water can be split into oxygen (electrolysis)"
+   }
+  },
+  {
+   "id": "comms",
+   "kind": "routine",
+   "room": "cockpit",
+   "console": "comms",
+   "minigame": "tune",
+   "reward": 10,
+   "title": {
+    "ru": "Связь с Землёй",
+    "kk": null,
+    "en": "Talking to Earth"
+   },
+   "brief": {
+    "junior": {
+     "ru": "Подстрой свою радиоволну под волну Земли и отправь доклад. Ответ придёт не сразу!",
+     "kk": null,
+     "en": "Tune your radio wave to Earth's and send the report. The answer won't come at once!"
+    },
+    "advanced": {
+     "ru": "Радио летит со скоростью света: до Луны 1,3 с, туда и обратно — 2,6 с. Поэтому в разговоре всегда пауза.",
+     "kk": null,
+     "en": "Radio travels at light speed: 1.3 s to the Moon, 2.6 s there and back. That's why talks always have a pause."
+    }
+   },
+   "why": {
+    "junior": {
+     "ru": "ЦУП должен знать, что у нас всё в порядке. Связь — это безопасность экипажа.",
+     "kk": null,
+     "en": "Mission Control must know we're fine. Communication is crew safety."
+    },
+    "advanced": {
+     "ru": "Скорость света — 300 000 км/с. Даже ей нужно время: сигнал с Марса идёт до 20 минут, поэтому марсоходы ездят сами.",
+     "kk": null,
+     "en": "Light speed is 300,000 km/s. Even it takes time: a signal from Mars takes up to 20 minutes, so rovers drive themselves."
+    }
+   },
+   "law": {
+    "ru": "Закон: свет и радио летят 300 000 км/с — но не мгновенно",
+    "kk": null,
+    "en": "Law: light and radio go 300,000 km/s — but not instantly"
+   }
+  },
+  {
+   "id": "pet_feed",
+   "kind": "routine",
+   "room": "habitat",
+   "console": "petbed",
+   "minigame": "pet_care",
+   "reward": 8,
+   "title": {
+    "ru": "Покормить питомца",
+    "kk": null,
+    "en": "Feed the pet"
+   },
+   "brief": {
+    "junior": {
+     "ru": "Питомец проголодался. Сначала поймай летающие крошки пылесосом, потом насыпь корм и погладь его.",
+     "kk": null,
+     "en": "The pet is hungry. First catch the floating crumbs, then fill the bowl and pet it."
+    },
+    "advanced": {
+     "ru": "В невесомости крошки не падают на пол, а летают по кабине. Их ловят пылесосом.",
+     "kk": null,
+     "en": "In weightlessness crumbs don't fall, they float around. They're caught with a vacuum."
+    }
+   },
+   "why": {
+    "junior": {
+     "ru": "Счастливый питомец — весёлый экипаж: +2 монеты за каждое задание, пока он сыт.",
+     "kk": null,
+     "en": "A happy pet means a cheerful crew: +2 coins per task while it's fed."
+    },
+    "advanced": {
+     "ru": "Летающие крошки забивают фильтры и вентиляторы. Чистота на корабле — это безопасность.",
+     "kk": null,
+     "en": "Floating crumbs clog filters and fans. A clean ship is a safe ship."
+    }
+   },
+   "law": {
+    "ru": "Правило: в невесомости мусор ловят, а не подметают",
+    "kk": null,
+    "en": "Rule: in weightlessness rubbish is caught, not swept"
+   }
+  },
+  {
+   "id": "star_nav",
+   "kind": "story",
+   "room": "observatory",
+   "console": "sextant",
+   "minigame": "star_sight",
+   "reward": 15,
+   "title": {
+    "ru": "Навигация по звёздам",
+    "kk": null,
+    "en": "Star navigation"
+   },
+   "brief": {
+    "junior": {
+     "ru": "Найди на небе звезду с карты (по её соседям). Потом поверни секстант, чтобы звезда села на горизонт.",
+     "kk": null,
+     "en": "Find the chart's star in the sky (by its neighbours). Then turn the sextant so it sits on the horizon."
+    },
+    "advanced": {
+     "ru": "Аполлоны проверяли положение секстантом: угол между звездой и краем Земли даёт место корабля. Так моряки плавали веками.",
+     "kk": null,
+     "en": "Apollo crews checked their position with a sextant: the angle between a star and Earth's edge gives the ship's place. Sailors did this for centuries."
+    }
+   },
+   "history": {
+    "ru": "история: секстант Аполлона, 1968–1972",
+    "kk": null,
+    "en": "history: the Apollo sextant, 1968–1972"
+   },
+   "why": {
+    "junior": {
+     "ru": "Если компьютер ошибётся, экипаж найдёт дорогу по звёздам — как древние мореплаватели.",
+     "kk": null,
+     "en": "If the computer fails, the crew finds the way by the stars — like ancient sailors."
+    },
+    "advanced": {
+     "ru": "Звёзды так далеко, что почти не двигаются. Измерив углы до двух звёзд, можно вычислить своё место — это триангуляция.",
+     "kk": null,
+     "en": "Stars are so far they barely move. Measuring angles to two stars gives your position — triangulation."
+    }
+   },
+   "law": {
+    "ru": "Правило: по углам до звёзд находят своё место",
+    "kk": null,
+    "en": "Rule: angles to stars tell where you are"
+   }
+  },
+  {
+   "id": "course_correction",
+   "kind": "story",
+   "room": "cockpit",
+   "console": "pilot",
+   "minigame": "vector",
+   "reward": 15,
+   "title": {
+    "ru": "Коррекция курса",
+    "kk": null,
+    "en": "Course correction"
+   },
+   "brief": {
+    "junior": {
+     "ru": "Корабль чуть сбился. Тяни стрелку толчка так, чтобы новая скорость смотрела в коридор к Луне.",
+     "kk": null,
+     "en": "The ship drifted a bit. Drag the push arrow so the new speed points into the corridor to the Moon."
+    },
+    "advanced": {
+     "ru": "Скорость — вектор: у неё есть величина и направление. Толчок двигателя складывается со скоростью по правилу треугольника.",
+     "kk": null,
+     "en": "Velocity is a vector: size and direction. The engine push adds to it by the triangle rule."
+    }
+   },
+   "why": {
+    "junior": {
+     "ru": "Маленькая ошибка в начале пути — и через 380 000 км мы промахнёмся мимо Луны. Курс правят несколько раз.",
+     "kk": null,
+     "en": "A tiny error early on — and after 380,000 km we'd miss the Moon. The course is corrected several times."
+    },
+    "advanced": {
+     "ru": "Векторы складывают «хвост к голове». Экономнее всего толкать поперёк скорости: так меньше топлива уходит на поворот.",
+     "kk": null,
+     "en": "Vectors add tail to head. Pushing across the velocity is cheapest: less fuel to turn."
+    }
+   },
+   "law": {
+    "ru": "Закон: скорости складываются как векторы",
+    "kk": null,
+    "en": "Law: velocities add as vectors"
+   }
+  },
+  {
+   "id": "experiment",
+   "kind": "routine",
+   "room": "lab",
+   "console": "bench",
+   "minigame": "centrifuge",
+   "reward": 14,
+   "title": {
+    "ru": "Научный опыт",
+    "kk": null,
+    "en": "Science experiment"
+   },
+   "brief": {
+    "junior": {
+     "ru": "Расставь пробирки в центрифуге так, чтобы она не шаталась: одинаковые — друг напротив друга.",
+     "kk": null,
+     "en": "Place the tubes so the centrifuge doesn't wobble: equal ones opposite each other."
+    },
+    "advanced": {
+     "ru": "Центрифуга крутится тысячи раз в минуту. Если центр масс не в середине, её трясёт и она может сломаться.",
+     "kk": null,
+     "en": "A centrifuge spins thousands of times a minute. If the centre of mass isn't in the middle, it shakes and can break."
+    }
+   },
+   "why": {
+    "junior": {
+     "ru": "В космосе учёные проверяют, как растут клетки и кристаллы без тяжести. Центрифуга создаёт «искусственную тяжесть» для сравнения.",
+     "kk": null,
+     "en": "In space scientists study how cells and crystals grow without gravity. A centrifuge makes “artificial gravity” to compare."
+    },
+    "advanced": {
+     "ru": "Центр масс — точка равновесия. Если сложить «массу × направление» всех пробирок и получить ноль — ротор уравновешен.",
+     "kk": null,
+     "en": "The centre of mass is the balance point. If “mass × direction” of all tubes adds to zero, the rotor is balanced."
+    }
+   },
+   "law": {
+    "ru": "Закон: равновесие — когда центр масс в центре вращения",
+    "kk": null,
+    "en": "Law: balance is when the centre of mass is at the axis"
+   }
+  },
+  {
+   "id": "suit_check",
+   "kind": "routine",
+   "room": "airlock",
+   "console": "suits",
+   "minigame": "find_leak",
+   "reward": 14,
+   "title": {
+    "ru": "Проверка скафандра",
+    "kk": null,
+    "en": "Spacesuit check"
+   },
+   "brief": {
+    "junior": {
+     "ru": "Найди утечку: води датчиком по скафандру, слушай шипение. Заклей и накачай давление до зелёной зоны.",
+     "kk": null,
+     "en": "Find the leak: move the sensor over the suit and listen for the hiss. Patch it and pump to the green."
+    },
+    "advanced": {
+     "ru": "Скафандр — маленький корабль. Давление в нём ниже, чем в кабине (~30 кПа), иначе он раздулся бы и не гнулся.",
+     "kk": null,
+     "en": "A suit is a tiny ship. Its pressure is lower than the cabin's (~30 kPa), or it would balloon and not bend."
+    }
+   },
+   "why": {
+    "junior": {
+     "ru": "На Луне без скафандра нельзя: там нет воздуха. Одна дырочка — и выходить опасно.",
+     "kk": null,
+     "en": "You can't be on the Moon without a suit: there's no air. One tiny hole and going out is dangerous."
+    },
+    "advanced": {
+     "ru": "Чем больше разница давлений, тем сильнее воздух рвётся наружу. Поэтому скафандр держат на небольшом давлении чистого кислорода.",
+     "kk": null,
+     "en": "The bigger the pressure difference, the harder air pushes out. That's why suits hold a low pressure of pure oxygen."
+    }
+   },
+   "law": {
+    "ru": "Закон: разница давлений выталкивает воздух наружу",
+    "kk": null,
+    "en": "Law: a pressure difference pushes air out"
+   }
+  },
+  {
+   "id": "asteroid_wave_2",
+   "kind": "asteroids",
+   "room": "cockpit",
+   "console": "pilot",
+   "reward": 30,
+   "title": {
+    "ru": "Пояс камней — 2",
+    "kk": null,
+    "en": "Rock belt 2"
+   },
+   "brief": {
+    "junior": {
+     "ru": "Камней больше, и они быстрее. Уводи корабль!",
+     "kk": null,
+     "en": "More rocks, and faster. Steer clear!"
+    },
+    "advanced": {
+     "ru": "Импульс камня p = m·v. Чем быстрее камень, тем сильнее удар — уклоняться дешевле, чем чинить.",
+     "kk": null,
+     "en": "A rock's momentum p = m·v. The faster it is, the harder it hits — dodging is cheaper than repairs."
+    }
+   },
+   "why": {
+    "junior": {
+     "ru": "Корпус уже повреждён — каждый новый удар опаснее.",
+     "kk": null,
+     "en": "The hull is already damaged — every new hit is more dangerous."
+    },
+    "advanced": {
+     "ru": "Импульс сохраняется: при ударе камень передаёт свой импульс кораблю и корпусу. Щиты МКС разбивают камни на мелкие брызги.",
+     "kk": null,
+     "en": "Momentum is conserved: a rock hands its momentum to the hull. ISS shields break rocks into fine spray."
+    }
+   },
+   "law": {
+    "ru": "Закон: импульс p = m·v",
+    "kk": null,
+    "en": "Law: momentum p = m·v"
+   }
+  },
+  {
+   "id": "photo_earth",
+   "kind": "routine",
+   "room": "observatory",
+   "console": "window",
+   "minigame": "photo",
+   "reward": 10,
+   "title": {
+    "ru": "Фото Земли",
+    "kk": null,
+    "en": "Photo of Earth"
+   },
+   "brief": {
+    "junior": {
+     "ru": "Земля проплывает в иллюминаторе. Настрой выдержку и резкость и успей сфотографировать!",
+     "kk": null,
+     "en": "Earth drifts past the window. Set the exposure and focus and catch the shot!"
+    },
+    "advanced": {
+     "ru": "Освещённая Солнцем Земля очень яркая на чёрном небе. Неправильная выдержка — и снимок белый или чёрный.",
+     "kk": null,
+     "en": "Sunlit Earth is very bright against the black sky. The wrong exposure makes the photo white or black."
+    }
+   },
+   "history": {
+    "ru": "история: «Голубой мрамор», 1972",
+    "kk": null,
+    "en": "history: “Blue Marble”, 1972"
+   },
+   "why": {
+    "junior": {
+     "ru": "Фото Земли из космоса показали людям, какая наша планета маленькая и хрупкая.",
+     "kk": null,
+     "en": "Photos of Earth from space showed people how small and fragile our planet is."
+    },
+    "advanced": {
+     "ru": "«Голубой мрамор» (Аполлон‑17, 1972) — один из самых известных снимков. Камера ловит свет: выдержка — сколько света, фокус — резкость.",
+     "kk": null,
+     "en": "“Blue Marble” (Apollo 17, 1972) is among the most famous photos. A camera catches light: exposure is how much, focus is how sharp."
+    }
+   },
+   "law": {
+    "ru": "Факт: Земля светит отражённым светом Солнца",
+    "kk": null,
+    "en": "Fact: Earth shines with reflected sunlight"
+   }
+  },
+  {
+   "id": "loi",
+   "kind": "story",
+   "room": "cockpit",
+   "console": "pilot",
+   "minigame": "orbit",
+   "reward": 20,
+   "title": {
+    "ru": "Выход на орбиту Луны",
+    "kk": null,
+    "en": "Into lunar orbit"
+   },
+   "brief": {
+    "junior": {
+     "ru": "Корабль пролетает мимо Луны. Тормози, когда он у жёлтой метки — ближе всего к Луне. Несколько раз!",
+     "kk": null,
+     "en": "The ship swings past the Moon. Brake when it's at the yellow mark — closest to the Moon. Several times!"
+    },
+    "advanced": {
+     "ru": "Торможение в ближайшей точке (перицентре) уменьшает дальнюю точку орбиты. После нескольких тормозов орбита — почти круг.",
+     "kk": null,
+     "en": "Braking at the closest point lowers the far side of the orbit. After a few burns the orbit is nearly a circle."
+    }
+   },
+   "why": {
+    "junior": {
+     "ru": "Если не затормозить, Луна только изогнёт наш путь и мы улетим дальше. Тормоз превращает пролёт в орбиту.",
+     "kk": null,
+     "en": "Without braking the Moon only bends our path and we fly on. Braking turns a fly-by into an orbit."
+    },
+    "advanced": {
+     "ru": "Закон Кеплера: у планеты корабль летит быстрее, вдали — медленнее. Аполлоны тормозили за Луной, без связи с Землёй.",
+     "kk": null,
+     "en": "Kepler's law: near a planet a ship goes faster, far away slower. Apollo crews braked behind the Moon, with no link to Earth."
+    }
+   },
+   "law": {
+    "ru": "Закон Кеплера: ближе к планете — быстрее",
+    "kk": null,
+    "en": "Kepler's law: closer to the planet — faster"
+   }
+  },
+  {
+   "id": "transfer_lander",
+   "kind": "story",
+   "room": "airlock",
+   "console": "bags",
+   "minigame": "pack",
+   "reward": 18,
+   "title": {
+    "ru": "Сборы в посадочный модуль",
+    "kk": null,
+    "en": "Packing the lander"
+   },
+   "brief": {
+    "junior": {
+     "ru": "Собери сумку для Луны: кислород, вода и еда обязательны, остальное — самое полезное. Но не тяжелее лимита!",
+     "kk": null,
+     "en": "Pack the Moon bag: oxygen, water and food are a must, then the most useful things. Under the limit!"
+    },
+    "advanced": {
+     "ru": "Каждый килограмм требует топлива на посадку и взлёт. Формула Циолковского: больше масса — гораздо больше топлива.",
+     "kk": null,
+     "en": "Every kilogram needs fuel to land and take off. Tsiolkovsky's rocket equation: more mass needs much more fuel."
+    }
+   },
+   "why": {
+    "junior": {
+     "ru": "В космосе нужно выбирать: всё взять нельзя. Сначала то, без чего не выжить, потом — что поможет работе.",
+     "kk": null,
+     "en": "In space you must choose: you can't take everything. First what you can't live without, then what helps the work."
+    },
+    "advanced": {
+     "ru": "Уравнение Циолковского: Δv = u·ln(m₀/m₁). Лишний груз «съедает» запас скорости, поэтому каждую вещь взвешивают.",
+     "kk": null,
+     "en": "Tsiolkovsky's equation: Δv = u·ln(m₀/m₁). Extra cargo eats the speed budget, so every item is weighed."
+    }
+   },
+   "law": {
+    "ru": "Закон: чем тяжелее корабль, тем больше нужно топлива",
+    "kk": null,
+    "en": "Law: the heavier the ship, the more fuel it needs"
+   }
+  },
+  {
+   "id": "solar_flare",
+   "kind": "problem",
+   "room": "airlock",
+   "console": "bags",
+   "minigame": "shelter",
+   "reward": 16,
+   "timer": 60,
+   "penalty": {
+    "energy": 10,
+    "hull": 4
+   },
+   "title": {
+    "ru": "Солнечная вспышка!",
+    "kk": null,
+    "en": "Solar flare!"
+   },
+   "brief": {
+    "junior": {
+     "ru": "Солнце выбросило поток частиц! Закрой щели вокруг спальника мешками с водой и едой.",
+     "kk": null,
+     "en": "The Sun threw out a particle storm! Fill the gaps around the sleeping bag with water and food bags."
+    },
+    "advanced": {
+     "ru": "Частицы вспышки задерживает вещество с водородом — вода, еда, пластик. Металл от ударов частиц даёт вторичное излучение.",
+     "kk": null,
+     "en": "Flare particles are stopped by hydrogen-rich stuff — water, food, plastic. Metal hit by particles makes secondary radiation."
+    }
+   },
+   "advice": {
+    "ru": "ЦУП: «Экипаж получил лишнюю дозу. Отдыхайте больше».",
+    "kk": null,
+    "en": "Mission Control: “The crew got an extra dose. Rest more.”"
+   },
+   "why": {
+    "junior": {
+     "ru": "За пределами магнитного поля Земли вспышка опасна. Мешки с водой — лучший щит.",
+     "kk": null,
+     "en": "Beyond Earth's magnetic field a flare is dangerous. Water bags are the best shield."
+    },
+    "advanced": {
+     "ru": "Земля защищена магнитным полем и атмосферой. В полёте к Луне защиты нет — экипаж «Ориона» строит укрытие из груза.",
+     "kk": null,
+     "en": "Earth is shielded by its magnetic field and air. On the way to the Moon there's none — Orion crews build a shelter from cargo."
+    }
+   },
+   "law": {
+    "ru": "Факт: вода — лучший щит от излучения",
+    "kk": null,
+    "en": "Fact: water is the best radiation shield"
+   }
+  },
+  {
+   "id": "co2_filter",
+   "kind": "problem",
+   "room": "life_support",
+   "console": "co2",
+   "minigame": "adapter",
+   "reward": 18,
+   "timer": 75,
+   "penalty": {
+    "co2": 25
+   },
+   "fixes": {
+    "co2": 30
+   },
+   "title": {
+    "ru": "CO₂ растёт!",
+    "kk": null,
+    "en": "CO₂ is rising!"
+   },
+   "brief": {
+    "junior": {
+     "ru": "Квадратный фильтр не лезет в круглое гнездо! Собери переходник по шагам ЦУП.",
+     "kk": null,
+     "en": "The square filter doesn't fit the round socket! Build an adapter step by step."
+    },
+    "advanced": {
+     "ru": "Аполлон‑13: экипаж собрал переходник из пакета, картонки от обложки, скотча и шланга — по инструкции, придуманной на Земле за ночь.",
+     "kk": null,
+     "en": "Apollo 13: the crew built an adapter from a bag, a flight-plan cover, tape and a hose — from steps invented on Earth overnight."
+    }
+   },
+   "history": {
+    "ru": "история: Аполлон‑13, 1970",
+    "kk": null,
+    "en": "history: Apollo 13, 1970"
+   },
+   "advice": {
+    "ru": "ЦУП: «Повторяйте за нами шаг за шагом».",
+    "kk": null,
+    "en": "Mission Control: “Follow us step by step.”"
+   },
+   "why": {
+    "junior": {
+     "ru": "Мы выдыхаем углекислый газ. Если его не убирать, становится плохо. Фильтр с гидроксидом лития его поглощает.",
+     "kk": null,
+     "en": "We breathe out carbon dioxide. If it isn't removed, people get ill. A lithium hydroxide filter soaks it up."
+    },
+    "advanced": {
+     "ru": "CO₂ + LiOH → карбонат лития + вода: химическая реакция связывает газ. Изобретательность и командная работа спасли экипаж Аполлона‑13.",
+     "kk": null,
+     "en": "CO₂ + LiOH → lithium carbonate + water: a reaction locks the gas away. Ingenuity and teamwork saved Apollo 13."
+    }
+   },
+   "law": {
+    "ru": "Правило: углекислый газ нужно убирать из воздуха",
+    "kk": null,
+    "en": "Rule: carbon dioxide must be removed from the air"
+   }
+  },
+  {
+   "id": "overheat",
+   "kind": "problem",
+   "room": "engine",
+   "console": "radiator",
+   "minigame": "barbecue",
+   "reward": 16,
+   "timer": 70,
+   "penalty": {
+    "energy": 10,
+    "hull": 5
+   },
+   "title": {
+    "ru": "Одна сторона перегрелась",
+    "kk": null,
+    "en": "One side overheated"
+   },
+   "brief": {
+    "junior": {
+     "ru": "Солнце жарит один бок, а другой замерзает. Включи медленное вращение, чтобы оба бока были в зелёной зоне.",
+     "kk": null,
+     "en": "The Sun cooks one side while the other freezes. Start a slow roll so both sides are in the green."
+    },
+    "advanced": {
+     "ru": "«Режим барбекю»: Аполлоны медленно вращались, как шашлык, чтобы Солнце грело корабль равномерно.",
+     "kk": null,
+     "en": "“Barbecue mode”: Apollo ships rolled slowly, like a kebab, so the Sun warmed them evenly."
+    }
+   },
+   "history": {
+    "ru": "история: «барбекю» Аполлонов",
+    "kk": null,
+    "en": "history: the Apollo “barbecue roll”"
+   },
+   "advice": {
+    "ru": "ЦУП: «Часть приборов перегрелась. Энергии меньше».",
+    "kk": null,
+    "en": "Mission Control: “Some gear overheated. Less energy.”"
+   },
+   "why": {
+    "junior": {
+     "ru": "В космосе на солнце +120 °C, в тени −150 °C. Приборам нужна ровная температура.",
+     "kk": null,
+     "en": "In space it's +120 °C in the Sun and −150 °C in shade. Instruments need an even temperature."
+    },
+    "advanced": {
+     "ru": "В вакууме нет воздуха, тепло уходит только излучением. Вращение распределяет солнечное тепло — а слишком быстрое вращение тратит топливо.",
+     "kk": null,
+     "en": "In vacuum heat leaves only by radiation. Rolling spreads the Sun's heat — but spinning fast wastes fuel."
+    }
+   },
+   "law": {
+    "ru": "Закон: в вакууме тепло передаётся излучением",
+    "kk": null,
+    "en": "Law: in vacuum heat travels by radiation"
+   }
+  },
+  {
+   "id": "call_home",
+   "kind": "routine",
+   "room": "habitat",
+   "console": "call",
+   "minigame": "antenna",
+   "reward": 10,
+   "title": {
+    "ru": "Звонок семье",
+    "kk": null,
+    "en": "Call home"
+   },
+   "brief": {
+    "junior": {
+     "ru": "Наведи антенну на Землю и держи её, пока идёт звонок. Земля медленно уплывает!",
+     "kk": null,
+     "en": "Point the dish at Earth and hold it during the call. Earth slowly drifts!"
+    },
+    "advanced": {
+     "ru": "Направленная антенна собирает сигнал в узкий луч. Чуть отвёл — сигнал пропал.",
+     "kk": null,
+     "en": "A dish focuses the signal into a narrow beam. Move it a bit and the signal is gone."
+    }
+   },
+   "why": {
+    "junior": {
+     "ru": "Разговор с близкими помогает экипажу держаться в долгом полёте.",
+     "kk": null,
+     "en": "Talking to family helps the crew in a long flight."
+    },
+    "advanced": {
+     "ru": "Узкий луч летит далеко, но требует точного наведения. Антенны сети дальней космической связи NASA на Земле поворачиваются за кораблями.",
+     "kk": null,
+     "en": "A narrow beam reaches far but needs exact aim. NASA's Deep Space Network dishes turn to follow spacecraft."
+    }
+   },
+   "law": {
+    "ru": "Правило: направленная антенна должна смотреть точно на цель",
+    "kk": null,
+    "en": "Rule: a dish antenna must point exactly at its target"
+   }
+  }
+ ],
+ "days": [
+  {
+   "day": 1,
+   "title": {
+    "ru": "День 1. Старт и разгон",
+    "kk": null,
+    "en": "Day 1. Launch and the burn"
+   },
+   "scripted": [
+    "go_nogo",
+    "systems_check",
+    "tli_burn",
+    "pet_adopt",
+    "meal",
+    "exercise",
+    "asteroid_wave"
+   ],
+   "problems": [
+    "lightning_sce",
+    "space_sickness",
+    "toilet_fan",
+    "leak_patch"
+   ],
+   "fillers": [
+    "water_filter",
+    "comms",
+    "pet_feed"
+   ]
+  },
+  {
+   "day": 2,
+   "title": {
+    "ru": "День 2. К Луне",
+    "kk": null,
+    "en": "Day 2. To the Moon"
+   },
+   "scripted": [
+    "star_nav",
+    "course_correction",
+    "experiment",
+    "suit_check",
+    "asteroid_wave_2",
+    "photo_earth",
+    "loi",
+    "transfer_lander"
+   ],
+   "problems": [
+    "solar_flare",
+    "co2_filter",
+    "overheat",
+    "leak_patch"
+   ],
+   "fillers": [
+    "call_home",
+    "pet_feed",
+    "water_filter",
+    "comms"
+   ]
+  }
+ ]
 }

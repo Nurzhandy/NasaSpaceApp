@@ -108,7 +108,33 @@ pub struct CampaignState {
     last_problem: Option<String>,
     next_uid: u32,
     breathers: u32,
+    /// the "why it matters" window after a finished task
+    #[serde(default)]
+    pub lesson: Option<Lesson>,
+    /// tasks whose law the crew has learned (ids, in order)
+    #[serde(default)]
+    pub laws: Vec<String>,
+    /// the ship's pet, once adopted
+    #[serde(default)]
+    pub pet: Option<Pet>,
 }
+
+/// A finished task: what was earned and why the job matters.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Lesson {
+    pub id: String,
+    pub coins: u32,
+    pub bonus: u32,
+}
+
+/// The ship's pet: `kind` indexes `minigame::PETS`; a happy pet (mood ≥ 50) gives the crew a bonus.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Pet {
+    pub kind: u8,
+    pub mood: f32,
+    pub owner: u8,
+}
+pub const PET_BONUS: u32 = 2;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum CampaignEvent {
@@ -146,6 +172,8 @@ pub enum CampaignCommand {
     DialogSkip,
     CloseCard,
     CloseBreather,
+    /// close the "why it matters" window
+    CloseLesson,
     /// after game over: back to the start of the day
     RestartDay,
     /// creative mode: skip to the next day
@@ -206,6 +234,9 @@ impl Campaign {
             last_problem: None,
             next_uid: 1,
             breathers: 0,
+            lesson: None,
+            laws: vec![],
+            pet: None,
         };
         let mut c = Campaign { checkpoint: Checkpoint(s.clone()), s, content: content.clone(), rng: Rng::new(cfg.seed), mirror: None, outbox: vec![] };
         let _ = c.start_day(1);
@@ -340,7 +371,7 @@ impl Campaign {
 
     /// Modal things (dialog, card, breather) stop the clock.
     pub fn frozen(&self) -> bool {
-        self.s.paused || self.s.dialog.is_some() || self.s.card.is_some() || self.s.breather.is_some()
+        self.s.paused || self.s.dialog.is_some() || self.s.card.is_some() || self.s.breather.is_some() || self.s.lesson.is_some()
     }
 
     pub fn tick(&mut self, dt: f32) -> Vec<CampaignEvent> {
@@ -357,6 +388,24 @@ impl Campaign {
         // ship systems drift (one game minute per real second / 60)
         let drift = if self.s.cfg.has_role(Role::LifeSupport) { 0.7 } else { 1.0 };
         self.s.ship.tick(dt / 60.0, drift, creative);
+        // the pet gets hungry (about 6 minutes from full to sad)
+        if let Some(p) = self.s.pet.as_mut() {
+            p.mood = (p.mood - dt * 100.0 / 360.0).max(0.0);
+        }
+        // mini-game clocks (moving targets, the burn, the rhythm…)
+        let mut finished = vec![];
+        for t in self.s.tasks.iter_mut() {
+            if let (Some(w), Some(m)) = (t.worker, t.mini.as_mut()) {
+                match m.tick(dt) {
+                    Outcome::Done => finished.push((w, t.uid)),
+                    Outcome::Mistake => ev.push(CampaignEvent::Mistake),
+                    Outcome::Fine => {}
+                }
+            }
+        }
+        for (w, uid) in finished {
+            ev.extend(self.complete(w, uid, 0));
+        }
         // problem timers
         let mut failed = vec![];
         for t in self.s.tasks.iter_mut() {
@@ -399,7 +448,7 @@ impl Campaign {
         self.s.calm_t += dt;
         if !creative && self.s.field.is_none() && self.s.calm_t > self.calm_gap() && self.urgent() < self.urgent_limit() {
             let pool: Vec<String> = self.content.day(day).map(|d| d.problems.clone()).unwrap_or_default();
-            let options: Vec<&String> = pool.iter().filter(|p| Some(*p) != self.s.last_problem.as_ref() && !self.s.tasks.iter().any(|t| &&t.id == p)).collect();
+            let options: Vec<&String> = pool.iter().filter(|p| Some(*p) != self.s.last_problem.as_ref() && !self.s.tasks.iter().any(|t| &&t.id == p) && !self.s.done.contains(p)).collect();
             if !options.is_empty() {
                 let id = options[self.rng.below(options.len())].clone();
                 self.s.last_problem = Some(id.clone());
@@ -412,7 +461,15 @@ impl Campaign {
             self.s.idle_t += dt;
             self.s.score.max_idle = self.s.score.max_idle.max(self.s.idle_t);
             if self.s.idle_t >= IDLE_GIVE {
-                let fillers: Vec<String> = self.content.day(day).map(|d| d.fillers.clone()).unwrap_or_default();
+                let all: Vec<String> = self.content.day(day).map(|d| d.fillers.clone()).unwrap_or_default();
+                // fresh jobs first; the pet's jobs only when they make sense
+                let ok = |id: &String, s: &CampaignState| match id.as_str() {
+                    "pet_adopt" => s.pet.is_none(),
+                    "pet_feed" => s.pet.as_ref().is_some_and(|p| p.mood < 70.0),
+                    _ => true,
+                };
+                let fresh: Vec<String> = all.iter().filter(|f| ok(f, &self.s) && !self.s.done.contains(f)).cloned().collect();
+                let fillers: Vec<String> = if fresh.is_empty() { all.iter().filter(|f| ok(f, &self.s)).cloned().collect() } else { fresh };
                 if !fillers.is_empty() {
                     let id = fillers[self.rng.below(fillers.len())].clone();
                     ev.extend(self.offer(&id, false, None));
@@ -511,6 +568,23 @@ impl Campaign {
         if t.room == "lab" && self.s.cfg.has_role(Role::Researcher) {
             coins += coins / 2;
         }
+        // the pet: adopted here, fed here, and a happy pet cheers the crew up
+        if let Some(k) = t.mini.as_ref().and_then(|m| m.picked_pet()) {
+            self.s.pet = Some(Pet { kind: k, mood: 100.0, owner: worker });
+        }
+        if t.mini.as_ref().is_some_and(|m| m.kind == crate::minigame::MiniKind::PetCare) {
+            if let Some(p) = self.s.pet.as_mut() {
+                p.mood = 100.0;
+            }
+        }
+        let bonus = if self.s.pet.as_ref().is_some_and(|p| p.mood >= 50.0) && t.kind != TaskKind::Asteroids { PET_BONUS } else { 0 };
+        coins += bonus;
+        if def.as_ref().is_some_and(|d| d.why.is_some()) {
+            self.s.lesson = Some(Lesson { id: t.id.clone(), coins, bonus });
+        }
+        if def.as_ref().is_some_and(|d| d.law.is_some()) && !self.s.laws.contains(&t.id) {
+            self.s.laws.push(t.id.clone());
+        }
         if let Some(d) = &def {
             self.s.ship.change(&d.fixes, 1.0);
         }
@@ -573,6 +647,10 @@ impl Campaign {
                 self.s.breather.take().ok_or(CampaignRefusal::NotNow)?;
                 return Ok(vec![]);
             }
+            CampaignCommand::CloseLesson => {
+                self.s.lesson.take().ok_or(CampaignRefusal::NotNow)?;
+                return Ok(vec![]);
+            }
             CampaignCommand::RestartDay => {
                 let Phase::GameOver(_) = self.s.phase else { return Err(CampaignRefusal::NotNow) };
                 let cp = self.checkpoint.0.clone();
@@ -629,6 +707,9 @@ impl Campaign {
                 t.worker = Some(p as u8);
                 if t.mini.is_none() {
                     t.mini = new_mini;
+                    if let (Some(m), Some(p)) = (t.mini.as_mut(), self.s.pet.as_ref()) {
+                        m.set_pet(p.kind);
+                    }
                 }
                 Ok(ev)
             }
@@ -704,6 +785,7 @@ mod tests {
             }
             let _ = g.apply(0, CampaignCommand::CloseCard);
             let _ = g.apply(0, CampaignCommand::CloseBreather);
+            let _ = g.apply(0, CampaignCommand::CloseLesson);
             if let Some(f) = &g.state().field {
                 if bot.careful {
                     if let Some(r) = f.rocks.iter().filter(|r| r.x > f.ship.0).min_by(|a, b| a.x.total_cmp(&b.x)) {

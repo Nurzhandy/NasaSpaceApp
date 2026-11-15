@@ -1,40 +1,407 @@
 {
-  "name": { "ru": "Корабль «Аврора» (вымышленный, больше настоящего «Ориона»)", "kk": null, "en": "Ship “Aurora” (fictional, roomier than the real Orion)" },
-  "start": [3.5, 7.5],
-  "rooms": [
-    { "id": "cockpit", "name": { "ru": "Кабина", "kk": null, "en": "Cockpit" }, "icon": "rocket", "x": 0, "y": 10, "w": 7, "h": 5,
-      "consoles": [
-        { "id": "pilot", "x": 2, "y": 13, "name": { "ru": "Пульт пилота", "kk": null, "en": "Pilot console" }, "icon": "gamepad" },
-        { "id": "comms", "x": 5, "y": 12, "name": { "ru": "Связь", "kk": null, "en": "Radio" }, "icon": "radio" } ] },
-    { "id": "observatory", "name": { "ru": "Обсерватория", "kk": null, "en": "Observatory" }, "icon": "star", "x": 7, "y": 10, "w": 7, "h": 5,
-      "consoles": [
-        { "id": "window", "x": 10, "y": 13, "name": { "ru": "Иллюминатор", "kk": null, "en": "Window" }, "icon": "earth" },
-        { "id": "sextant", "x": 12, "y": 11, "name": { "ru": "Секстант", "kk": null, "en": "Sextant" }, "icon": "star" } ] },
-    { "id": "lab", "name": { "ru": "Лаборатория", "kk": null, "en": "Lab" }, "icon": "science", "x": 14, "y": 10, "w": 7, "h": 5,
-      "consoles": [ { "id": "bench", "x": 17, "y": 13, "name": { "ru": "Стол опытов", "kk": null, "en": "Lab bench" }, "icon": "science" } ] },
-    { "id": "habitat", "name": { "ru": "Жилой отсек", "kk": null, "en": "Living quarters" }, "icon": "house", "x": 0, "y": 5, "w": 7, "h": 5,
-      "consoles": [
-        { "id": "galley", "x": 1, "y": 8, "name": { "ru": "Кухня", "kk": null, "en": "Galley" }, "icon": "plate" },
-        { "id": "call", "x": 5, "y": 6, "name": { "ru": "Видеосвязь", "kk": null, "en": "Video call" }, "icon": "s_call" } ] },
-    { "id": "gym", "name": { "ru": "Спортзал", "kk": null, "en": "Gym" }, "icon": "strong", "x": 7, "y": 5, "w": 7, "h": 5,
-      "consoles": [ { "id": "treadmill", "x": 10, "y": 8, "name": { "ru": "Тренажёр", "kk": null, "en": "Exercise machine" }, "icon": "run" } ] },
-    { "id": "life_support", "name": { "ru": "Жизнеобеспечение", "kk": null, "en": "Life support" }, "icon": "oxygen", "x": 14, "y": 5, "w": 7, "h": 5,
-      "consoles": [
-        { "id": "co2", "x": 17, "y": 8, "name": { "ru": "Фильтр CO₂", "kk": null, "en": "CO₂ scrubber" }, "icon": "wind" },
-        { "id": "water", "x": 19, "y": 6, "name": { "ru": "Вода", "kk": null, "en": "Water" }, "icon": "droplet" } ] },
-    { "id": "airlock", "name": { "ru": "Склад и шлюз", "kk": null, "en": "Storage and airlock" }, "icon": "box", "x": 0, "y": 0, "w": 7, "h": 5,
-      "consoles": [
-        { "id": "suits", "x": 2, "y": 3, "name": { "ru": "Скафандры", "kk": null, "en": "Spacesuits" }, "icon": "astronaut" },
-        { "id": "bags", "x": 5, "y": 1, "name": { "ru": "Сумки с грузом", "kk": null, "en": "Cargo bags" }, "icon": "box" } ] },
-    { "id": "toilet", "name": { "ru": "Туалет", "kk": null, "en": "Toilet" }, "icon": "droplet", "x": 7, "y": 0, "w": 7, "h": 5,
-      "consoles": [ { "id": "toilet", "x": 10, "y": 3, "name": { "ru": "Космический туалет", "kk": null, "en": "Space toilet" }, "icon": "wrench" } ] },
-    { "id": "engine", "name": { "ru": "Двигательный отсек", "kk": null, "en": "Engine room" }, "icon": "flash", "x": 14, "y": 0, "w": 7, "h": 5,
-      "consoles": [
-        { "id": "thrusters", "x": 17, "y": 3, "name": { "ru": "Двигатели", "kk": null, "en": "Thrusters" }, "icon": "flash" },
-        { "id": "radiator", "x": 19, "y": 1, "name": { "ru": "Терморегуляция", "kk": null, "en": "Thermal control" }, "icon": "sun" } ] }
+ "name": {
+  "ru": "Корабль «Аврора» (вымышленный, просторнее настоящего «Ориона»)",
+  "kk": null,
+  "en": "Ship “Aurora” (fictional, roomier than the real Orion)"
+ },
+ "start": [
+  3.5,
+  7.5
+ ],
+ "rooms": [
+  {
+   "id": "cockpit",
+   "name": {
+    "ru": "Кабина",
+    "kk": null,
+    "en": "Cockpit"
+   },
+   "icon": "rocket",
+   "x": 0,
+   "y": 10,
+   "w": 7,
+   "h": 5,
+   "consoles": [
+    {
+     "id": "pilot",
+     "x": 2,
+     "y": 13,
+     "name": {
+      "ru": "Пульт пилота",
+      "kk": null,
+      "en": "Pilot console"
+     },
+     "icon": "gamepad"
+    },
+    {
+     "id": "comms",
+     "x": 5,
+     "y": 12,
+     "name": {
+      "ru": "Связь",
+      "kk": null,
+      "en": "Radio"
+     },
+     "icon": "radio"
+    },
+    {
+     "id": "panel",
+     "x": 6,
+     "y": 11,
+     "name": {
+      "ru": "Щит питания",
+      "kk": null,
+      "en": "Power panel"
+     },
+     "icon": "power"
+    }
+   ]
+  },
+  {
+   "id": "observatory",
+   "name": {
+    "ru": "Обсерватория",
+    "kk": null,
+    "en": "Observatory"
+   },
+   "icon": "star",
+   "x": 7,
+   "y": 10,
+   "w": 7,
+   "h": 5,
+   "consoles": [
+    {
+     "id": "window",
+     "x": 10,
+     "y": 13,
+     "name": {
+      "ru": "Иллюминатор",
+      "kk": null,
+      "en": "Window"
+     },
+     "icon": "earth"
+    },
+    {
+     "id": "sextant",
+     "x": 12,
+     "y": 11,
+     "name": {
+      "ru": "Секстант",
+      "kk": null,
+      "en": "Sextant"
+     },
+     "icon": "star"
+    }
+   ]
+  },
+  {
+   "id": "lab",
+   "name": {
+    "ru": "Лаборатория",
+    "kk": null,
+    "en": "Lab"
+   },
+   "icon": "science",
+   "x": 14,
+   "y": 10,
+   "w": 7,
+   "h": 5,
+   "consoles": [
+    {
+     "id": "bench",
+     "x": 17,
+     "y": 13,
+     "name": {
+      "ru": "Стол опытов",
+      "kk": null,
+      "en": "Lab bench"
+     },
+     "icon": "science"
+    }
+   ]
+  },
+  {
+   "id": "habitat",
+   "name": {
+    "ru": "Жилой отсек",
+    "kk": null,
+    "en": "Living quarters"
+   },
+   "icon": "house",
+   "x": 0,
+   "y": 5,
+   "w": 7,
+   "h": 5,
+   "consoles": [
+    {
+     "id": "galley",
+     "x": 1,
+     "y": 8,
+     "name": {
+      "ru": "Кухня",
+      "kk": null,
+      "en": "Galley"
+     },
+     "icon": "plate"
+    },
+    {
+     "id": "call",
+     "x": 5,
+     "y": 6,
+     "name": {
+      "ru": "Видеосвязь",
+      "kk": null,
+      "en": "Video call"
+     },
+     "icon": "s_call"
+    },
+    {
+     "id": "medkit",
+     "x": 1,
+     "y": 6,
+     "name": {
+      "ru": "Аптечка",
+      "kk": null,
+      "en": "Medkit"
+     },
+     "icon": "heart"
+    },
+    {
+     "id": "petbed",
+     "x": 3,
+     "y": 8,
+     "name": {
+      "ru": "Уголок питомца",
+      "kk": null,
+      "en": "Pet corner"
+     },
+     "icon": "cat"
+    }
+   ]
+  },
+  {
+   "id": "gym",
+   "name": {
+    "ru": "Спортзал",
+    "kk": null,
+    "en": "Gym"
+   },
+   "icon": "strong",
+   "x": 7,
+   "y": 5,
+   "w": 7,
+   "h": 5,
+   "consoles": [
+    {
+     "id": "treadmill",
+     "x": 10,
+     "y": 8,
+     "name": {
+      "ru": "Тренажёр",
+      "kk": null,
+      "en": "Exercise machine"
+     },
+     "icon": "run"
+    }
+   ]
+  },
+  {
+   "id": "life_support",
+   "name": {
+    "ru": "Жизнеобеспечение",
+    "kk": null,
+    "en": "Life support"
+   },
+   "icon": "oxygen",
+   "x": 14,
+   "y": 5,
+   "w": 7,
+   "h": 5,
+   "consoles": [
+    {
+     "id": "co2",
+     "x": 17,
+     "y": 8,
+     "name": {
+      "ru": "Фильтр CO₂",
+      "kk": null,
+      "en": "CO₂ scrubber"
+     },
+     "icon": "wind"
+    },
+    {
+     "id": "water",
+     "x": 19,
+     "y": 6,
+     "name": {
+      "ru": "Вода",
+      "kk": null,
+      "en": "Water"
+     },
+     "icon": "droplet"
+    }
+   ]
+  },
+  {
+   "id": "airlock",
+   "name": {
+    "ru": "Склад и шлюз",
+    "kk": null,
+    "en": "Storage and airlock"
+   },
+   "icon": "box",
+   "x": 0,
+   "y": 0,
+   "w": 7,
+   "h": 5,
+   "consoles": [
+    {
+     "id": "suits",
+     "x": 2,
+     "y": 3,
+     "name": {
+      "ru": "Скафандры",
+      "kk": null,
+      "en": "Spacesuits"
+     },
+     "icon": "astronaut"
+    },
+    {
+     "id": "bags",
+     "x": 5,
+     "y": 1,
+     "name": {
+      "ru": "Склад: мешки с водой и грузом",
+      "kk": null,
+      "en": "Store: water and cargo bags"
+     },
+     "icon": "box"
+    },
+    {
+     "id": "hull",
+     "x": 1,
+     "y": 1,
+     "name": {
+      "ru": "Ремкомплект корпуса",
+      "kk": null,
+      "en": "Hull repair kit"
+     },
+     "icon": "hammer"
+    }
+   ]
+  },
+  {
+   "id": "toilet",
+   "name": {
+    "ru": "Туалет",
+    "kk": null,
+    "en": "Toilet"
+   },
+   "icon": "droplet",
+   "x": 7,
+   "y": 0,
+   "w": 7,
+   "h": 5,
+   "consoles": [
+    {
+     "id": "toilet",
+     "x": 10,
+     "y": 3,
+     "name": {
+      "ru": "Вентилятор туалета",
+      "kk": null,
+      "en": "Toilet fan"
+     },
+     "icon": "wrench"
+    }
+   ]
+  },
+  {
+   "id": "engine",
+   "name": {
+    "ru": "Двигательный отсек",
+    "kk": null,
+    "en": "Engine room"
+   },
+   "icon": "flash",
+   "x": 14,
+   "y": 0,
+   "w": 7,
+   "h": 5,
+   "consoles": [
+    {
+     "id": "thrusters",
+     "x": 17,
+     "y": 3,
+     "name": {
+      "ru": "Двигатели",
+      "kk": null,
+      "en": "Thrusters"
+     },
+     "icon": "flash"
+    },
+    {
+     "id": "radiator",
+     "x": 19,
+     "y": 1,
+     "name": {
+      "ru": "Терморегуляция",
+      "kk": null,
+      "en": "Thermal control"
+     },
+     "icon": "sun"
+    }
+   ]
+  }
+ ],
+ "doors": [
+  [
+   7.0,
+   2.5
   ],
-  "doors": [
-    [7.0, 2.5], [7.0, 7.5], [7.0, 12.5], [14.0, 2.5], [14.0, 7.5], [14.0, 12.5],
-    [3.5, 5.0], [10.5, 5.0], [17.5, 5.0], [3.5, 10.0], [10.5, 10.0], [17.5, 10.0]
+  [
+   7.0,
+   7.5
+  ],
+  [
+   7.0,
+   12.5
+  ],
+  [
+   14.0,
+   2.5
+  ],
+  [
+   14.0,
+   7.5
+  ],
+  [
+   14.0,
+   12.5
+  ],
+  [
+   3.5,
+   5.0
+  ],
+  [
+   10.5,
+   5.0
+  ],
+  [
+   17.5,
+   5.0
+  ],
+  [
+   3.5,
+   10.0
+  ],
+  [
+   10.5,
+   10.0
+  ],
+  [
+   17.5,
+   10.0
   ]
+ ]
 }

@@ -65,3 +65,30 @@ pub fn breather(p: &mut ChildSpawnerCommands, art: &Art, b: Breather, l: Lang) {
         kit::button(x, art, Action::CloseBreather, 1, "play", l.pick("Дальше", "Continue"), true);
     });
 }
+
+/// After every task: what it gave, why it matters for the ship or the planet, and the law it shows.
+pub fn lesson(p: &mut ChildSpawnerCommands, art: &Art, c: &Content, ls: &ja_core::campaign::Lesson, laws: usize, level: Level, l: Lang) {
+    let Some(t) = c.task(&ls.id) else { return };
+    p.spawn(kit::panel()).insert(Node { width: Val::Px(700.0), flex_direction: FlexDirection::Column, row_gap: Val::Px(12.0), padding: UiRect::all(Val::Px(22.0)), border: UiRect::all(Val::Px(3.0)), ..default() }).with_children(|b| {
+        b.spawn(kit::row(12.0)).with_children(|r| {
+            kit::icon(r, art, "check", 46.0);
+            r.spawn(kit::col(2.0)).with_children(|x| {
+                kit::text(x, format!("{} {}", l.pick("Готово:", "Done:"), t.title.get(l)), &art.head, 26.0, kit::C_GOOD);
+                let bonus = if ls.bonus > 0 { format!("  ({} +{})", l.pick("питомец", "pet"), ls.bonus) } else { String::new() };
+                kit::text(x, format!("+{} {}{bonus}", ls.coins, l.pick("монет в бюджет экспедиции", "coins to the expedition budget")), &art.body, 17.0, C_ACCENT);
+            });
+        });
+        if let Some(w) = &t.why {
+            kit::text(b, l.pick("Почему это важно", "Why it matters"), &art.head, 19.0, C_TEXT);
+            kit::wrap_text(b, w.get(level, l), &art.body, 18.0, C_TEXT, 650.0);
+        }
+        if let Some(law) = &t.law {
+            b.spawn((Node { flex_direction: FlexDirection::Row, column_gap: Val::Px(10.0), align_items: AlignItems::Center, padding: UiRect::all(Val::Px(10.0)), ..default() }, BackgroundColor(Color::srgba(1.0, 0.85, 0.3, 0.14)), BorderRadius::all(Val::Px(8.0)))).with_children(|x| {
+                kit::icon(x, art, "book", 34.0);
+                kit::wrap_text(x, law.get(l), &art.head, 18.0, C_ACCENT, 560.0);
+            });
+            kit::text(b, format!("{} {laws}", l.pick("В журнале законов:", "In the law log:")), &art.body, 14.0, C_MUTED);
+        }
+        kit::button(b, art, Action::CloseLesson, 1, "check", l.pick("Понятно!", "Got it!"), true);
+    });
+}

@@ -146,6 +146,12 @@ pub struct ShipTask {
     pub fixes: Penalty,
     #[serde(default)]
     pub draft: bool,
+    /// shown when the task is done: why this matters for the ship or the planet
+    #[serde(default)]
+    pub why: Option<LevelText>,
+    /// the law or rule this task shows (collected in the crew's notebook)
+    #[serde(default)]
+    pub law: Option<Text>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -540,10 +546,14 @@ mod tests {
             Err(errs) => panic!("content errors:\n{}", errs.iter().map(|e| e.to_string()).collect::<Vec<_>>().join("\n")),
         };
         assert!(c.ship.as_ref().is_some_and(|s| s.rooms.len() == 9), "nine ship rooms");
-        assert!(c.days.len() >= 4, "four flight days");
+        assert_eq!(c.days.len(), 2, "two flight days");
         assert!(c.cards.len() >= 6);
         let kinds: HashSet<MiniKind> = c.tasks.iter().filter_map(|t| t.minigame).collect();
-        assert_eq!(kinds.len(), 6, "all six mini-game types are used");
+        assert_eq!(kinds.len(), crate::minigame::ALL_KINDS.len(), "every mini-game type is used");
+        // every task has its own game (no repeats) and explains why it matters
+        let with_game: Vec<_> = c.tasks.iter().filter_map(|t| t.minigame).collect();
+        assert_eq!(with_game.len(), kinds.len(), "one game per task, no repeats");
+        assert!(c.tasks.iter().all(|t| t.why.is_some() && t.law.is_some()), "every task says why it matters");
         let missing = missing_kk(&c);
         println!("content report: {} texts without Kazakh (shown in Russian)", missing.len());
     }

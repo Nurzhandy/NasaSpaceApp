@@ -61,6 +61,8 @@ pub enum Action {
     DialogSkip,
     CloseCard,
     CloseBreather,
+    /// close the "why it matters" window after a task
+    CloseLesson,
     RestartDay,
     NextDay,
     ToMoon,
