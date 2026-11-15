@@ -365,6 +365,9 @@ fn ship_actions(mut acts: EventReader<Act>, mut camp: ResMut<Camp>, mut ui: ResM
         }
     }
     for Act(a) in acts.read() {
+        if matches!(a, Action::ToMoon) {
+            info!("ship: ToMoon arrived");
+        }
         let r = match *a {
             Action::Mini(uid, input) => camp.0.apply(player, CampaignCommand::Mini { uid, input }),
             Action::CloseTask => {
@@ -392,10 +395,12 @@ fn ship_actions(mut acts: EventReader<Act>, mut camp: ResMut<Camp>, mut ui: ResM
             }
             Action::ToMoon if camp.0.is_mirror() || net.local_idx().is_some_and(|i| i != 0) => {
                 // only the host flies the lander; the others follow when the base starts
+                info!("ship: to the Moon refused (mirror {}, seat {:?})", camp.0.is_mirror(), net.local_idx());
                 play.write(Play("bad"));
                 continue;
             }
             Action::ToMoon => {
+                info!("ship: to the Moon (phase {:?})", camp.0.state().phase);
                 // into the lander: part B's landing, then survival on the Moon
                 let _ = camp.0.apply(0, CampaignCommand::Landed);
                 setup.map = ja_core::MapId::Moon;
@@ -628,6 +633,7 @@ fn hud(mut commands: Commands, camp: Res<Camp>, art: Res<Art>, prof: Res<Prof>, 
             for (i, r) in st.cfg.roles.iter().enumerate().take(st.cfg.players as usize) {
                 let Some(r) = r else { continue };
                 let (icon, ru, en, bru, ben) = match r {
+                    ja_core::Role::None => continue,
                     ja_core::Role::Pilot => ("rocket", "пилот", "pilot", "удары астероидов слабее", "asteroid hits are softer"),
                     ja_core::Role::Engineer => ("wrench", "инженер", "engineer", "больше времени на ремонт", "more time for repairs"),
                     ja_core::Role::Researcher => ("science", "исследователь", "researcher", "+50% монет в лаборатории", "+50% coins in the lab"),
@@ -940,7 +946,7 @@ fn ship_test(
     mut run: Local<TestRun>,
     mut acts: EventWriter<Act>,
     state: Res<State<AppState>>,
-    camp: Option<ResMut<Camp>>,
+    mut camp: Option<ResMut<Camp>>,
     ui: Option<ResMut<ShipUi>>,
     mut speed: ResMut<Speed>,
     mut crew: Query<&mut Crew>,
@@ -958,6 +964,14 @@ fn ship_test(
             commands.spawn(bevy::render::view::screenshot::Screenshot::primary_window()).observe(bevy::render::view::screenshot::save_to_disk(d.join(format!("{name}.png"))));
         }
     };
+    // JA_SHIP_SKIP=1: straight to lunar orbit (checks the hand-over to part B quickly)
+    if run.step == 1 && std::env::var_os("JA_SHIP_SKIP").is_some() && *state.get() == AppState::Ship {
+        if let Some(c) = camp.as_mut() {
+            if c.0.state().phase != Phase::Landing && !matches!(c.0.state().phase, Phase::Moon { .. }) {
+                c.0.skip_to_landing();
+            }
+        }
+    }
     if run.step == 0 {
         if run.t > 1.0 {
             acts.write(Act(Action::StartExpedition));

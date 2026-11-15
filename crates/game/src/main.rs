@@ -1,4 +1,4 @@
-//! Junior Astronaut: Outpost — 2D pixel-art desktop game (part B of docs/PLAN_2D.md).
+//! SPACE EXPLORERS — 2D pixel-art desktop game (docs/PLAN_V2.md).
 //! Everything visible and audible lives here; the rules come from `ja-core` (part A).
 
 mod art;
@@ -14,12 +14,13 @@ mod camera;
 mod hud;
 mod kit;
 mod landing;
-mod menu;
 mod net;
 mod player;
 mod save;
+mod screens;
 mod story;
 mod survival_ui;
+mod touch;
 mod tour;
 mod windows;
 mod world;
@@ -46,8 +47,17 @@ pub enum AppState {
     /// landing on the Moon: choose a site, fly down (landing.rs)
     Landing,
     Shop,
-    Badges,
+    /// six achievement directions + mission patches
+    Achievements,
     Info,
+    /// choose / create / delete a profile
+    Profiles,
+    /// the active profile: level, stars, history
+    ProfilePage,
+    /// look and expedition role
+    Character,
+    Inventory,
+    Settings,
     /// network game: create or join (net.rs)
     Lobby,
     /// the flight to the Moon (part A, ship/)
@@ -73,10 +83,16 @@ pub struct Setup {
     /// landing site and the coins the landing earned (survival)
     pub site: u8,
     pub landing_coins: u32,
+    /// crew roles for the next expedition (player 1 takes the profile's role)
+    pub roles: [ja_core::Role; 2],
+    /// achievement tiers reached since the expedition started (landing + mission)
+    pub new_tiers: Vec<(ja_core::Track, u8)>,
+    /// profile waiting for the second "delete" press
+    pub confirm_delete: Option<usize>,
 }
 impl Default for Setup {
     fn default() -> Self {
-        Self { map: MapId::Moon, coop: false, live: true, plan: 0, shop_tab: 0, refresh: 0, mode: ja_core::Mode::Survival, site: 1, landing_coins: 0 }
+        Self { map: MapId::Moon, coop: false, live: true, plan: 0, shop_tab: 0, refresh: 0, mode: ja_core::Mode::Survival, site: 1, landing_coins: 0, roles: [ja_core::Role::None; 2], new_tiers: vec![], confirm_delete: None }
     }
 }
 
@@ -148,8 +164,8 @@ fn main() {
                 .set(AssetPlugin { file_path: assets_dir(), meta_check: bevy::asset::AssetMetaCheck::Never, ..default() }),
         )
         .insert_resource(ClearColor(Color::srgb(0.03, 0.03, 0.09)))
+        .insert_resource(Music(profile.music))
         .insert_resource(Prof(profile))
-        .insert_resource(Music(true))
         .insert_resource(Sky { weather: Weather::archive(), loading: true })
         .insert_resource(Speed(1.0))
         .init_resource::<Setup>()
@@ -158,8 +174,9 @@ fn main() {
         .configure_sets(Update, (Set::Input, Set::Logic, Set::View).chain())
         .add_systems(Startup, (art::load, start_weather, spawn_camera))
         .add_systems(Update, poll_weather)
-        .add_plugins((kit::KitPlugin, audio::AudioFx, menu::MenuPlugin, world::WorldPlugin, player::PlayerPlugin, camera::CameraPlugin, build::BuildPlugin, hud::HudPlugin, windows::WindowsPlugin, tour::TourPlugin, save::SavePlugin))
-        .add_plugins((story::StoryPlugin, net::NetPlugin, landing::LandingPlugin, survival_ui::SurvivalUiPlugin, ship::ShipPlugin, ship::ShipTestPlugin, encyclopedia::EncyclopediaPlugin))
+        .add_plugins((kit::KitPlugin, audio::AudioFx, screens::ScreensPlugin, touch::TouchPlugin))
+        .add_plugins((world::WorldPlugin, player::PlayerPlugin, camera::CameraPlugin, build::BuildPlugin, hud::HudPlugin, windows::WindowsPlugin, tour::TourPlugin, save::SavePlugin, story::StoryPlugin, net::NetPlugin, landing::LandingPlugin, survival_ui::SurvivalUiPlugin))
+        .add_plugins((ship::ShipPlugin, ship::ShipTestPlugin, encyclopedia::EncyclopediaPlugin))
         .add_systems(OnEnter(AppState::Playing), start_mission)
         .run();
 }

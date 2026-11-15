@@ -4,7 +4,7 @@
 use crate::art::Art;
 use crate::{AppState, Set};
 use ja_core::data::SkinSlot;
-use ja_core::{MapId, MiniInput, ModuleId};
+use ja_core::{Lang, MapId, MiniInput, ModuleId, Role};
 use bevy::prelude::*;
 
 pub const C_BG: Color = Color::srgba(0.07, 0.08, 0.2, 0.94);
@@ -90,6 +90,29 @@ pub enum Action {
     /// survival upgrades window
     Upgrades,
     BuyUpgrade(u8),
+    /// profiles (screens/profiles.rs)
+    SelectProfile(u8),
+    NewProfile,
+    DeleteProfile(u8),
+    /// character: callsign, its number, the profile's role; player 2's role on the expedition screen
+    Callsign(i8),
+    Tag(i8),
+    SetRole(Role),
+    CycleRole2,
+    /// settings
+    SetLang(Lang),
+    ToggleFullscreen,
+    SetTouch(u8),
+}
+
+/// Interface text from `assets/content/ui.json` (RU / KK / EN).
+pub fn tr(l: Lang, key: &'static str) -> &'static str {
+    ja_core::ui_text::t(key, l)
+}
+
+/// Interface text with `{name}` placeholders.
+pub fn trf(l: Lang, key: &'static str, args: &[(&str, &str)]) -> String {
+    ja_core::ui_text::tf(key, l, args)
 }
 
 #[derive(Event, Clone, Copy, Debug)]
@@ -137,7 +160,7 @@ impl Plugin for KitPlugin {
     }
 }
 
-fn read_inputs(keys: Res<ButtonInput<KeyCode>>, pads: Query<(Entity, &Gamepad)>, mut inputs: ResMut<Inputs>, setup: Res<crate::Setup>, state: Res<State<AppState>>, net: Res<crate::net::Net>) {
+pub(crate) fn read_inputs(keys: Res<ButtonInput<KeyCode>>, pads: Query<(Entity, &Gamepad)>, mut inputs: ResMut<Inputs>, setup: Res<crate::Setup>, state: Res<State<AppState>>, net: Res<crate::net::Net>, touch: Res<crate::touch::TouchPad>) {
     let ax = |n: bool, p: bool| (p as i32 - n as i32) as f32;
     let k = |c: KeyCode| keys.pressed(c);
     let j = |c: KeyCode| keys.just_pressed(c);
@@ -190,6 +213,12 @@ fn read_inputs(keys: Res<ButtonInput<KeyCode>>, pads: Query<(Entity, &Gamepad)>,
         p.next |= g.just_pressed(GamepadButton::RightTrigger);
         p.nav += Vec2::new(ax(g.just_pressed(GamepadButton::DPadLeft), g.just_pressed(GamepadButton::DPadRight)), ax(g.just_pressed(GamepadButton::DPadDown), g.just_pressed(GamepadButton::DPadUp)));
     }
+    // touch controls drive this computer's astronaut
+    p1.mv += touch.mv;
+    p1.act |= touch.act;
+    p1.act_held |= touch.act_held;
+    p1.build |= touch.build;
+    p1.pause |= touch.pause;
     p1.mv = p1.mv.clamp_length_max(1.0);
     p2.mv = p2.mv.clamp_length_max(1.0);
     inputs.0 = match net.local_idx() {

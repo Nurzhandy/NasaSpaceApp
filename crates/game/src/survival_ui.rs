@@ -15,7 +15,7 @@ use ja_core::survival::{Threat, EVENING, T_EVACUATE};
 use ja_core::{i18n, Forecast, GameEvent, Mode};
 
 #[derive(Component)]
-struct Panel;
+pub struct Panel;
 #[derive(Component, Clone, Copy, PartialEq)]
 enum Line {
     Temp,

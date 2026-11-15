@@ -22,18 +22,8 @@ pub enum Level {
     Advanced,
 }
 
-/// A role gives a small bonus but never forbids anything.
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
-pub enum Role {
-    /// asteroid hits do less damage
-    Pilot,
-    /// repairs: longer problem timers
-    Engineer,
-    /// more coins for science tasks
-    Researcher,
-    /// air and CO₂ drift slower
-    LifeSupport,
-}
+/// Roles are shared with the Moon part: one enum for the whole game (`crate::role`).
+pub use crate::role::Role;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct ExpeditionConfig {

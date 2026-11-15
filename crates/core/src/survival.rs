@@ -13,6 +13,7 @@
 
 use crate::data::{module_def, ModuleKind, SiteKind};
 use crate::game::{Game, GameEvent, Mode, Refusal, DOOR};
+use crate::role::{Role, ENGINEER_REPAIR, LIFE_SUPPORT_SUIT};
 use serde::{Deserialize, Serialize};
 
 /// The evening starts at this part of the sol.
@@ -507,7 +508,7 @@ impl Game {
                 b.suit = (b.suit + (25.0 + 15.0 * service) * ds * p.inside as u8 as f32).min(100.0);
             } else {
                 let leaky = if b.suit < 40.0 { 1.4 } else { 1.0 };
-                let use_rate = SUIT_USE * (b.heart / 80.0) * leaky * if junior { 0.65 } else { 1.0 };
+                let use_rate = SUIT_USE * (b.heart / 80.0) * leaky * if junior { 0.65 } else { 1.0 } * if p.role == Role::LifeSupport { LIFE_SUPPORT_SUIT } else { 1.0 };
                 b.suit_o2 = (b.suit_o2 - use_rate * ds).max(0.0);
                 let dusty = threat_on && s.surv.active.map_or(false, |a| a.tonight.threat == Threat::Dust || a.tonight.second == Some(Threat::Dust));
                 b.suit = (b.suit - (3.0 + if dusty { 20.0 } else { 0.0 }) * ds).max(0.0);
@@ -621,6 +622,7 @@ impl Game {
         }
         self.s.coins -= cost;
         self.s.surv.levels[u as usize] += 1;
+        self.s.flags.upgrades += 1;
         Ok(vec![GameEvent::Upgraded { kind: u, level: self.s.surv.levels[u as usize] }])
     }
 
@@ -630,14 +632,15 @@ impl Game {
     }
 
     /// Repair outcome for survival: any damaged module or the habitat's tightness.
-    pub(crate) fn survival_repair(&mut self, id: u32) -> Result<(), Refusal> {
+    pub(crate) fn survival_repair(&mut self, pi: usize, id: u32) -> Result<(), Refusal> {
         let service = self.s.surv.level(Upgrade::Service);
+        let k = if self.s.players.get(pi).map_or(false, |p| p.role == Role::Engineer) { ENGINEER_REPAIR } else { 1.0 };
         let hab = self.s.habitat().id;
         if id == hab {
             if self.s.surv.seal >= 100.0 && !self.s.leak {
                 return Err(Refusal::NothingToRepair);
             }
-            self.s.surv.seal = (self.s.surv.seal + 50.0 + 20.0 * service as f32).min(100.0);
+            self.s.surv.seal = (self.s.surv.seal + (50.0 + 20.0 * service as f32) * k).min(100.0);
             self.s.surv.pressure = PRESSURE * self.s.surv.seal / 100.0;
             if self.s.surv.seal >= 100.0 || service >= 1 {
                 self.s.leak = false;
@@ -650,7 +653,7 @@ impl Game {
             return Err(Refusal::NothingToRepair);
         }
         m.broken = false;
-        m.hp = (m.hp + 60.0 + 20.0 * service as f32).min(100.0).max(50.0);
+        m.hp = (m.hp + (60.0 + 20.0 * service as f32) * k).min(100.0).max(50.0);
         self.s.battery = (self.s.battery - 1.0).max(0.0);
         Ok(())
     }

@@ -162,4 +162,18 @@ The newer 2D pixel-art version lives in `crates/game` (rules in `crates/core`, s
 
 Balance: `cargo test -p ja-core --release survival_balance -- --ignored --nocapture` · screenshot tour: `JA_TOUR=survival JA_SHOTS=folder cargo run -p game --release`.
 
+## 👩‍🚀 Profiles, roles, achievements / Профили, роли, достижения
+
+- **Profiles / Профили** — up to 6 on one computer. The name is a space callsign from a list (Vega‑7, Orion‑4…), so a child never types personal data; everything stays in a local JSON file. Имя — позывной из списка, настоящее имя не нужно.
+- **Roles / Роли** — pilot (+20% landing fuel), engineer (repairs ×1.5), researcher (+25% science), life support (suit oxygen lasts 25% longer). A role gives a bonus and forbids nothing.
+- **Achievements in 6 directions / Достижения по 6 направлениям** — explorer, engineer, pilot, survival specialist, scientist, team player; bronze / silver / gold from lifetime counters. Each tier gives stars for cosmetics only.
+- **Inventory, expedition history, settings** — wear what you own, see past expeditions, switch RU / ҚАЗ / EN, sound, music, fullscreen, touch controls.
+- **Touch controls / Сенсорное управление** — a virtual joystick and an action button (also work with a mouse drag); “Auto” shows them after the first touch.
+- **Texts / Тексты** — interface texts live in `assets/content/ui.json` (ru / kk / en). Kazakh is partial: where a translation is missing, Russian is shown; `cargo test -p ja-core ui_text -- --nocapture` lists the missing keys.
+
+![Achievements](docs/screenshots_2d/34_achievements.jpg)
+![Touch controls](docs/screenshots_2d/42_base_touch.jpg)
+
+Screenshot tour of these screens: `JA_TOUR=screens JA_SHOTS=folder cargo run -p game --release`.
+
 *Educational game. It does not assess readiness for real spaceflight and is not psychological treatment.*

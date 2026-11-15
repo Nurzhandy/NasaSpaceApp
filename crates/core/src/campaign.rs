@@ -811,6 +811,17 @@ impl Campaign {
         }
     }
 
+    /// Developer / test shortcut: jump straight to lunar orbit (the flight is over).
+    pub fn skip_to_landing(&mut self) {
+        self.s.tasks.clear();
+        self.s.field = None;
+        self.s.dialog = None;
+        self.s.card = None;
+        self.s.lesson = None;
+        self.s.breather = None;
+        self.s.phase = Phase::Landing;
+    }
+
     /// Where the three pets wait to be adopted (around the pet corner).
     pub fn pet_spots(&self) -> [(f32, f32); 3] {
         let c = self.console_pos("habitat", "petbed").unwrap_or((5.0, 10.5));

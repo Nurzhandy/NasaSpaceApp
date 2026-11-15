@@ -346,7 +346,13 @@ pub fn load(dir: &Path) -> Result<Content, Vec<ContentError>> {
         p.exists().then_some(p)
     };
     if let Some(p) = opt("ui.json") {
-        c.ui = read(&p, &mut errs).unwrap_or_default();
+        // part B's file: { "draft", "note", "texts": { key: {ru, kk, en} } }
+        #[derive(Deserialize)]
+        struct UiFile {
+            #[serde(default)]
+            texts: HashMap<String, Text>,
+        }
+        c.ui = read::<UiFile>(&p, &mut errs).map(|f| f.texts).unwrap_or_default();
     }
     if let Some(p) = opt("npcs.json") {
         c.npcs = read(&p, &mut errs).unwrap_or_default();

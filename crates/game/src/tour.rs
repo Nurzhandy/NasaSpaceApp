@@ -174,10 +174,75 @@ const SURVIVAL_STEPS: &[Do] = &[
     Do::Quit,
 ];
 
+/// `JA_TOUR=screens`: profiles, character and role, inventory, achievements, settings
+/// (with Kazakh), the shop's upgrades tab, and the touch controls in landing and play.
+const SCREENS_STEPS: &[Do] = &[
+    Do::Wait(2.5),
+    Do::Act(Action::SetRole(ja_core::Role::Engineer)),
+    Do::Wait(0.5),
+    Do::Shot("30_menu"),
+    Do::Act(Action::Go(AppState::ProfilePage)),
+    Do::Wait(1.0),
+    Do::Shot("31_profile"),
+    Do::Act(Action::Go(AppState::Character)),
+    Do::Wait(1.0),
+    Do::Shot("32_character_role"),
+    Do::Act(Action::Go(AppState::Inventory)),
+    Do::Wait(1.0),
+    Do::Shot("33_inventory"),
+    Do::Act(Action::Go(AppState::Achievements)),
+    Do::Wait(1.0),
+    Do::Shot("34_achievements"),
+    Do::Act(Action::Go(AppState::Settings)),
+    Do::Wait(1.0),
+    Do::Shot("35_settings"),
+    Do::Act(Action::SetLang(ja_core::Lang::Kk)),
+    Do::Wait(1.0),
+    Do::Shot("36_settings_kk"),
+    Do::Act(Action::Go(AppState::Menu)),
+    Do::Wait(1.0),
+    Do::Shot("37_menu_kk"),
+    Do::Act(Action::SetLang(ja_core::Lang::Ru)),
+    Do::Act(Action::NewProfile),
+    Do::Wait(0.6),
+    Do::Act(Action::Go(AppState::Profiles)),
+    Do::Wait(1.0),
+    Do::Shot("38_profiles"),
+    Do::Act(Action::SelectProfile(0)),
+    Do::Wait(0.6),
+    Do::Act(Action::ShopTab(3)),
+    Do::Act(Action::Go(AppState::Shop)),
+    Do::Wait(1.0),
+    Do::Shot("39_shop_upgrades"),
+    Do::Act(Action::SetPlayers(true)),
+    Do::Act(Action::CycleRole2),
+    Do::Act(Action::Go(AppState::Expedition)),
+    Do::Wait(1.0),
+    Do::Shot("40_expedition_roles"),
+    Do::Act(Action::SetPlayers(false)),
+    Do::Act(Action::SetTouch(1)),
+    Do::Act(Action::StartExpedition),
+    Do::Wait(1.0),
+    Do::AutoLand,
+    Do::Act(Action::PickSite(0)),
+    Do::Wait(4.0),
+    Do::Shot("41_landing_touch"),
+    Do::UntilLanded,
+    Do::Act(Action::LandingGo),
+    Do::Wait(1.5),
+    Do::Close,
+    Do::Wait(1.5),
+    Do::Shot("42_base_touch"),
+    Do::Act(Action::SetTouch(0)),
+    Do::Wait(0.3),
+    Do::Quit,
+];
+
 fn steps() -> &'static [Do] {
     match std::env::var("JA_TOUR").as_deref() {
         Ok("save") => SAVE_STEPS,
         Ok("survival") => SURVIVAL_STEPS,
+        Ok("screens") => SCREENS_STEPS,
         _ => STEPS,
     }
 }
@@ -199,6 +264,28 @@ fn unlock(mut prof: ResMut<Prof>) {
     prof.0.total = prof.0.total.max(450);
     prof.0.stars = prof.0.stars.max(260);
     prof.0.missions = 0;
+    if std::env::var("JA_TOUR").as_deref() == Ok("screens") {
+        // a profile with some history so the achievements and history have something to show
+        let st = &mut prof.0.stats;
+        st.landing_stars = st.landing_stars.max(13);
+        st.landings = st.landings.max(5);
+        st.repairs = st.repairs.max(12);
+        st.built = st.built.max(9);
+        st.collected = st.collected.max(18);
+        st.science = st.science.max(55);
+        st.sols = st.sols.max(4);
+        st.coop = st.coop.max(1);
+        if prof.0.history.is_empty() {
+            use ja_core::progress::Expedition;
+            prof.0.history = vec![
+                Expedition { map: MapId::Moon, mode: ja_core::Mode::Survival, site: Some(1), won: true, stars: 3, sol: 6, sols: 6, cause: None },
+                Expedition { map: MapId::Moon, mode: ja_core::Mode::Survival, site: Some(0), won: false, stars: 1, sol: 3, sols: 6, cause: Some(ja_core::Cause::Cold) },
+                Expedition { map: MapId::Moon, mode: ja_core::Mode::Sandbox, site: Some(2), won: true, stars: 2, sol: 2, sols: 6, cause: None },
+            ];
+        }
+        prof.0.owned_suits = vec!["white".into(), "orange".into()];
+        prof.0.badges = vec!["first".into(), "moon".into(), "builder".into()];
+    }
 }
 
 fn run(

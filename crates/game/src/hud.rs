@@ -39,7 +39,10 @@ struct FlareText;
 #[derive(Component)]
 struct FlareBar;
 #[derive(Component)]
-struct RadioBox;
+pub struct RadioBox;
+/// the keyboard hint bar (hidden while touch controls are on)
+#[derive(Component)]
+pub struct KeyHints;
 #[derive(Component)]
 struct RadioIcon;
 #[derive(Component)]
@@ -164,7 +167,7 @@ fn spawn(mut commands: Commands, art: Res<Art>, prof: Res<Prof>, sim: Res<Sim>) 
         });
     // key hints
     commands
-        .spawn((Node { position_type: PositionType::Absolute, right: Val::Px(12.0), bottom: Val::Px(12.0), flex_direction: FlexDirection::Row, column_gap: Val::Px(14.0), padding: UiRect::axes(Val::Px(12.0), Val::Px(6.0)), ..default() }, BackgroundColor(Color::srgba(0.05, 0.06, 0.16, 0.75)), BorderRadius::all(Val::Px(6.0)), GlobalZIndex(9), sc.clone()))
+        .spawn((Node { position_type: PositionType::Absolute, right: Val::Px(12.0), bottom: Val::Px(12.0), flex_direction: FlexDirection::Row, column_gap: Val::Px(14.0), padding: UiRect::axes(Val::Px(12.0), Val::Px(6.0)), ..default() }, BackgroundColor(Color::srgba(0.05, 0.06, 0.16, 0.75)), BorderRadius::all(Val::Px(6.0)), GlobalZIndex(9), KeyHints, sc.clone()))
         .with_children(|p| {
             for (ic, k, ru, en) in [("hammer", "B", "стройка", "build"), ("power", "Tab", "энергия", "power"), ("ok_hand", "E", "действие", "action"), ("pause", "Esc", "пауза", "pause")] {
                 p.spawn(kit::row(5.0)).with_children(|r| {

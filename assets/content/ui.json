@@ -1,0 +1,611 @@
+{
+ "draft": true,
+ "note": "Interface texts (B10). kk = null means the Russian text is shown until a native speaker translates it. The Kazakh texts here are a draft and need a native speaker's check.",
+ "texts": {
+  "menu.start": {
+   "ru": "Начать",
+   "kk": "Бастау",
+   "en": "Start"
+  },
+  "menu.subtitle": {
+   "ru": "Посади модуль на Луну и выживи на базе",
+   "kk": "Модульді Айға қондырып, базада аман қал",
+   "en": "Land on the Moon and survive at your base"
+  },
+  "menu.power_hint": {
+   "ru": "— энергии на всё не хватит",
+   "kk": "— энергия бәріне жетпейді",
+   "en": "— there’s not enough power for all"
+  },
+  "menu.continue": {
+   "ru": "Продолжить миссию",
+   "kk": "Миссияны жалғастыру",
+   "en": "Continue mission"
+  },
+  "menu.network": {
+   "ru": "По сети",
+   "kk": "Желі арқылы",
+   "en": "Network"
+  },
+  "menu.shop": {
+   "ru": "Магазин",
+   "kk": "Дүкен",
+   "en": "Shop"
+  },
+  "menu.profile": {
+   "ru": "Профиль",
+   "kk": "Профиль",
+   "en": "Profile"
+  },
+  "menu.inventory": {
+   "ru": "Инвентарь",
+   "kk": "Инвентарь",
+   "en": "Inventory"
+  },
+  "menu.achievements": {
+   "ru": "Достижения",
+   "kk": "Жетістіктер",
+   "en": "Achievements"
+  },
+  "menu.nasa": {
+   "ru": "Данные NASA",
+   "kk": "NASA деректері",
+   "en": "NASA data"
+  },
+  "menu.settings": {
+   "ru": "Настройки",
+   "kk": "Баптаулар",
+   "en": "Settings"
+  },
+  "menu.sol": {
+   "ru": "сол",
+   "kk": "сол",
+   "en": "sol"
+  },
+  "common.back": {
+   "ru": "Назад",
+   "kk": "Артқа",
+   "en": "Back"
+  },
+  "exp.title": {
+   "ru": "Новая экспедиция",
+   "kk": "Жаңа экспедиция",
+   "en": "New expedition"
+  },
+  "exp.mode": {
+   "ru": "Режим (выбирается только сейчас)",
+   "kk": "Режим (тек қазір таңдалады)",
+   "en": "Mode (chosen only now)"
+  },
+  "exp.survival": {
+   "ru": "Выживание",
+   "kk": "Аман қалу",
+   "en": "Survival"
+  },
+  "exp.survival.desc": {
+   "ru": "Кислород, холод, метеориты. Каждое решение важно",
+   "kk": "Оттегі, суық, метеориттер. Әр шешім маңызды",
+   "en": "Oxygen, cold, meteorites. Every choice matters"
+  },
+  "exp.creative": {
+   "ru": "Творческий",
+   "kk": "Шығармашылық",
+   "en": "Creative"
+  },
+  "exp.creative.desc": {
+   "ru": "Без расхода кислорода и аварий — строй и исследуй",
+   "kk": "Оттегі шығыны мен апатсыз — сал және зертте",
+   "en": "No oxygen drain, no breakdowns — build and explore"
+  },
+  "exp.level": {
+   "ru": "Уровень",
+   "kk": "Деңгей",
+   "en": "Level"
+  },
+  "exp.junior.desc": {
+   "ru": "Проще слова, больше подсказок, мягче угрозы",
+   "kk": "Сөздер қарапайым, кеңес көп, қауіптер жұмсақ",
+   "en": "Simpler words, more hints, softer threats"
+  },
+  "exp.advanced.desc": {
+   "ru": "Две угрозы за вечер, строже посадка",
+   "kk": "Кешке екі қауіп, қону қатаңырақ",
+   "en": "Two threats an evening, stricter landing"
+  },
+  "exp.players": {
+   "ru": "Игроки",
+   "kk": "Ойыншылар",
+   "en": "Players"
+  },
+  "exp.one": {
+   "ru": "Один",
+   "kk": "Жалғыз",
+   "en": "One"
+  },
+  "exp.one.desc": {
+   "ru": "Один астронавт",
+   "kk": "Бір ғарышкер",
+   "en": "One astronaut"
+  },
+  "exp.two": {
+   "ru": "Вдвоём",
+   "kk": "Екеуміз",
+   "en": "Two"
+  },
+  "exp.two.desc": {
+   "ru": "На одном экране: стрелки + правый Shift",
+   "kk": "Бір экранда: бағыт пернелері + оң Shift",
+   "en": "One screen: arrows + right Shift"
+  },
+  "exp.roles": {
+   "ru": "Роли экипажа (нажми, чтобы сменить)",
+   "kk": "Экипаж рөлдері (ауыстыру үшін бас)",
+   "en": "Crew roles (click to change)"
+  },
+  "exp.p1": {
+   "ru": "Игрок 1",
+   "kk": "1-ойыншы",
+   "en": "Player 1"
+  },
+  "exp.p2": {
+   "ru": "Игрок 2",
+   "kk": "2-ойыншы",
+   "en": "Player 2"
+  },
+  "exp.launch": {
+   "ru": "Старт: к Луне!",
+   "kk": "Старт: Айға!",
+   "en": "Launch: to the Moon!"
+  },
+  "role.none": {
+   "ru": "Без роли",
+   "kk": "Рөлсіз",
+   "en": "No role"
+  },
+  "role.none.bonus": {
+   "ru": "Понемногу всё",
+   "kk": "Бәрі аздап",
+   "en": "A bit of everything"
+  },
+  "role.pilot": {
+   "ru": "Пилот",
+   "kk": "Ұшқыш",
+   "en": "Pilot"
+  },
+  "role.pilot.bonus": {
+   "ru": "+20% топлива при посадке",
+   "kk": "Қонғанда +20% отын",
+   "en": "+20% fuel for the landing"
+  },
+  "role.engineer": {
+   "ru": "Инженер",
+   "kk": "Инженер",
+   "en": "Engineer"
+  },
+  "role.engineer.bonus": {
+   "ru": "Ремонт чинит в 1,5 раза больше",
+   "kk": "Жөндеу 1,5 есе көп қалпына келтіреді",
+   "en": "Repairs fix 1.5× more"
+  },
+  "role.researcher": {
+   "ru": "Исследователь",
+   "kk": "Зерттеуші",
+   "en": "Researcher"
+  },
+  "role.researcher.bonus": {
+   "ru": "+25% науки за образцы",
+   "kk": "Үлгілер үшін +25% ғылым",
+   "en": "+25% science from samples"
+  },
+  "role.life_support": {
+   "ru": "Специалист СЖО",
+   "kk": "Тіршілікті қамтамасыз ету маманы",
+   "en": "Life support"
+  },
+  "role.life_support.bonus": {
+   "ru": "Баллон скафандра тратится на 25% медленнее",
+   "kk": null,
+   "en": "Suit oxygen lasts 25% longer"
+  },
+  "role.note": {
+   "ru": "Роль даёт бонус, но ничего не запрещает: чинить, собирать и летать могут все.",
+   "kk": null,
+   "en": "A role gives a bonus but forbids nothing: everyone can repair, collect and fly."
+  },
+  "prof.title": {
+   "ru": "Кто летит?",
+   "kk": "Кім ұшады?",
+   "en": "Who’s flying?"
+  },
+  "prof.new": {
+   "ru": "Новый профиль",
+   "kk": "Жаңа профиль",
+   "en": "New profile"
+  },
+  "prof.delete": {
+   "ru": "Удалить",
+   "kk": "Жою",
+   "en": "Delete"
+  },
+  "prof.confirm": {
+   "ru": "Точно удалить? Нажми ещё раз",
+   "kk": "Шынымен жоясың ба? Тағы бас",
+   "en": "Really delete? Press again"
+  },
+  "prof.playing": {
+   "ru": "играет сейчас",
+   "kk": "қазір ойнап жүр",
+   "en": "playing now"
+  },
+  "prof.privacy": {
+   "ru": "Имя — позывной из списка. Настоящее имя не нужно, всё хранится только на этом компьютере.",
+   "kk": null,
+   "en": "The name is a callsign from a list. No real name needed — everything stays on this computer."
+  },
+  "prof.level": {
+   "ru": "Уровень {n}",
+   "kk": "{n}-деңгей",
+   "en": "Level {n}"
+  },
+  "prof.xp": {
+   "ru": "опыт {a} / {b}",
+   "kk": "тәжірибе {a} / {b}",
+   "en": "XP {a} / {b}"
+  },
+  "prof.callsign": {
+   "ru": "Позывной",
+   "kk": "Шақыру белгісі",
+   "en": "Callsign"
+  },
+  "prof.stars": {
+   "ru": "Звёзды для магазина",
+   "kk": "Дүкенге жұлдыздар",
+   "en": "Stars for the shop"
+  },
+  "prof.points": {
+   "ru": "Очки опыта",
+   "kk": "Тәжірибе ұпайлары",
+   "en": "Experience points"
+  },
+  "prof.missions": {
+   "ru": "Миссий",
+   "kk": "Миссиялар",
+   "en": "Missions"
+  },
+  "prof.history": {
+   "ru": "История экспедиций",
+   "kk": "Экспедициялар тарихы",
+   "en": "Expedition history"
+  },
+  "prof.no_history": {
+   "ru": "Пока пусто — начни первую экспедицию!",
+   "kk": "Әзірге бос — алғашқы экспедицияны баста!",
+   "en": "Empty for now — start your first expedition!"
+  },
+  "prof.won": {
+   "ru": "успех",
+   "kk": "сәтті",
+   "en": "success"
+  },
+  "prof.lost": {
+   "ru": "эвакуация",
+   "kk": "эвакуация",
+   "en": "evacuation"
+  },
+  "prof.character": {
+   "ru": "Персонаж и роль",
+   "kk": "Кейіпкер және рөл",
+   "en": "Character & role"
+  },
+  "prof.switch": {
+   "ru": "Сменить профиль",
+   "kk": "Профильді ауыстыру",
+   "en": "Switch profile"
+  },
+  "char.title": {
+   "ru": "Персонаж",
+   "kk": "Кейіпкер",
+   "en": "Character"
+  },
+  "char.look": {
+   "ru": "Скафандр, визор и украшение — в магазине и инвентаре",
+   "kk": "Скафандр, визор және әшекей — дүкен мен инвентарьда",
+   "en": "Suit, visor and accessory — in the shop and the inventory"
+  },
+  "char.role": {
+   "ru": "Роль в экспедиции",
+   "kk": "Экспедициядағы рөл",
+   "en": "Expedition role"
+  },
+  "inv.title": {
+   "ru": "Инвентарь",
+   "kk": "Инвентарь",
+   "en": "Inventory"
+  },
+  "inv.suits": {
+   "ru": "Скафандры",
+   "kk": "Скафандрлар",
+   "en": "Suits"
+  },
+  "inv.visors": {
+   "ru": "Визоры",
+   "kk": "Визорлар",
+   "en": "Visors"
+  },
+  "inv.hats": {
+   "ru": "Украшения",
+   "kk": "Әшекейлер",
+   "en": "Accessories"
+  },
+  "inv.patches": {
+   "ru": "Нашивки",
+   "kk": "Белгілер",
+   "en": "Patches"
+  },
+  "inv.wear_hint": {
+   "ru": "Нажми на вещь, чтобы надеть. Новые вещи — в магазине.",
+   "kk": null,
+   "en": "Click an item to wear it. New items are in the shop."
+  },
+  "inv.wearing": {
+   "ru": "надето",
+   "kk": "киілген",
+   "en": "wearing"
+  },
+  "inv.empty": {
+   "ru": "пока пусто",
+   "kk": "әзірге бос",
+   "en": "empty for now"
+  },
+  "inv.counts": {
+   "ru": "Собрано за всё время",
+   "kk": "Барлық уақытта жиналды",
+   "en": "Collected all time"
+  },
+  "inv.samples": {
+   "ru": "образцов сдано",
+   "kk": "үлгі тапсырылды",
+   "en": "samples delivered"
+  },
+  "inv.collected": {
+   "ru": "камней и льда собрано",
+   "kk": null,
+   "en": "rocks and ice collected"
+  },
+  "inv.landings": {
+   "ru": "посадок",
+   "kk": "қону",
+   "en": "landings"
+  },
+  "ach.title": {
+   "ru": "Достижения",
+   "kk": "Жетістіктер",
+   "en": "Achievements"
+  },
+  "ach.explorer": {
+   "ru": "Исследователь",
+   "kk": "Зерттеуші",
+   "en": "Explorer"
+  },
+  "ach.explorer.what": {
+   "ru": "Образцы и новые районы",
+   "kk": "Үлгілер және жаңа аудандар",
+   "en": "Samples and new regions"
+  },
+  "ach.engineer": {
+   "ru": "Инженер",
+   "kk": "Инженер",
+   "en": "Engineer"
+  },
+  "ach.engineer.what": {
+   "ru": "Ремонт, стройка, улучшения",
+   "kk": "Жөндеу, құрылыс, жақсартулар",
+   "en": "Repairs, building, upgrades"
+  },
+  "ach.pilot": {
+   "ru": "Пилот",
+   "kk": "Ұшқыш",
+   "en": "Pilot"
+  },
+  "ach.pilot.what": {
+   "ru": "Звёзды за посадки",
+   "kk": "Қонудағы жұлдыздар",
+   "en": "Stars from landings"
+  },
+  "ach.survivor": {
+   "ru": "Специалист по выживанию",
+   "kk": "Аман қалу маманы",
+   "en": "Survival specialist"
+  },
+  "ach.survivor.what": {
+   "ru": "Пережитые солы и отражённые угрозы",
+   "kk": null,
+   "en": "Sols lived through and threats handled"
+  },
+  "ach.scientist": {
+   "ru": "Научный сотрудник",
+   "kk": "Ғылыми қызметкер",
+   "en": "Scientist"
+  },
+  "ach.scientist.what": {
+   "ru": "Очки науки",
+   "kk": "Ғылым ұпайлары",
+   "en": "Science points"
+  },
+  "ach.team": {
+   "ru": "Командный игрок",
+   "kk": "Командалық ойыншы",
+   "en": "Team player"
+  },
+  "ach.team.what": {
+   "ru": "Миссии вдвоём и помощь другу",
+   "kk": null,
+   "en": "Missions together and helping a friend"
+  },
+  "ach.tier1": {
+   "ru": "Бронза",
+   "kk": "Қола",
+   "en": "Bronze"
+  },
+  "ach.tier2": {
+   "ru": "Серебро",
+   "kk": "Күміс",
+   "en": "Silver"
+  },
+  "ach.tier3": {
+   "ru": "Золото",
+   "kk": "Алтын",
+   "en": "Gold"
+  },
+  "ach.next": {
+   "ru": "до уровня «{tier}»: {a} из {b}",
+   "kk": null,
+   "en": "to {tier}: {a} of {b}"
+  },
+  "ach.done": {
+   "ru": "Все уровни пройдены!",
+   "kk": "Барлық деңгейлер өтілді!",
+   "en": "All tiers done!"
+  },
+  "ach.patches": {
+   "ru": "Нашивки миссий",
+   "kk": "Миссия белгілері",
+   "en": "Mission patches"
+  },
+  "ach.new": {
+   "ru": "Новые достижения:",
+   "kk": "Жаңа жетістіктер:",
+   "en": "New achievements:"
+  },
+  "ach.stars_note": {
+   "ru": "За каждый уровень — звёзды для магазина (только внешний вид, не сила).",
+   "kk": null,
+   "en": "Each tier gives stars for the shop (looks only, never power)."
+  },
+  "set.title": {
+   "ru": "Настройки",
+   "kk": "Баптаулар",
+   "en": "Settings"
+  },
+  "set.lang": {
+   "ru": "Язык",
+   "kk": "Тіл",
+   "en": "Language"
+  },
+  "set.sound": {
+   "ru": "Звуки",
+   "kk": "Дыбыстар",
+   "en": "Sounds"
+  },
+  "set.music": {
+   "ru": "Музыка",
+   "kk": "Музыка",
+   "en": "Music"
+  },
+  "set.fullscreen": {
+   "ru": "Полный экран",
+   "kk": "Толық экран",
+   "en": "Fullscreen"
+  },
+  "set.touch": {
+   "ru": "Сенсорное управление",
+   "kk": "Сенсорлық басқару",
+   "en": "Touch controls"
+  },
+  "set.touch.auto": {
+   "ru": "Авто",
+   "kk": "Авто",
+   "en": "Auto"
+  },
+  "set.touch.on": {
+   "ru": "Всегда",
+   "kk": "Әрқашан",
+   "en": "Always"
+  },
+  "set.touch.off": {
+   "ru": "Выкл",
+   "kk": "Өшірулі",
+   "en": "Off"
+  },
+  "set.touch.desc": {
+   "ru": "Джойстик слева и кнопка действия справа. «Авто» — появятся после первого касания экрана.",
+   "kk": null,
+   "en": "A joystick on the left and an action button on the right. “Auto” shows them after the first touch."
+  },
+  "set.level": {
+   "ru": "Уровень по умолчанию",
+   "kk": "Әдепкі деңгей",
+   "en": "Default level"
+  },
+  "set.on": {
+   "ru": "Вкл",
+   "kk": "Қосулы",
+   "en": "On"
+  },
+  "set.off": {
+   "ru": "Выкл",
+   "kk": "Өшірулі",
+   "en": "Off"
+  },
+  "set.controls": {
+   "ru": "Управление",
+   "kk": "Басқару",
+   "en": "Controls"
+  },
+  "set.keys": {
+   "ru": "WASD или стрелки — идти · E — действие · B — стройка · Tab — энергия · U — улучшения · Esc — пауза",
+   "kk": null,
+   "en": "WASD or arrows — walk · E — action · B — build · Tab — power · U — upgrades · Esc — pause"
+  },
+  "set.kk_note": {
+   "ru": "Казахский перевод пока частичный: где перевода нет, показан русский текст.",
+   "kk": "Қазақша аударма әзірге толық емес: аударма жоқ жерде орысша мәтін көрсетіледі.",
+   "en": "The Kazakh translation is partial: where there is none yet, Russian is shown."
+  },
+  "set.nasa": {
+   "ru": "Живые данные NASA: запусти игру с NASA_API_KEY=… (бесплатный ключ на api.nasa.gov)",
+   "kk": null,
+   "en": "Live NASA data: run the game with NASA_API_KEY=… (free key at api.nasa.gov)"
+  },
+  "shop.upgrades": {
+   "ru": "Улучшения базы",
+   "kk": "База жақсартулары",
+   "en": "Base upgrades"
+  },
+  "shop.upgrades.note": {
+   "ru": "Улучшения покупаются на Луне за монеты экспедиции — клавиша U во время игры. У каждого есть минус.",
+   "kk": null,
+   "en": "Upgrades are bought on the Moon with expedition coins — press U while playing. Each one has a downside."
+  },
+  "shop.suits": {
+   "ru": "Скафандр",
+   "kk": "Скафандр",
+   "en": "Suit"
+  },
+  "shop.visors": {
+   "ru": "Визор",
+   "kk": "Визор",
+   "en": "Visor"
+  },
+  "shop.hats": {
+   "ru": "Украшение",
+   "kk": "Әшекей",
+   "en": "Accessory"
+  },
+  "shop.never_relock": {
+   "ru": "Покупки не закрывают базы.",
+   "kk": null,
+   "en": "Buying never relocks bases."
+  },
+  "shop.level": {
+   "ru": "ур. {n}",
+   "kk": "{n}-дең.",
+   "en": "lvl {n}"
+  },
+  "menu.encyclopedia": {
+   "ru": "Энциклопедия",
+   "kk": "Энциклопедия",
+   "en": "Encyclopedia"
+  }
+ }
+}

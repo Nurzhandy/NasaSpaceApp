@@ -376,7 +376,7 @@ fn render(mut commands: Commands, music: Res<crate::Music>, modal: Res<Modal>, m
                     p.spawn(kit::row(8.0)).with_children(|r| {
                         kit::button(r, &art, Action::ToggleSound, 2, if prof.0.sound { "sound" } else { "mute" }, l.pick("Звуки", "Sounds"), false);
                         kit::button(r, &art, Action::ToggleMusic, 3, if music.0 { "s_music" } else { "mute" }, l.pick("Музыка", "Music"), false);
-                        kit::button(r, &art, Action::ToggleLang, 4, "globe", if prof.0.lang == ja_core::Lang::En { "English" } else { "Русский" }, false);
+                        kit::button(r, &art, Action::ToggleLang, 4, "globe", match prof.0.lang { ja_core::Lang::En => "English", ja_core::Lang::Kk => "Қазақша", ja_core::Lang::Ru => "Русский" }, false);
                     });
                     kit::button(p, &art, Action::ExitMission, 5, "exit", l.pick("Выйти в меню", "Exit to menu"), false);
                     p.spawn(kit::row(14.0)).insert(Node { flex_wrap: FlexWrap::Wrap, flex_direction: FlexDirection::Row, column_gap: Val::Px(14.0), ..default() }).with_children(|r| {
