@@ -17,6 +17,6 @@
 | 1.3 s signal delay, 1.62 m/s² | `crates/core/src/data.rs`, `crates/core/src/game.rs` (forecast delay), landing screen |
 | DONKI live API + labelled archive | `crates/core/src/weather.rs` |
 | Dose 0.64 mSv/day (Mars), 1.369 mSv/day (Moon) | `crates/core/src/data.rs` → `SOURCES` (Hassler 2014; Zhang 2020) |
-| Up to 4 computers on one Wi-Fi | `crates/game/src/net.rs` |
+| Multiplayer: 2 on one computer, up to 4 computers on one Wi-Fi, room code, no server | `crates/game/src/net.rs`, `crates/game/src/screens/expedition.rs` |
 | Crew always evacuates safely | `crates/core/src/game.rs` (end conditions), `crates/core/src/i18n.rs` |
 | Kazakh (beta) | `assets/content/ui.json` is a draft (107 of 121 strings) pending a native-speaker check |
