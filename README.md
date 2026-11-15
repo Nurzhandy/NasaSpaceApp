@@ -15,7 +15,23 @@ SPACE EXPLORERS is an interactive educational game that introduces kids aged 7�
 | ![Power console](docs/presentation/img/07_power_console.jpg) | ![Evening report](docs/presentation/img/29_report.jpg) |
 | ![Landing abort: was / needed](docs/presentation/img/51_landing_abort_table.jpg) | ![Real NASA DONKI events](docs/presentation/img/donki_panel.png) |
 
-## ▶️ How to run
+## ▶️ Play in one click
+
+No Rust and no setup needed — download the game for your computer, unzip it, double-click:
+
+[![Download for Windows](https://img.shields.io/badge/Download-Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/Nurzhandy/NasaSpaceApp/releases/latest/download/SPACE-EXPLORERS-windows.zip)
+[![Download for macOS](https://img.shields.io/badge/Download-macOS-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/Nurzhandy/NasaSpaceApp/releases/latest/download/SPACE-EXPLORERS-macos.zip)
+[![Download for Linux](https://img.shields.io/badge/Download-Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/Nurzhandy/NasaSpaceApp/releases/latest/download/SPACE-EXPLORERS-linux.tar.gz)
+
+| Computer | How to start |
+|---|---|
+| **Windows 10/11** | Unzip → open the `SPACE EXPLORERS` folder → double-click **SPACE EXPLORERS.exe**. If SmartScreen appears: **More info → Run anyway**. |
+| **macOS 11+** (Intel and Apple Silicon) | Unzip → **right-click SPACE EXPLORERS.app → Open → Open**. On macOS 15+: try to open it once, then **System Settings → Privacy & Security → Open Anyway**. |
+| **Linux** (x86_64) | `tar xzf SPACE-EXPLORERS-linux.tar.gz && ./SPACE-EXPLORERS/space-explorers` |
+
+The app is not signed with a paid developer certificate, so the system asks once before the first launch. All versions: [Releases](https://github.com/Nurzhandy/NasaSpaceApp/releases).
+
+## 🛠 Run from source
 
 1. Install Rust: https://rustup.rs
 2. **Windows:** install [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with the **“Desktop development with C++”** workload (Rust needs its linker).
