@@ -41,6 +41,9 @@ enum Do {
     UntilForecast,
     UntilThreat,
     UntilReport,
+    /// landing tour: wait for an abort, for the lander to get low
+    UntilAborted,
+    UntilLow,
     Quit,
 }
 
@@ -238,11 +241,37 @@ const SCREENS_STEPS: &[Do] = &[
     Do::Quit,
 ];
 
+/// `JA_TOUR=landing`: a hands-off approach that fails (the "what went wrong" table), then the
+/// same approach with the helper, which lands on the pad by itself.
+const LANDING_STEPS: &[Do] = &[
+    Do::Wait(2.0),
+    Do::Act(Action::SetJunior(false)),
+    Do::Act(Action::StartExpedition),
+    Do::Wait(1.0),
+    Do::Act(Action::PickSite(1)),
+    Do::Wait(3.0),
+    Do::Act(Action::LandingAck),
+    Do::Wait(2.0),
+    Do::Shot("50_landing_checklist"),
+    Do::UntilAborted,
+    Do::Wait(1.0),
+    Do::Shot("51_landing_abort_table"),
+    Do::Act(Action::LandingRetryHelp),
+    Do::UntilLow,
+    Do::Shot("52_landing_advice"),
+    Do::UntilLanded,
+    Do::Wait(1.0),
+    Do::Shot("53_landing_done"),
+    Do::Wait(0.5),
+    Do::Quit,
+];
+
 fn steps() -> &'static [Do] {
     match std::env::var("JA_TOUR").as_deref() {
         Ok("save") => SAVE_STEPS,
         Ok("survival") => SURVIVAL_STEPS,
         Ok("screens") => SCREENS_STEPS,
+        Ok("landing") => LANDING_STEPS,
         _ => STEPS,
     }
 }
@@ -349,6 +378,8 @@ fn run(
         Do::UntilForecast => sim.as_ref().map_or(false, |s| matches!(s.0.state().forecast, Some(ja_core::Forecast::Tonight(_)))) || tour.t > 20.0,
         Do::UntilThreat => sim.as_ref().map_or(false, |s| s.0.state().surv.active.is_some()) || tour.t > 40.0,
         Do::UntilReport => modal.win == Win::Report || tour.t > 40.0,
+        Do::UntilAborted => descent.lander.as_ref().map_or(false, |l| matches!(l.phase, ja_core::landing::Phase::Aborted(_))) || tour.t > 90.0,
+        Do::UntilLow => descent.lander.as_ref().map_or(false, |l| l.alt < 30.0 || l.phase != ja_core::landing::Phase::Flying) || tour.t > 120.0,
         Do::Quit => {
             exit.write(AppExit::Success);
             true

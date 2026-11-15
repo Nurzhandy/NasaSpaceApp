@@ -157,10 +157,14 @@ The newer 2D pixel-art version lives in `crates/game` (rules in `crates/core`, s
 
 **«Начать» → «Новая экспедиция»** (выживание или творческий режим, Junior или Advanced, 1–2 игрока) → **посадка** у южного полюса Луны → **выживание**: утром прогноз на вечер, днём работа и улучшения за монеты (U), вечером угроза, потом разбор «почему так вышло».
 
+**Landing help / Помощь при посадке:** a green pad marks the flattest ground; a live checklist turns each touchdown rule green or red (down speed, sideways speed, tilt, flat ground, where the pad is); near the ground one tip says what to fix. After an abort a table shows “was / needed” for each rule, and **R** or “Try with the helper” starts a new approach (the helper holds the speed and steers to the pad while you don’t press keys). Зелёная площадка, живой чек-лист, разбор «было / нужно» и заход с помощником.
+
+![Landing checklist](docs/screenshots_2d/50_landing_checklist.jpg)
+![What went wrong](docs/screenshots_2d/51_landing_abort_table.jpg)
 ![Landing](docs/screenshots_2d/24_alarm_1202.jpg)
 ![Evening report](docs/screenshots_2d/29_report.jpg)
 
-Balance: `cargo test -p ja-core --release survival_balance -- --ignored --nocapture` · screenshot tour: `JA_TOUR=survival JA_SHOTS=folder cargo run -p game --release`.
+Balance: `cargo test -p ja-core --release survival_balance -- --ignored --nocapture` · screenshot tours: `JA_TOUR=survival` (campaign) and `JA_TOUR=landing` (checklist, abort table, helper) with `JA_SHOTS=folder cargo run -p game --release`.
 
 ## 👩‍🚀 Profiles, roles, achievements / Профили, роли, достижения
 

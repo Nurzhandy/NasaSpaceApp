@@ -18,11 +18,13 @@ pub const THRUST: f32 = 3.3;
 pub const TURN_RATE: f32 = 45.0;
 /// The level ground ends at ±`GROUND_HALF` metres; flying past it aborts.
 pub const GROUND_HALF: f32 = 700.0;
-/// Start: altitude, sink rate, drift, horizontal position.
+/// Start: altitude, sink rate, drift (Junior / Advanced), horizontal position.
 pub const START_ALT: f32 = 420.0;
-pub const START_VY: f32 = -18.0;
-pub const START_VX: f32 = 14.0;
+pub const START_VY: f32 = -14.0;
+pub const START_VX: [f32; 2] = [6.0, 10.0];
 pub const START_X: f32 = -320.0;
+/// The landing pad is at least this wide (metres of clear ground).
+pub const PAD_MIN: f32 = 70.0;
 /// The 1202 alarm goes off once, below this altitude.
 pub const ALARM_ALT: f32 = 260.0;
 /// How long the instruments stay frozen if nobody answers the alarm.
@@ -118,6 +120,16 @@ pub enum Phase {
     Landed,
 }
 
+/// What the lander was doing at the moment it touched the ground (for the "what went wrong" table).
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Touch {
+    /// sink speed, m/s (positive = down)
+    pub down: f32,
+    pub side: f32,
+    pub tilt: f32,
+    pub boulders: bool,
+}
+
 /// A boulder field on the ground, `from..to` metres.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Boulders {
@@ -149,6 +161,10 @@ pub struct Lander {
     pub attempts: u8,
     pub phase: Phase,
     pub time: f32,
+    /// the recommended landing pad: clear, flat ground `from..to` metres
+    pub pad: (f32, f32),
+    /// the last contact with the ground (set on touchdown or abort)
+    pub touch: Option<Touch>,
 }
 
 impl Lander {
@@ -169,13 +185,15 @@ impl Lander {
             boulders.push(Boulders { from: x, to: x + w });
             x += w;
         }
-        let fuel_max = if junior { 75.0 } else { 55.0 };
+        let fuel_max = if junior { 100.0 } else { 75.0 };
+        let vx = START_VX[(!junior) as usize];
+        let pad = pick_pad(&boulders, START_X + vx * 28.0);
         Lander {
             site,
             junior,
             x: START_X,
             alt: START_ALT,
-            vx: START_VX,
+            vx,
             vy: START_VY,
             angle: 0.0,
             fuel: fuel_max,
@@ -188,6 +206,8 @@ impl Lander {
             attempts: 1,
             phase: Phase::Flying,
             time: 0.0,
+            pad,
+            touch: None,
         }
     }
 
@@ -212,10 +232,31 @@ impl Lander {
     /// Safe limits for touchdown: (vertical m/s, horizontal m/s, tilt degrees).
     pub fn limits(&self) -> (f32, f32, f32) {
         if self.junior {
-            (3.5, 2.5, 15.0)
+            (5.0, 3.5, 20.0)
         } else {
-            (2.5, 1.5, 10.0)
+            (3.5, 2.5, 14.0)
         }
+    }
+
+    /// A good sink speed for this altitude: fast up high, slow near the ground (m/s, positive = down).
+    pub fn safe_down(&self) -> f32 {
+        let (lv, _, _) = self.limits();
+        (self.alt * 0.1).clamp(lv * 0.7, 16.0)
+    }
+
+    /// Metres from the lander to the middle of the pad (+ = the pad is to the right).
+    pub fn to_pad(&self) -> f32 {
+        (self.pad.0 + self.pad.1) * 0.5 - self.x
+    }
+
+    pub fn over_pad(&self) -> bool {
+        self.x >= self.pad.0 && self.x <= self.pad.1
+    }
+
+    /// The touchdown checklist right now: (down ok, sideways ok, tilt ok, flat ground below).
+    pub fn checklist(&self) -> [bool; 4] {
+        let (lv, lh, la) = self.limits();
+        [-self.vy <= lv, self.vx.abs() <= lh, self.angle.abs() <= la, !self.boulders_at(self.x)]
     }
 
     /// Is there a boulder field under `x`?
@@ -249,12 +290,13 @@ impl Lander {
             self.alarm = Some(ALARM_LEN);
             ev.push(LandingEvent::Alarm1202);
         }
-        // attitude: juniors get an autopilot that levels the lander when they let go
+        // attitude: the stabiliser levels the lander whenever the pilot lets go of A/D
         let turn = input.turn.clamp(-1.0, 1.0);
         if turn != 0.0 {
             self.angle += turn * TURN_RATE * dt;
-        } else if self.junior {
-            self.angle -= self.angle.signum() * (TURN_RATE * dt).min(self.angle.abs());
+        } else {
+            let k = if self.junior { 1.0 } else { 0.6 };
+            self.angle -= self.angle.signum() * (TURN_RATE * k * dt).min(self.angle.abs());
         }
         self.angle = self.angle.clamp(-45.0, 45.0);
         // engine
@@ -281,6 +323,7 @@ impl Lander {
         if self.alt <= 0.0 {
             self.alt = 0.0;
             let (lv, lh, la) = self.limits();
+            self.touch = Some(Touch { down: -self.vy, side: self.vx, tilt: self.angle, boulders: self.boulders_at(self.x) });
             let reason = if self.boulders_at(self.x) {
                 Some(AbortReason::Boulders)
             } else if -self.vy > lv || self.vx.abs() > lh {
@@ -295,7 +338,7 @@ impl Lander {
             }
             self.phase = Phase::Landed;
             let soft = -self.vy <= lv * 0.5;
-            let thrifty = self.fuel >= self.fuel_max * 0.25;
+            let thrifty = self.fuel >= self.fuel_max * 0.25 || self.over_pad();
             self.vx = 0.0;
             self.vy = 0.0;
             let stars = 1 + (soft || self.attempts == 1) as u8 + thrifty as u8;
@@ -315,8 +358,8 @@ impl Lander {
     pub fn retry(&mut self) {
         let attempts = self.attempts.saturating_add(1);
         let boulders = std::mem::take(&mut self.boulders);
-        let fuel_max = self.fuel_max;
-        *self = Lander { boulders, attempts, alarm_done: true, fuel: fuel_max, fuel_max, ..Lander::new(self.site, self.junior, 0) };
+        let (fuel_max, pad) = (self.fuel_max, self.pad);
+        *self = Lander { boulders, attempts, alarm_done: true, fuel: fuel_max, fuel_max, pad, ..Lander::new(self.site, self.junior, 0) };
     }
 
     /// Coins the landing brings to the base: stars and saved fuel.
@@ -333,30 +376,53 @@ impl Lander {
     }
 }
 
-/// A simple autopilot (used by the tests and the screenshot tour): kill drift, pick clear ground,
-/// come down slowly.
-pub fn autopilot(l: &Lander) -> LanderInput {
-    // target: the nearest clear stretch ahead of the current drift
-    let mut target = l.x + l.vx * 6.0;
-    for step in 0..60 {
-        let probe = target + step as f32 * 8.0;
-        let probe_back = target - step as f32 * 8.0;
-        if !l.boulders_at(probe) && !l.boulders_at(probe + 12.0) && !l.boulders_at(probe - 12.0) {
-            target = probe;
-            break;
+/// The widest clear stretch near where the lander would naturally come down.
+fn pick_pad(boulders: &[Boulders], near: f32) -> (f32, f32) {
+    let mut edges = vec![-GROUND_HALF + 40.0];
+    for b in boulders {
+        edges.push(b.from);
+        edges.push(b.to);
+    }
+    edges.push(GROUND_HALF - 40.0);
+    let mut best: Option<(f32, f32, f32)> = None;
+    for g in edges.chunks(2) {
+        let (a, b) = (g[0] + 10.0, g[1] - 10.0);
+        if b - a < PAD_MIN {
+            continue;
         }
-        if !l.boulders_at(probe_back) && !l.boulders_at(probe_back + 12.0) && !l.boulders_at(probe_back - 12.0) {
-            target = probe_back;
-            break;
+        // a pad no wider than 120 m, as close to `near` as the gap allows
+        let w = (b - a).min(120.0);
+        let c = near.clamp(a + w * 0.5, b - w * 0.5);
+        let d = (c - near).abs();
+        if best.map_or(true, |x| d < x.2) {
+            best = Some((c - w * 0.5, c + w * 0.5, d));
         }
     }
-    let want_vx = ((target - l.x) * 0.08).clamp(-6.0, 6.0) * if l.alt < 25.0 { 0.0 } else { 1.0 };
-    let want_angle = ((want_vx - l.vx) * 6.0).clamp(-25.0, 25.0);
-    let turn = ((want_angle - l.angle) / 8.0).clamp(-1.0, 1.0);
-    let want_vy = -(l.alt * 0.12).clamp(0.8, 12.0);
+    best.map(|b| (b.0, b.1)).unwrap_or((-60.0, 60.0))
+}
+
+/// A/D the stabiliser would press to drift towards the pad and stop over it (−1..1).
+pub fn steer(l: &Lander) -> f32 {
+    let want_vx = if l.alt < 25.0 { (l.to_pad() * 0.05).clamp(-1.0, 1.0) } else { (l.to_pad() * 0.08).clamp(-6.0, 6.0) };
+    // near the ground never tilt past what a touchdown allows
+    let max_tilt = if l.alt < 40.0 { l.limits().2 * 0.6 } else { 25.0 };
+    let want_angle = ((want_vx - l.vx) * 6.0).clamp(-max_tilt, max_tilt);
+    ((want_angle - l.angle) / 8.0).clamp(-1.0, 1.0)
+}
+
+/// Engine lever that holds a safe sink speed for the altitude (0..1).
+pub fn hold_throttle(l: &Lander) -> f32 {
+    // far from the pad and low: slow the descent down and fly over first
+    let far = ((l.to_pad().abs() - 15.0) / 80.0).clamp(0.0, 0.9) * ((150.0 - l.alt) / 150.0).clamp(0.0, 1.0);
+    // a bit under the checklist's norm (`safe_down`), so the helper always keeps "Down" green
+    let want_vy = -(l.alt * 0.08).clamp(0.8, 12.0) * (1.0 - far);
     let need = MOON_G + (want_vy - l.vy) * 1.5;
-    let throttle = (need / (THRUST * l.angle.to_radians().cos().max(0.3))).clamp(0.0, 1.0);
-    LanderInput { throttle, turn, ack_alarm: l.alarm.is_some() }
+    (need / (THRUST * l.angle.to_radians().cos().max(0.3))).clamp(0.0, 1.0)
+}
+
+/// A simple autopilot (tests, the screenshot tour, the helper): fly to the pad, come down slowly.
+pub fn autopilot(l: &Lander) -> LanderInput {
+    LanderInput { throttle: hold_throttle(l), turn: steer(l), ack_alarm: l.alarm.is_some() }
 }
 
 #[cfg(test)]
@@ -383,6 +449,8 @@ mod tests {
                     let mut l = Lander::new(site, junior, seed);
                     let ev = fly(&mut l);
                     assert_eq!(l.phase, Phase::Landed, "site {site} junior {junior} seed {seed}: {ev:?} at x {:.0} vy {:.1} vx {:.1} angle {:.1}", l.x, l.vy, l.vx, l.angle);
+                    assert!(l.over_pad(), "the autopilot lands on the pad: site {site} junior {junior} seed {seed} x {:.0} pad {:?}", l.x, l.pad);
+                    assert!(l.pad.1 - l.pad.0 >= PAD_MIN && !l.boulders_at((l.pad.0 + l.pad.1) * 0.5));
                     assert!(ev.contains(&LandingEvent::Alarm1202));
                     assert!(l.bonus_coins() > 0);
                 }
@@ -401,6 +469,8 @@ mod tests {
             }
         }
         assert!(matches!(l.phase, Phase::Aborted(_)));
+        let t = l.touch.expect("the touchdown is recorded for the debrief");
+        assert!(t.down > l.limits().0);
         assert!(ev.iter().any(|e| matches!(e, LandingEvent::Abort(_))));
         l.retry();
         assert_eq!(l.phase, Phase::Flying);
@@ -432,6 +502,7 @@ mod tests {
     fn fuel_calls_come_at_60_and_30_hover_seconds() {
         let mut l = Lander::new(1, false, 1);
         l.alarm_done = true;
+        l.vx = 0.0;
         let mut calls = vec![];
         for _ in 0..10_000 {
             // hover in place until the tank runs dry
