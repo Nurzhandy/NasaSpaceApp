@@ -1,0 +1,82 @@
+# Builds ready-to-play SPACE EXPLORERS for Windows, macOS and Linux.
+# Push a tag like v1.0.0 → a GitHub Release with the three archives appears, and the
+# "Download" links in README.md (releases/latest/download/...) point at it.
+# "Run workflow" on the Actions tab builds the same archives as artifacts, without a release.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Add Intel macOS target (universal app)
+        if: runner.os == 'macOS'
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      - name: Install Linux libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends pkg-config libasound2-dev libudev-dev \
+            libx11-dev libxkbcommon-dev libxkbcommon-x11-0 libwayland-dev
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build and package
+        shell: bash
+        env:
+          MAC_UNIVERSAL: "1"
+        run: bash crates/game/tools/package.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SPACE-EXPLORERS-${{ runner.os }}
+          path: |
+            dist/SPACE-EXPLORERS-*.zip
+            dist/SPACE-EXPLORERS-*.tar.gz
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: out/*
+          body: |
+            ## 🚀 SPACE EXPLORERS — download and play
+
+            No Rust, no setup: download the file for your computer, unzip, double-click.
+
+            | Computer | File | How to start |
+            |---|---|---|
+            | **Windows 10/11** | `SPACE-EXPLORERS-windows.zip` | Unzip → open the `SPACE EXPLORERS` folder → double-click **SPACE EXPLORERS.exe**. If SmartScreen appears: **More info → Run anyway**. |
+            | **macOS 11+** (Intel and Apple Silicon) | `SPACE-EXPLORERS-macos.zip` | Unzip → **right-click SPACE EXPLORERS.app → Open → Open**. On macOS 15+: try to open once, then **System Settings → Privacy & Security → Open Anyway**. |
+            | **Linux** (x86_64) | `SPACE-EXPLORERS-linux.tar.gz` | `tar xzf SPACE-EXPLORERS-linux.tar.gz && ./SPACE-EXPLORERS/space-explorers` |
+
+            The app is not signed with a paid developer certificate, so the system asks once before the first launch.
+
+            **Live NASA data (optional):** start the game with `NASA_API_KEY=your_key` (free key at https://api.nasa.gov). Without a key it uses `DEMO_KEY`; offline it uses the built-in archive of real DONKI events.

@@ -1,5 +1,7 @@
 //! SPACE EXPLORERS — 2D pixel-art desktop game (docs/PLAN_V2.md).
 //! Everything visible and audible lives here; the rules come from `ja-core` (part A).
+// Release builds on Windows open no black console window next to the game.
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod art;
 mod audio;

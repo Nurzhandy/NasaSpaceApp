@@ -1,19 +1,34 @@
 #!/usr/bin/env bash
-# B9 — release build + archives for judges.
+# Release build + ready-to-play archives (used by .github/workflows/release.yml).
 #   bash crates/game/tools/package.sh
-# macOS: dist/JuniorAstronaut.app (+ zip). Linux/Windows: run the same script on that OS
-# (on Windows use Git Bash; needs Visual Studio Build Tools "Desktop development with C++").
+# Output in dist/ (override with DIST=...):
+#   macOS   → SPACE-EXPLORERS-macos.zip      ("SPACE EXPLORERS.app"; MAC_UNIVERSAL=1 builds Intel + Apple Silicon)
+#   Windows → SPACE-EXPLORERS-windows.zip    (folder with "SPACE EXPLORERS.exe" + assets; run from Git Bash)
+#   Linux   → SPACE-EXPLORERS-linux.tar.gz   (folder with ./space-explorers + assets)
+# Windows needs Visual Studio Build Tools "Desktop development with C++".
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 cd "$ROOT"
-cargo build --release -p game
-DIST="$ROOT/dist"
+DIST="${DIST:-$ROOT/dist}"
+NAME="SPACE EXPLORERS"
+VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' crates/game/Cargo.toml | head -1)"
 rm -rf "$DIST" && mkdir -p "$DIST"
+
 case "$(uname -s)" in
   Darwin)
-    APP="$DIST/JuniorAstronaut.app"
+    if [ "${MAC_UNIVERSAL:-0}" = "1" ]; then
+      cargo build --release -p game --target aarch64-apple-darwin
+      cargo build --release -p game --target x86_64-apple-darwin
+      BIN="$DIST/game-universal"
+      lipo -create -output "$BIN" target/aarch64-apple-darwin/release/game target/x86_64-apple-darwin/release/game
+    else
+      cargo build --release -p game
+      BIN="target/release/game"
+    fi
+    APP="$DIST/$NAME.app"
     mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-    cp target/release/game "$APP/Contents/MacOS/game"
+    cp "$BIN" "$APP/Contents/MacOS/game"
+    rm -f "$DIST/game-universal"
     cp -R assets "$APP/Contents/Resources/assets"
     # app icon from the generated pixel art
     ICONSET="$DIST/icon.iconset"; mkdir -p "$ICONSET"
@@ -26,25 +41,38 @@ case "$(uname -s)" in
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-  <key>CFBundleName</key><string>Junior Astronaut</string>
-  <key>CFBundleDisplayName</key><string>Junior Astronaut: Outpost</string>
-  <key>CFBundleIdentifier</key><string>org.spaceapps.junior-astronaut</string>
-  <key>CFBundleVersion</key><string>0.1.0</string>
+  <key>CFBundleName</key><string>$NAME</string>
+  <key>CFBundleDisplayName</key><string>$NAME</string>
+  <key>CFBundleIdentifier</key><string>org.spaceapps.space-explorers</string>
+  <key>CFBundleVersion</key><string>$VERSION</string>
+  <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundleExecutable</key><string>game</string>
   <key>CFBundleIconFile</key><string>icon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
+  <key>LSMinimumSystemVersion</key><string>11.0</string>
   <key>NSHighResolutionCapable</key><true/>
 </dict></plist>
 PLIST
-    (cd "$DIST" && zip -qry JuniorAstronaut-macos.zip JuniorAstronaut.app)
-    echo "Done: $APP and dist/JuniorAstronaut-macos.zip"
+    # ad-hoc signature: without it macOS calls a downloaded app "damaged"
+    codesign --force --deep --sign - "$APP"
+    (cd "$DIST" && ditto -c -k --norsrc --noextattr --noqtn --noacl --keepParent "$NAME.app" SPACE-EXPLORERS-macos.zip)
+    echo "Done: $DIST/SPACE-EXPLORERS-macos.zip"
     ;;
   Linux)
-    mkdir -p "$DIST/JuniorAstronaut-linux" && cp target/release/game "$DIST/JuniorAstronaut-linux/" && cp -R assets "$DIST/JuniorAstronaut-linux/"
-    (cd "$DIST" && tar czf JuniorAstronaut-linux.tar.gz JuniorAstronaut-linux) && echo "Done: dist/JuniorAstronaut-linux.tar.gz"
+    cargo build --release -p game
+    OUT="$DIST/SPACE-EXPLORERS"
+    mkdir -p "$OUT" && cp target/release/game "$OUT/space-explorers" && cp -R assets "$OUT/"
+    (cd "$DIST" && tar czf SPACE-EXPLORERS-linux.tar.gz SPACE-EXPLORERS)
+    echo "Done: $DIST/SPACE-EXPLORERS-linux.tar.gz"
     ;;
   MINGW*|MSYS*|CYGWIN*)
-    mkdir -p "$DIST/JuniorAstronaut-windows" && cp target/release/game.exe "$DIST/JuniorAstronaut-windows/" && cp -R assets "$DIST/JuniorAstronaut-windows/"
-    (cd "$DIST" && powershell -Command "Compress-Archive -Path JuniorAstronaut-windows -DestinationPath JuniorAstronaut-windows.zip") && echo "Done: dist/JuniorAstronaut-windows.zip"
+    cargo build --release -p game
+    OUT="$DIST/$NAME"
+    mkdir -p "$OUT" && cp target/release/game.exe "$OUT/$NAME.exe" && cp -R assets "$OUT/"
+    (cd "$DIST" && powershell -NoProfile -Command "Compress-Archive -Path '$NAME' -DestinationPath 'SPACE-EXPLORERS-windows.zip'")
+    echo "Done: $DIST/SPACE-EXPLORERS-windows.zip"
+    ;;
+  *)
+    echo "Unsupported OS: $(uname -s)" >&2; exit 1
     ;;
 esac
