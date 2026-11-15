@@ -128,13 +128,24 @@ pub struct Lesson {
 }
 
 /// The ship's pet: `kind` indexes `minigame::PETS`; a happy pet (mood ≥ 50) gives the crew a bonus.
+/// It follows its owner, or sits where it was told to.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Pet {
     pub kind: u8,
     pub mood: f32,
     pub owner: u8,
+    #[serde(default = "yes")]
+    pub follow: bool,
+    /// where it sits (cells) when not following
+    #[serde(default)]
+    pub at: (f32, f32),
+}
+fn yes() -> bool {
+    true
 }
 pub const PET_BONUS: u32 = 2;
+/// how close you must stand to adopt or command the pet (cells)
+pub const PET_REACH: f32 = 1.4;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum CampaignEvent {
@@ -155,6 +166,7 @@ pub enum CampaignEvent {
     Landing,
     GameOver(ShipFail),
     DayRestarted(u8),
+    PetAdopted(u8),
     Mistake,
 }
 
@@ -174,6 +186,10 @@ pub enum CampaignCommand {
     CloseBreather,
     /// close the "why it matters" window
     CloseLesson,
+    /// walk up to one of the pets in the living quarters and take it (once)
+    AdoptPet { kind: u8 },
+    /// the pet sits here / follows me again
+    PetToggle,
     /// after game over: back to the start of the day
     RestartDay,
     /// creative mode: skip to the next day
@@ -464,7 +480,6 @@ impl Campaign {
                 let all: Vec<String> = self.content.day(day).map(|d| d.fillers.clone()).unwrap_or_default();
                 // fresh jobs first; the pet's jobs only when they make sense
                 let ok = |id: &String, s: &CampaignState| match id.as_str() {
-                    "pet_adopt" => s.pet.is_none(),
                     "pet_feed" => s.pet.as_ref().is_some_and(|p| p.mood < 70.0),
                     _ => true,
                 };
@@ -569,9 +584,6 @@ impl Campaign {
             coins += coins / 2;
         }
         // the pet: adopted here, fed here, and a happy pet cheers the crew up
-        if let Some(k) = t.mini.as_ref().and_then(|m| m.picked_pet()) {
-            self.s.pet = Some(Pet { kind: k, mood: 100.0, owner: worker });
-        }
         if t.mini.as_ref().is_some_and(|m| m.kind == crate::minigame::MiniKind::PetCare) {
             if let Some(p) = self.s.pet.as_mut() {
                 p.mood = 100.0;
@@ -649,6 +661,31 @@ impl Campaign {
             }
             CampaignCommand::CloseLesson => {
                 self.s.lesson.take().ok_or(CampaignRefusal::NotNow)?;
+                return Ok(vec![]);
+            }
+            CampaignCommand::AdoptPet { kind } => {
+                if self.s.pet.is_some() || kind > 2 {
+                    return Err(CampaignRefusal::NotNow);
+                }
+                let p = (player as usize).min(self.s.crew.len().saturating_sub(1));
+                let spot = self.pet_spots()[kind as usize];
+                let me = self.s.crew[p].pos;
+                if (me.0 - spot.0).hypot(me.1 - spot.1) > PET_REACH {
+                    return Err(CampaignRefusal::TooFar);
+                }
+                self.s.pet = Some(Pet { kind, mood: 100.0, owner: p as u8, follow: true, at: spot });
+                return Ok(vec![CampaignEvent::PetAdopted(kind)]);
+            }
+            CampaignCommand::PetToggle => {
+                let p = (player as usize).min(self.s.crew.len().saturating_sub(1));
+                let me = self.s.crew[p].pos;
+                let pet = self.s.pet.as_mut().ok_or(CampaignRefusal::NotNow)?;
+                pet.follow = !pet.follow;
+                if pet.follow {
+                    pet.owner = p as u8;
+                } else {
+                    pet.at = me;
+                }
                 return Ok(vec![]);
             }
             CampaignCommand::RestartDay => {
@@ -737,6 +774,12 @@ impl Campaign {
             }
             _ => Err(CampaignRefusal::NotNow),
         }
+    }
+
+    /// Where the three pets wait to be adopted (around the pet corner).
+    pub fn pet_spots(&self) -> [(f32, f32); 3] {
+        let c = self.console_pos("habitat", "petbed").unwrap_or((5.0, 10.5));
+        [(c.0 - 2.4, c.1 + 1.3), (c.0 - 1.2, c.1 + 1.5), (c.0 + 0.0, c.1 + 1.3)]
     }
 
     /// Where a console is (cell centre).
@@ -967,5 +1010,25 @@ mod tests {
         guest.mirror_as(host.state().clone(), 1);
         assert_eq!(guest.state().crew[1].pos, (2.0, 3.0), "own position is ours");
         assert_eq!(guest.state().elapsed, host.state().elapsed);
+    }
+
+    /// The pet is optional: walk up and take it, it sits / follows on E; nobody has to adopt it.
+    #[test]
+    fn pet_is_adopted_by_walking_up_and_never_blocks_the_flight() {
+        let c = content();
+        let mut g = Campaign::new(ExpeditionConfig::new(1, Level::Junior), &c);
+        let spot = g.pet_spots()[1];
+        g.set_crew_pos(0, spot.0 + 5.0, spot.1);
+        assert_eq!(g.apply(0, CampaignCommand::AdoptPet { kind: 1 }), Err(CampaignRefusal::TooFar));
+        g.set_crew_pos(0, spot.0 + 0.5, spot.1);
+        assert!(g.apply(0, CampaignCommand::AdoptPet { kind: 1 }).is_ok());
+        assert_eq!(g.state().pet.as_ref().map(|p| (p.kind, p.follow)), Some((1, true)));
+        assert!(g.apply(0, CampaignCommand::AdoptPet { kind: 2 }).is_err(), "only one pet");
+        g.apply(0, CampaignCommand::PetToggle).unwrap();
+        assert!(!g.state().pet.as_ref().unwrap().follow, "sits");
+        g.apply(0, CampaignCommand::PetToggle).unwrap();
+        assert!(g.state().pet.as_ref().unwrap().follow, "follows again");
+        // no story task needs the pet
+        assert!(c.days.iter().all(|d| d.scripted.iter().all(|t| !t.starts_with("pet"))));
     }
 }

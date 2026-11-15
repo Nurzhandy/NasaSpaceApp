@@ -98,9 +98,9 @@
     "npc": "aya",
     "text": {
      "junior": {
-      "ru": "Мы летим к Луне! Кстати… в жилом отсеке есть уголок для питомца. Заведём?",
+      "ru": "Мы летим к Луне! Кстати… в жилом отсеке сидят три зверька. Подойди к любому и нажми E — он станет твоим.",
       "kk": null,
-      "en": "We're on our way! By the way… there's a pet corner in the living quarters. Shall we get one?"
+      "en": "We're on our way! By the way… three little pets wait in the living quarters. Walk up to one and press E — it's yours."
      }
     },
     "next": "b"
@@ -110,9 +110,9 @@
     "npc": "capcom",
     "text": {
      "junior": {
-      "ru": "Разрешаем. Только кормите его — сытый питомец поднимает настроение экипажа.",
+      "ru": "Разрешаем. Нажми E рядом с питомцем — он сядет или пойдёт за тобой. И не забывайте кормить!",
       "kk": null,
-      "en": "Approved. Just keep it fed — a happy pet lifts the crew's mood."
+      "en": "Approved. Press E next to your pet to make it sit or follow you. And keep it fed!"
      }
     }
    }

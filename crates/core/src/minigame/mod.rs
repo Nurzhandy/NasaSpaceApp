@@ -47,11 +47,10 @@ pub enum MiniKind {
     Seal,
     Pack,
     Orbit,
-    PetChoose,
     PetCare,
 }
 
-pub const ALL_KINDS: [MiniKind; 24] = [
+pub const ALL_KINDS: [MiniKind; 23] = [
     MiniKind::GoNoGo,
     MiniKind::Wires,
     MiniKind::Burn,
@@ -74,7 +73,6 @@ pub const ALL_KINDS: [MiniKind; 24] = [
     MiniKind::Seal,
     MiniKind::Pack,
     MiniKind::Orbit,
-    MiniKind::PetChoose,
     MiniKind::PetCare,
 ];
 
@@ -258,7 +256,7 @@ macro_rules! games {
         }
     };
 }
-games!(GoNoGo, Wires, Burn, Switches, Steady, Recycle, Rhythm, Meal, StarSight, Vector, Tune, Bolts, Shelter, FindLeak, Centrifuge, Antenna, Photo, Adapter, Barbecue, Seal, Pack, Orbit, PetChoose, PetCare);
+games!(GoNoGo, Wires, Burn, Switches, Steady, Recycle, Rhythm, Meal, StarSight, Vector, Tune, Bolts, Shelter, FindLeak, Centrifuge, Antenna, Photo, Adapter, Barbecue, Seal, Pack, Orbit, PetCare);
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Mini {
@@ -367,13 +365,6 @@ impl Mini {
             g.pet = kind;
         }
     }
-    /// The pet picked in `PetChoose`.
-    pub fn picked_pet(&self) -> Option<u8> {
-        match &self.state {
-            MiniState::PetChoose(g) => g.picked,
-            _ => None,
-        }
-    }
 }
 
 #[cfg(test)]
@@ -413,7 +404,7 @@ mod tests {
                 harder += 1;
             }
         }
-        assert!(harder >= 20, "most hard versions are bigger: {harder}/24");
+        assert!(harder >= 19, "most hard versions are bigger: {harder}/23");
     }
 
     #[test]
@@ -435,6 +426,6 @@ mod tests {
                 any += 1;
             }
         }
-        assert!(any >= 22, "random clicking doesn't win: {any}/24");
+        assert!(any >= 21, "random clicking doesn't win: {any}/23");
     }
 }

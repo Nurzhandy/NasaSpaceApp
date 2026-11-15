@@ -154,29 +154,37 @@ impl Play for GoNoGo {
 
 // ---------------------------------------------------------------- wires
 
-/// Drag each wire from the left plug to the right socket with the same colour (and number).
+/// Real cables hang from the left with bare copper ends: drag each one into the socket of its colour.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Wires {
-    /// (colour, number) of left wire i
-    pub left: Vec<(u8, u8)>,
-    /// right socket j takes left wire `right[j]`
-    pub right: Vec<usize>,
+    /// colour of left cable i
+    pub left: Vec<u8>,
+    /// colour of right socket j
+    pub right: Vec<u8>,
     pub links: Vec<Option<usize>>,
     pub held: Option<usize>,
     pub cur: (f32, f32),
 }
-const WIRE_C: [u32; 5] = [0xff4a4a, 0x3a8bff, 0xffd33a, 0x3adf6a, 0xc06aff];
+const WIRE_C: [u32; 6] = [0xff3b3b, 0x2f7bff, 0xffd02f, 0x2fd35a, 0xb05aff, 0xff8a1f];
+const TIP_X: f32 = 120.0;
+const SOCK_X: f32 = 610.0;
 fn wy(n: usize, i: usize) -> f32 {
-    70.0 + i as f32 * (330.0 / (n - 1) as f32)
+    75.0 + i as f32 * (325.0 / (n - 1) as f32)
+}
+fn darker(c: u32) -> u32 {
+    let (r, g, b) = ((c >> 16) & 255, (c >> 8) & 255, c & 255);
+    ((r * 6 / 10) << 16) | ((g * 6 / 10) << 8) | (b * 6 / 10)
 }
 impl Wires {
     pub fn new(hard: bool, rng: &mut Rng) -> Self {
-        let left: Vec<(u8, u8)> = if hard { (0..6).map(|i| ((i % 3) as u8, (i / 3) as u8 + 1)).collect() } else { (0..4).map(|i| (i as u8, 0)).collect() };
-        let mut right: Vec<usize> = (0..left.len()).collect();
-        shuffle(&mut right, rng);
-        let mut left = left;
+        let n = if hard { 6 } else { 4 };
+        let mut left: Vec<u8> = (0..n as u8).collect();
         shuffle(&mut left, rng);
-        Wires { links: vec![None; left.len()], left, right, held: None, cur: (0.0, 0.0) }
+        let mut right = left.clone();
+        while right == left {
+            shuffle(&mut right, rng);
+        }
+        Wires { links: vec![None; n], left, right, held: None, cur: (0.0, 0.0) }
     }
 }
 impl Play for Wires {
@@ -184,7 +192,8 @@ impl Play for Wires {
         let n = self.left.len();
         match i {
             MiniInput::Press(x, y) => {
-                self.held = (0..n).find(|k| self.links[*k].is_none() && dist((x, y), (90.0, wy(n, *k))) < 30.0);
+                // grab a copper end (or anywhere on the loose cable)
+                self.held = (0..n).find(|k| self.links[*k].is_none() && (y - wy(n, *k)).abs() < 22.0 && x < TIP_X + 30.0);
                 self.cur = (x, y);
                 Outcome::Fine
             }
@@ -194,9 +203,8 @@ impl Play for Wires {
             }
             MiniInput::Release(x, y) => {
                 let Some(a) = self.held.take() else { return Outcome::Fine };
-                let Some(j) = (0..n).find(|j| dist((x, y), (630.0, wy(n, *j))) < 34.0) else { return Outcome::Fine };
-                let b = self.right[j];
-                if self.left[b] == self.left[a] && !self.links.contains(&Some(j)) {
+                let Some(j) = (0..n).find(|j| (y - wy(n, *j)).abs() < 26.0 && x > SOCK_X - 50.0) else { return Outcome::Fine };
+                if self.right[j] == self.left[a] && !self.links.contains(&Some(j)) {
                     self.links[a] = Some(j);
                     if self.links.iter().all(|l| l.is_some()) {
                         return Outcome::Done;
@@ -216,40 +224,59 @@ impl Play for Wires {
         let n = self.left.len();
         let mut o = vec![];
         if let Some(a) = (0..n).find(|k| self.links[*k].is_none()) {
-            let j = (0..n).find(|j| self.left[self.right[*j]] == self.left[a] && !self.links.contains(&Some(*j))).unwrap_or(0);
-            drag_to(&mut o, (90.0, wy(n, a)), (630.0, wy(n, j)));
+            let j = (0..n).find(|j| self.right[*j] == self.left[a]).unwrap_or(0);
+            drag_to(&mut o, (TIP_X, wy(n, a)), (SOCK_X, wy(n, j)));
         }
         o
     }
-    fn draw(&self, p: &mut Pen, hard: bool) {
-        p.hint(
-            if hard { "Тяни провод к гнезду того же цвета И с той же цифрой — замкни цепь" } else { "Тяни каждый провод к гнезду того же цвета — замкни цепь" },
-            if hard { "Drag each wire to the socket of the same colour AND number — close the circuit" } else { "Drag each wire to the socket of the same colour — close the circuit" },
-        );
+    fn draw(&self, p: &mut Pen, _hard: bool) {
+        p.hint("Зажми медный кончик провода и тяни в гнездо того же цвета — замкни цепь", "Grab a copper wire end and drag it into the socket of the same colour — close the circuit");
         let n = self.left.len();
-        p.rect(40.0, 40.0, 100.0, 380.0, 0x252b45);
-        p.rect(580.0, 40.0, 100.0, 380.0, 0x252b45);
-        p.ctext(360.0, 210.0, "блок питания", "power unit", 16.0, 0x6a7090);
+        p.rect(20.0, 40.0, 680.0, 380.0, 0x3a4058);
+        p.rect(30.0, 50.0, 660.0, 360.0, 0x2a2f45);
+        for (x, y) in [(40.0, 60.0), (680.0, 60.0), (40.0, 400.0), (680.0, 400.0)] {
+            p.circle(x, y, 6.0, 0x8a93ab);
+        }
+        p.ctext(360.0, 220.0, "ЩИТ ПИТАНИЯ", "POWER PANEL", 16.0, 0x6a7090);
+        let lit = self.links.iter().all(|l| l.is_some());
+        p.circle(360.0, 260.0, 14.0, if lit { 0x5aff8a } else { 0x5a2a2a });
+        for k in 0..n {
+            let y = wy(n, k);
+            let c = WIRE_C[self.left[k] as usize];
+            // the cable coming out of the wall, with a darker stripe
+            p.rect(30.0, y - 10.0, TIP_X - 40.0, 20.0, c);
+            p.rect(30.0, y - 3.0, TIP_X - 40.0, 5.0, darker(c));
+            // the socket block on the right
+            let sc = WIRE_C[self.right[k] as usize];
+            p.rect(SOCK_X - 10.0, y - 22.0, 80.0, 44.0, 0x1c2030);
+            p.rect(SOCK_X, y - 16.0, 70.0, 32.0, sc);
+            p.rect(SOCK_X - 6.0, y - 8.0, 20.0, 16.0, 0x0b0e14);
+        }
+        let cord = |p: &mut Pen, a: usize, to: (f32, f32)| {
+            let c = WIRE_C[self.left[a] as usize];
+            let from = (TIP_X - 10.0, wy(n, a));
+            p.line(from.0, from.1, to.0, to.1, 18.0, c);
+            p.line(from.0, from.1 - 2.0, to.0, to.1 - 2.0, 5.0, darker(c));
+        };
         for (a, l) in self.links.iter().enumerate() {
             if let Some(j) = l {
-                p.line(90.0, wy(n, a), 630.0, wy(n, *j), 9.0, WIRE_C[self.left[a].0 as usize]);
+                cord(p, a, (SOCK_X, wy(n, *j)));
             }
         }
         if let Some(a) = self.held {
-            p.line(90.0, wy(n, a), self.cur.0, self.cur.1, 9.0, WIRE_C[self.left[a].0 as usize]);
+            cord(p, a, self.cur);
         }
         for k in 0..n {
-            let (c, num) = self.left[k];
-            p.circle(90.0, wy(n, k), 20.0, WIRE_C[c as usize]);
-            let (c2, num2) = self.left[self.right[k]];
-            p.rect(612.0, wy(n, k) - 18.0, 36.0, 36.0, WIRE_C[c2 as usize]);
-            if num > 0 {
-                p.raw(90.0, wy(n, k) - 12.0, num.to_string(), 20.0, 0x0b0e22, true);
-                p.raw(630.0, wy(n, k) - 12.0, num2.to_string(), 20.0, 0x0b0e22, true);
+            if self.links[k].is_none() && self.held != Some(k) {
+                // bare copper strands at the loose end
+                let y = wy(n, k);
+                p.rect(TIP_X - 10.0, y - 7.0, 26.0, 14.0, 0xd98a3a);
+                p.rect(TIP_X + 14.0, y - 4.0, 8.0, 8.0, 0xf0b060);
             }
         }
-        let lit = self.links.iter().all(|l| l.is_some());
-        p.circle(360.0, 260.0, 18.0, if lit { 0x5aff8a } else { 0x553333 });
+        if self.held.is_some() {
+            p.rect(self.cur.0 - 4.0, self.cur.1 - 7.0, 26.0, 14.0, 0xd98a3a);
+        }
     }
 }
 
@@ -272,7 +299,7 @@ const BURN_BTN: Btn = Btn(250.0, 330.0, 220.0, 80.0);
 impl Burn {
     pub fn new(hard: bool, rng: &mut Rng) -> Self {
         let mid = rng.range(10.75, 10.95);
-        let w = if hard { 0.07 } else { 0.18 };
+        let w = if hard { 0.1 } else { 0.2 };
         Burn { v: V0, fuel: FUEL0, firing: false, lo: mid - w, hi: mid + w }
     }
     fn accel(&self) -> f32 {
@@ -443,15 +470,14 @@ impl Play for Switches {
 
 // ---------------------------------------------------------------- balance (space sickness)
 
-/// The balance ball drifts: keep the ring on it until the brain gets used to weightlessness.
+/// The balance ball floats smoothly around: keep the ring on it until the brain gets used to
+/// weightlessness. Slipping off for a moment costs only a little.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Steady {
-    pub dot: (f32, f32),
-    pub vel: (f32, f32),
+    pub t: f32,
+    pub ph: (f32, f32),
     pub ring: (f32, f32),
     pub calm: f32,
-    pub seed: u64,
-    pub kick: f32,
 }
 fn lcg(s: &mut u64) -> f32 {
     *s = s.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
@@ -459,14 +485,20 @@ fn lcg(s: &mut u64) -> f32 {
 }
 impl Steady {
     pub fn new(_hard: bool, rng: &mut Rng) -> Self {
-        Steady { dot: (360.0, 230.0), vel: (0.0, 0.0), ring: (360.0, 380.0), calm: 0.0, seed: rng.next(), kick: 0.0 }
+        let mut seed = rng.next();
+        Steady { t: 0.0, ph: (lcg(&mut seed) * 6.0, lcg(&mut seed) * 6.0), ring: (360.0, 230.0), calm: 0.0 }
     }
     fn radius(hard: bool) -> f32 {
         if hard {
-            30.0
+            46.0
         } else {
-            42.0
+            58.0
         }
+    }
+    /// A slow, smooth figure-eight path (a bit faster on hard).
+    fn dot(&self, hard: bool) -> (f32, f32) {
+        let k = if hard { 0.75 } else { 0.5 };
+        (360.0 + 200.0 * (self.t * 0.9 * k + self.ph.0).sin(), 225.0 + 120.0 * (self.t * 1.3 * k + self.ph.1).sin())
     }
 }
 impl Play for Steady {
@@ -477,26 +509,11 @@ impl Play for Steady {
         Outcome::Fine
     }
     fn tick(&mut self, dt: f32, hard: bool) -> Outcome {
-        let sp = if hard { 150.0 } else { 90.0 };
-        self.kick -= dt;
-        if self.kick <= 0.0 {
-            self.kick = 0.6;
-            self.vel = ((lcg(&mut self.seed) - 0.5) * 2.0 * sp, (lcg(&mut self.seed) - 0.5) * 2.0 * sp);
-        }
-        self.dot.0 += self.vel.0 * dt;
-        self.dot.1 += self.vel.1 * dt;
-        if !(120.0..=600.0).contains(&self.dot.0) {
-            self.vel.0 = -self.vel.0;
-            self.dot.0 = self.dot.0.clamp(120.0, 600.0);
-        }
-        if !(80.0..=380.0).contains(&self.dot.1) {
-            self.vel.1 = -self.vel.1;
-            self.dot.1 = self.dot.1.clamp(80.0, 380.0);
-        }
-        if dist(self.ring, self.dot) < Self::radius(hard) {
-            self.calm += dt / if hard { 9.0 } else { 6.0 };
+        self.t += dt;
+        if dist(self.ring, self.dot(hard)) < Self::radius(hard) {
+            self.calm += dt / if hard { 7.0 } else { 5.0 };
         } else {
-            self.calm = (self.calm - dt / 10.0).max(0.0);
+            self.calm = (self.calm - dt / 25.0).max(0.0);
         }
         if self.calm >= 1.0 {
             Outcome::Done
@@ -507,16 +524,24 @@ impl Play for Steady {
     fn progress(&self) -> f32 {
         self.calm
     }
-    fn bot(&self, _hard: bool) -> Vec<MiniInput> {
-        let ahead = (self.dot.0 + self.vel.0 * 0.03, self.dot.1 + self.vel.1 * 0.03);
-        vec![MiniInput::Drag(ahead.0, ahead.1), MiniInput::Wait(0.05)]
+    fn bot(&self, hard: bool) -> Vec<MiniInput> {
+        let d = self.dot(hard);
+        vec![MiniInput::Drag(d.0, d.1), MiniInput::Wait(0.05)]
     }
     fn draw(&self, p: &mut Pen, hard: bool) {
-        p.hint("Держи кольцо на шарике равновесия — так мозг привыкает к невесомости", "Keep the ring on the balance ball — that's how the brain gets used to weightlessness");
-        p.icon("astronaut", 360.0, 230.0, 260.0);
-        p.circle_a(360.0, 230.0, 200.0, 0x000000, 0.25);
-        p.circle(self.dot.0, self.dot.1, 14.0, 0xff8a3d);
-        let inside = dist(self.ring, self.dot) < Self::radius(hard);
+        p.hint("Веди кольцо за плавающим шариком равновесия — так мозг привыкает к невесомости", "Follow the floating balance ball with the ring — that is how the brain gets used to weightlessness");
+        p.icon("astronaut", 360.0, 225.0, 240.0);
+        p.circle_a(360.0, 225.0, 190.0, 0x000000, 0.3);
+        let d = self.dot(hard);
+        // a faint trail shows where the ball is going
+        for k in 1..6 {
+            let mut f = self.clone();
+            f.t += k as f32 * 0.25;
+            let q = f.dot(hard);
+            p.circle_a(q.0, q.1, 6.0, 0xff8a3d, 0.5 - k as f32 * 0.08);
+        }
+        p.circle(d.0, d.1, 16.0, 0xff8a3d);
+        let inside = dist(self.ring, d) < Self::radius(hard);
         p.ring(self.ring.0, self.ring.1, Self::radius(hard), if inside { 0x5aff8a } else { 0xffffff }, 5.0);
         p.text(20.0, 395.0, "Спокойствие", "Calm", 18.0, 0xffffff);
         p.rect(140.0, 398.0, 400.0, 16.0, 0x2a3048);
@@ -678,9 +703,9 @@ impl Rhythm {
     }
     fn window(hard: bool) -> f32 {
         if hard {
-            0.13
+            0.16
         } else {
-            0.2
+            0.24
         }
     }
     fn step(&mut self, hard: bool) -> Outcome {

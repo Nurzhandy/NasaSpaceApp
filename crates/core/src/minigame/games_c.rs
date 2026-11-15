@@ -34,9 +34,9 @@ impl Photo {
     }
     fn tol(hard: bool) -> (f32, f32) {
         if hard {
-            (0.05, 35.0)
+            (0.06, 45.0)
         } else {
-            (0.09, 60.0)
+            (0.1, 65.0)
         }
     }
     fn ready(&self, hard: bool) -> bool {
@@ -385,9 +385,9 @@ impl Seal {
     }
     fn tol(hard: bool) -> f32 {
         if hard {
-            12.0
+            16.0
         } else {
-            20.0
+            22.0
         }
     }
     fn near_path(&self, x: f32, y: f32) -> f32 {
@@ -653,9 +653,9 @@ impl Orbit {
     }
     fn tol(hard: bool) -> f32 {
         if hard {
-            0.22
+            0.28
         } else {
-            0.35
+            0.4
         }
     }
     fn brake(&mut self, hard: bool) -> Outcome {
@@ -727,112 +727,6 @@ impl Play for Orbit {
 // ---------------------------------------------------------------- the pet
 
 pub const PETS: [(&str, &str, &str); 3] = [("robot", "Робот Бип", "Robot Beep"), ("cat", "Кот Пломбир", "Cat Sundae"), ("alien", "Инопланетик Зу", "Little alien Zoo")];
-const HOUSE: Btn = Btn(430.0, 220.0, 270.0, 190.0);
-
-/// Pick a pet for the ship and set up its corner: bowl, bed, toy.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct PetChoose {
-    pub picked: Option<u8>,
-    pub stuff: Vec<Piece>,
-    pub held: Option<usize>,
-}
-fn pet_card(k: usize) -> Btn {
-    Btn(30.0 + k as f32 * 230.0, 60.0, 200.0, 220.0)
-}
-impl PetChoose {
-    pub fn new(hard: bool, _rng: &mut Rng) -> Self {
-        let n = if hard { 4 } else { 3 };
-        let stuff = (0..n).map(|i| Piece::new(80.0 + i as f32 * 90.0, 340.0, i as u8)).collect();
-        PetChoose { picked: None, stuff, held: None }
-    }
-}
-const STUFF: [(&str, &str, &str); 4] = [("миска", "bowl", "plate"), ("лежанка", "bed", "house"), ("игрушка", "toy", "star"), ("ремень", "strap", "shield")];
-impl Play for PetChoose {
-    fn input(&mut self, i: MiniInput, _hard: bool) -> Outcome {
-        match (self.picked, i) {
-            (None, MiniInput::Press(x, y)) => {
-                self.picked = (0..3).find(|k| pet_card(*k).hit(x, y)).map(|k| k as u8);
-                Outcome::Fine
-            }
-            (Some(_), MiniInput::Press(x, y)) => {
-                self.held = grab(&self.stuff, x, y, 36.0);
-                Outcome::Fine
-            }
-            (Some(_), MiniInput::Drag(x, y)) => {
-                if let Some(k) = self.held {
-                    (self.stuff[k].x, self.stuff[k].y) = (x, y);
-                }
-                Outcome::Fine
-            }
-            (Some(_), MiniInput::Release(x, y)) => {
-                let Some(k) = self.held.take() else { return Outcome::Fine };
-                if HOUSE.hit(x, y) {
-                    self.stuff[k].placed = true;
-                } else {
-                    self.stuff[k].home();
-                }
-                if self.stuff.iter().all(|s| s.placed) {
-                    Outcome::Done
-                } else {
-                    Outcome::Fine
-                }
-            }
-            _ => Outcome::Fine,
-        }
-    }
-    fn progress(&self) -> f32 {
-        if self.picked.is_none() {
-            0.0
-        } else {
-            0.3 + 0.7 * self.stuff.iter().filter(|s| s.placed).count() as f32 / self.stuff.len() as f32
-        }
-    }
-    fn bot(&self, _hard: bool) -> Vec<MiniInput> {
-        let mut o = vec![];
-        match self.picked {
-            None => click(&mut o, pet_card(0).mid()),
-            Some(_) => {
-                if let Some(s) = self.stuff.iter().find(|s| !s.placed) {
-                    drag_to(&mut o, (s.x, s.y), HOUSE.mid());
-                }
-            }
-        }
-        o
-    }
-    fn draw(&self, p: &mut Pen, hard: bool) {
-        match self.picked {
-            None => {
-                p.hint("Выбери питомца для корабля!", "Pick a pet for the ship!");
-                for (k, (ic, ru, en)) in PETS.iter().enumerate() {
-                    let b = pet_card(k);
-                    p.rect(b.0, b.1, b.2, b.3, 0x2a3048);
-                    p.icon(ic, b.0 + b.2 / 2.0, b.1 + 90.0, 120.0);
-                    p.ctext(b.0 + b.2 / 2.0, b.1 + 170.0, ru, en, 19.0, 0xffffff);
-                }
-                p.text(30.0, 300.0, "На МКС летает настоящий робот-помощник Astrobee. А животных брали только для опытов.", "Real helper robots called Astrobee fly on the ISS. Animals only went for experiments.", 15.0, 0xb0b8d8);
-            }
-            Some(k) => {
-                p.hint(
-                    if hard { "Обустрой уголок: миска, лежанка, игрушка и ремень (в невесомости всё пристёгивают!)" } else { "Обустрой уголок питомца: перетащи миску, лежанку и игрушку в домик" },
-                    if hard { "Set up the corner: bowl, bed, toy and strap (in weightlessness everything is strapped!)" } else { "Set up the pet's corner: drag the bowl, bed and toy into the house" },
-                );
-                p.rect(HOUSE.0, HOUSE.1, HOUSE.2, HOUSE.3, 0x3a3f5a);
-                p.icon(PETS[k as usize].0, HOUSE.0 + 70.0, HOUSE.1 + 90.0, 100.0);
-                for s in &self.stuff {
-                    let (ru, en, ic) = STUFF[s.kind as usize];
-                    let (x, y) = if s.placed { (HOUSE.0 + 160.0 + (s.kind % 2) as f32 * 55.0, HOUSE.1 + 50.0 + (s.kind / 2) as f32 * 70.0) } else { (s.x, s.y) };
-                    p.circle(x, y, 30.0, 0xdfe5f2);
-                    p.icon(ic, x, y, 36.0);
-                    if !s.placed {
-                        p.ctext(x, y + 30.0, ru, en, 13.0, 0xffffff);
-                    }
-                }
-                p.ctext(HOUSE.0 + 70.0, HOUSE.1 + 150.0, PETS[k as usize].1, PETS[k as usize].2, 17.0, 0xffd35a);
-            }
-        }
-    }
-}
-
 const BOWL: (f32, f32) = (560.0, 340.0);
 const VAC: Btn = Btn(20.0, 300.0, 140.0, 110.0);
 

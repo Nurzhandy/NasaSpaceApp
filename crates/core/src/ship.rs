@@ -179,9 +179,15 @@ impl AsteroidField {
 /// Can a crew member stand here? Inside a room (a little away from the walls) or in a doorway.
 pub fn walkable(l: &crate::content::ShipLayout, x: f32, y: f32) -> bool {
     const M: f32 = 0.3;
-    l.rooms.iter().any(|r| x > r.x as f32 + M && x < (r.x + r.w) as f32 - M && y > r.y as f32 + M && y < (r.y + r.h) as f32 - M)
-        || l.doors.iter().any(|&(dx, dy)| (x - dx).abs() < 0.8 && (y - dy).abs() < 0.8)
+    // consoles are solid: you stand in front of them
+    let console = l.rooms.iter().flat_map(|r| r.consoles.iter()).any(|k| x > k.x as f32 - 0.2 && x < k.x as f32 + 1.2 && y > k.y as f32 - 0.2 && y < k.y as f32 + 1.2);
+    !console
+        && (l.rooms.iter().any(|r| x > r.x as f32 + M && x < (r.x + r.w) as f32 - M && y > r.y as f32 + M && y < (r.y + r.h) as f32 - M)
+            || l.doors.iter().any(|&(dx, dy)| (x - dx).abs() < DOOR_HALF && (y - dy).abs() < DOOR_HALF))
 }
+
+/// Half the width of a doorway (cells).
+pub const DOOR_HALF: f32 = 1.0;
 
 /// Move from `from` toward `to`, sliding along walls.
 pub fn step(l: &crate::content::ShipLayout, from: (f32, f32), to: (f32, f32)) -> (f32, f32) {
@@ -208,8 +214,10 @@ mod tests {
         // every console can be reached from the start by walking through doors
         for r in &l.rooms {
             for k in &r.consoles {
-                let goal = (k.x as f32 + 0.5, k.y as f32 + 0.5);
-                assert!(walkable(&l, goal.0, goal.1) || r.w <= 1, "{}.{} stands on the floor", r.id, k.id);
+                // somewhere in front of the console is floor
+                let c = (k.x as f32 + 0.5, k.y as f32 + 0.5);
+                let goal = [(c.0, c.1 - 1.0), (c.0, c.1 + 1.0), (c.0 - 1.0, c.1), (c.0 + 1.0, c.1)].into_iter().find(|p| walkable(&l, p.0, p.1)).unwrap_or_else(|| panic!("{}.{} has no floor in front", r.id, k.id));
+                assert!(!walkable(&l, c.0, c.1), "{}.{} is solid", r.id, k.id);
                 let mut seen = std::collections::HashSet::new();
                 let mut q = vec![((l.start.0 * 2.0) as i32, (l.start.1 * 2.0) as i32)];
                 let target = ((goal.0 * 2.0) as i32, (goal.1 * 2.0) as i32);

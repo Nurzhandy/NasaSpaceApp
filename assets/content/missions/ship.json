@@ -56,14 +56,14 @@
    },
    "brief": {
     "junior": {
-     "ru": "После старта часть разъёмов разболталась. Соедини провода с гнёздами того же цвета — замкни цепь.",
+     "ru": "После старта часть проводов выскочила из гнёзд. Зажми медный кончик каждого провода и вставь в гнездо того же цвета — замкни цепь.",
      "kk": null,
-     "en": "After launch some plugs came loose. Connect each wire to the socket of its colour — close the circuit."
+     "en": "After launch some wires popped out. Grab each copper end and plug it into the socket of the same colour — close the circuit."
     },
     "advanced": {
-     "ru": "Цветная и цифровая маркировка проводов не даёт перепутать линии питания. Неправильное соединение — короткое замыкание.",
+     "ru": "Цветная маркировка проводов не даёт перепутать линии питания. Неправильное соединение — короткое замыкание, поэтому ошибка считается.",
      "kk": null,
-     "en": "Colour and number marks keep power lines apart. A wrong connection is a short circuit."
+     "en": "Colour-coded wires keep power lines apart. A wrong connection is a short circuit, so a mistake counts."
     }
    },
    "why": {
@@ -124,48 +124,6 @@
     "ru": "Закон Ньютона: a = F / m",
     "kk": null,
     "en": "Newton's law: a = F / m"
-   }
-  },
-  {
-   "id": "pet_adopt",
-   "kind": "routine",
-   "room": "habitat",
-   "console": "petbed",
-   "minigame": "pet_choose",
-   "reward": 8,
-   "title": {
-    "ru": "Питомец на борту",
-    "kk": null,
-    "en": "A pet on board"
-   },
-   "brief": {
-    "junior": {
-     "ru": "Выбери питомца и обустрой его уголок. Счастливый питомец поднимает настроение: +2 монеты за каждое задание!",
-     "kk": null,
-     "en": "Pick a pet and set up its corner. A happy pet cheers the crew: +2 coins for every task!"
-    },
-    "advanced": {
-     "ru": "Выбери питомца. В невесомости всё пристёгивают и закрепляют — даже миску.",
-     "kk": null,
-     "en": "Pick a pet. In weightlessness everything is strapped down — even the bowl."
-    }
-   },
-   "why": {
-    "junior": {
-     "ru": "Долгий полёт — это трудно: экипаж далеко от дома. Забота о ком-то помогает не скучать и держаться вместе.",
-     "kk": null,
-     "en": "A long flight is hard: the crew is far from home. Caring for someone helps beat boredom and keeps the team close."
-    },
-    "advanced": {
-     "ru": "Психологи NASA считают настроение экипажа такой же важной «системой», как кислород. На МКС выращивают растения и летают роботы Astrobee.",
-     "kk": null,
-     "en": "NASA psychologists treat crew mood as a system as vital as oxygen. The ISS grows plants and has Astrobee robots flying around."
-    }
-   },
-   "law": {
-    "ru": "Правило: в невесомости всё нужно закреплять",
-    "kk": null,
-    "en": "Rule: in weightlessness everything must be fastened"
    }
   },
   {
@@ -1202,7 +1160,6 @@
     "go_nogo",
     "systems_check",
     "tli_burn",
-    "pet_adopt",
     "meal",
     "exercise",
     "asteroid_wave"

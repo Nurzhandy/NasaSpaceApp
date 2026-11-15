@@ -51,9 +51,9 @@ impl StarSight {
     }
     fn tol(hard: bool) -> f32 {
         if hard {
-            0.015
+            0.022
         } else {
-            0.03
+            0.035
         }
     }
 }
@@ -737,9 +737,9 @@ impl FindLeak {
     }
     fn zone(hard: bool) -> (f32, f32) {
         if hard {
-            (0.72, 0.8)
+            (0.7, 0.82)
         } else {
-            (0.68, 0.84)
+            (0.66, 0.86)
         }
     }
 }
@@ -750,7 +750,7 @@ impl Play for FindLeak {
                 MiniInput::Press(x, y) | MiniInput::Drag(x, y) => self.sensor = (x, y),
                 MiniInput::Release(x, y) => {
                     self.sensor = (x, y);
-                    let r = if hard { 16.0 } else { 24.0 };
+                    let r = if hard { 22.0 } else { 30.0 };
                     if let Some(l) = self.leaks.iter_mut().find(|l| !l.2 && dist((x, y), (l.0, l.1)) < r) {
                         l.2 = true;
                     }
@@ -1041,7 +1041,7 @@ impl Play for Antenna {
     }
     fn tick(&mut self, dt: f32, hard: bool) -> Outcome {
         self.t += dt;
-        let need = if hard { 0.985 } else { 0.97 };
+        let need = if hard { 0.975 } else { 0.96 };
         if self.signal(hard) > need {
             self.lock += dt;
         } else {
