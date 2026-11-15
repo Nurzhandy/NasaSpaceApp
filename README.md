@@ -1,6 +1,7 @@
 # 🚀 SPACE EXPLORERS
 
 **NASA Space Apps Challenge 2026 — “Build a Junior Astronaut Mission Trainer”**
+
 **Team MilkyWay Kazakhstan**
 
 SPACE EXPLORERS is an interactive educational game that introduces kids aged 7–12 to space and builds the skills future astronauts need. Players fly a spacecraft, complete tasks, land on the Moon and keep a base alive, in a **story mode** and a **survival mode**. Through game situations we train concentration, logical thinking, fast decision-making, coordination and teamwork — and every choice costs something, just like in a real mission.
