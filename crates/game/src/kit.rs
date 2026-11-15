@@ -85,6 +85,8 @@ pub enum Action {
     /// landing (landing.rs)
     PickSite(u8),
     LandingRetry,
+    /// retry with the speed and course helpers on
+    LandingRetryHelp,
     LandingGo,
     LandingAck,
     /// survival upgrades window
