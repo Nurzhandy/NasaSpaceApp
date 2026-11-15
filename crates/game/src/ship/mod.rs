@@ -1104,7 +1104,9 @@ fn ship_test(
             info!("SHIP-TEST feeding the pet");
         }
     }
-    let Some(task) = problem.or(st.tasks.iter().find(|t| t.id == "pet_feed")).or(st.tasks.first()).cloned() else { return };
+    // finish the open window first; then emergencies, the pet, the rest
+    let open = ui.open.and_then(|(_, uid)| st.tasks.iter().find(|t| t.uid == uid));
+    let Some(task) = open.or(problem).or(st.tasks.iter().find(|t| t.id == "pet_feed")).or(st.tasks.first()).cloned() else { return };
     // walk (teleport) to the console and work there
     if ui.open.is_none() {
         if let Some((x, y)) = camp.0.console_pos(&task.room, &task.console).map(|(x, y)| {
