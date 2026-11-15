@@ -125,6 +125,7 @@ pub fn spawn(commands: &mut Commands, layout: &ShipLayout, meshes: &mut Assets<M
     hull(&mut p, &mut m, art);
     for r in &layout.rooms {
         floor(&mut p, r);
+        outer(&mut p, &mut m, art, r);
         props(&mut p, &mut m, art, r);
     }
     for r in &layout.rooms {
@@ -311,6 +312,40 @@ fn floor(p: &mut Painter, r: &Room) {
     // cable trays along the bottom wall
     p.cells(x + 0.5, y + 0.06, w - 1.0, 0.1, hex(0x3a4058), -2.6);
     p.cells(x + 0.5, y + 0.1, w - 1.0, 0.04, hex(0xffcc33), -2.59);
+}
+
+/// Portholes in the outer walls (with stars), posters and wall panels — the same for every room
+/// that touches the hull.
+fn outer(p: &mut Painter, m: &mut Ms, art: &Art, r: &Room) {
+    let (x, y, w, h) = (r.x as f32, r.y as f32, r.w as f32, r.h as f32);
+    let z = -2.2;
+    let port = |p: &mut Painter, m: &mut Ms, cx: f32, cy: f32| {
+        p.disc(m, cx, cy, 0.48, 0xb8c0d4, z);
+        p.disc(m, cx, cy, 0.38, 0x070a24, z + 0.01);
+        for (dx, dy) in [(-0.12, 0.1), (0.1, -0.05), (0.02, 0.18)] {
+            let e = p.cells(cx + dx, cy + dy, 0.05, 0.05, hex(0xffffff), z + 0.02);
+            p.blink(e, 2.0, dx * 9.0, 1.0);
+        }
+    };
+    if r.x == 0 {
+        port(p, m, x + 0.45, y + 5.4);
+    }
+    if (r.x + r.w) as f32 >= SHIP_W {
+        port(p, m, x + w - 0.45, y + 2.3);
+    }
+    if r.y == 0 {
+        port(p, m, x + 2.4, y + 0.45);
+        port(p, m, x + 7.6, y + 0.45);
+    }
+    // a poster on the top wall (Moon, Earth or a rocket) and a little status panel
+    let icon = ["moon", "earth", "rocket", "planet", "star", "sun", "satellite", "flag", "globe"][((r.x / 10) + (r.y / 7) * 3) as usize % 9];
+    p.cells(x + w - 4.6, y + h - 1.05, 0.9, 0.7, hex(0xf6f0de), z);
+    p.icon(art, icon, x + w - 4.15, y + h - 0.72, 0.55, z + 0.01);
+    p.cells(x + w - 3.4, y + h - 0.95, 0.6, 0.45, hex(0x1c2030), z);
+    for i in 0..3 {
+        let e = p.cells(x + w - 3.32 + i as f32 * 0.17, y + h - 0.82, 0.1, 0.1, hex([0x5aff8a, 0xffd35a, 0x5ac8ff][i]), z + 0.01);
+        p.blink(e, 1.0 + i as f32, i as f32, 1.0);
+    }
 }
 
 /// Furniture, machines and lights, room by room (cells relative to the room's corner).
@@ -572,7 +607,9 @@ fn walls(p: &mut Painter, layout: &ShipLayout, r: &Room) {
 /// Sliding metal doors: two leaves per doorway, a yellow safety edge, a lamp on the frame.
 fn doors(p: &mut Painter, layout: &ShipLayout) {
     for &(dx, dy) in &layout.doors {
-        let vertical = dx.fract() == 0.0;
+        // a door in a wall between a room on the left and one on the right is a vertical door
+        // (you walk through it left-right); otherwise it is in a horizontal wall (up-down)
+        let vertical = layout.rooms.iter().any(|r| ((r.x as f32 - dx).abs() < 0.01 || ((r.x + r.w) as f32 - dx).abs() < 0.01) && dy > r.y as f32 && dy < (r.y + r.h) as f32);
         let at = Vec2::new(dx, dy);
         for side in [-1.0f32, 1.0] {
             let size = if vertical { Vec2::new(0.42 * SC, DOOR_HALF * SC) } else { Vec2::new(DOOR_HALF * SC, 0.42 * SC) };

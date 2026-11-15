@@ -4,6 +4,8 @@
 
 pub mod card;
 pub mod decor;
+pub mod npc;
+pub mod pet;
 
 use crate::art::{self, Art};
 use crate::audio::Play;
@@ -81,13 +83,16 @@ impl Plugin for ShipPlugin {
             .add_systems(Update, (start_expedition, reload_f5).after(Set::Input))
             .add_systems(OnEnter(AppState::Ship), (spawn_ship, crate::ship::reset_camera))
             .add_systems(Update, (decor::animate, decor::animate_doors).run_if(in_state(AppState::Ship)))
+            .init_resource::<npc::Chatter>()
+            .add_systems(OnEnter(AppState::Ship), npc::spawn.after(spawn_ship))
+            .add_systems(Update, (npc::walk, npc::visor, npc::chatter, pet::sync, pet::animate, pet::hunger).chain().in_set(Set::View).run_if(in_state(AppState::Ship)).run_if(resource_exists::<Camp>))
             .add_systems(OnExit(AppState::Ship), |mut ui: ResMut<ShipUi>, mut busy: ResMut<UiBusy>| {
                 *ui = ShipUi::default();
                 busy.0 = false;
             })
             .add_systems(
                 Update,
-                (walk, interact, pet_click, crate::minigames::pointer, ship_actions, tick_campaign)
+                (walk, interact, pet::click, crate::minigames::pointer, ship_actions, tick_campaign)
                     .chain()
                     .in_set(Set::Logic)
                     .run_if(in_state(AppState::Ship))
@@ -95,7 +100,7 @@ impl Plugin for ShipPlugin {
             )
             .add_systems(
                 Update,
-                (draw_crew, markers, hud, windows, crate::minigames::draw, crate::minigames::progress_bar, crate::touch_panel::update_rocks, toasts, pet, task_timer, follow_camera)
+                (draw_crew, markers, hud, windows, crate::minigames::draw, crate::minigames::progress_bar, crate::touch_panel::update_rocks, toasts, task_timer, follow_camera)
                     .chain()
                     .in_set(Set::View)
                     .run_if(in_state(AppState::Ship))
@@ -274,7 +279,8 @@ fn nearest_task(camp: &Campaign, pos: Vec2) -> Option<(u32, f32)> {
         .min_by(|a, b| a.1.total_cmp(&b.1))
 }
 
-fn interact(inputs: Res<Inputs>, mut ui: ResMut<ShipUi>, mut camp: ResMut<Camp>, q: Query<&Crew>, prof: Res<Prof>, mut play: EventWriter<Play>) {
+#[allow(clippy::too_many_arguments)]
+fn interact(inputs: Res<Inputs>, mut ui: ResMut<ShipUi>, mut camp: ResMut<Camp>, q: Query<&Crew>, prof: Res<Prof>, mut play: EventWriter<Play>, npcs: Query<&npc::Npc>, pets: Query<&pet::PetBody>) {
     if ui.paused || camp.0.frozen() {
         return;
     }
@@ -283,31 +289,37 @@ fn interact(inputs: Res<Inputs>, mut ui: ResMut<ShipUi>, mut camp: ResMut<Camp>,
         if !pad.act || ui.open.is_some() {
             continue;
         }
-        let Some((uid, _)) = nearest_task(&camp.0, c.pos) else {
-            // no job here: maybe the pet
-            if pet_prompt(&camp.0, c.pos, prof.lang()).is_some() {
+        let uid = match what_e(&camp.0, c.pos, &npcs, &pets, prof.lang()) {
+            Some((EAct::Task(uid), _)) => uid,
+            Some((act, _)) => {
                 let l = prof.lang();
-                let cmd = match camp.0.state().pet {
-                    None => camp.0.pet_spots().iter().position(|s| c.pos.distance(Vec2::new(s.0, s.1)) < ja_core::campaign::PET_REACH).map(|k| CampaignCommand::AdoptPet { kind: k as u8 }),
-                    Some(_) => Some(CampaignCommand::PetToggle),
+                let (cmd, msg) = match act {
+                    EAct::Talk(n) => (CampaignCommand::Talk { npc: n }, None),
+                    EAct::Feed => (CampaignCommand::FeedPet, None),
+                    EAct::Adopt(k) => (CampaignCommand::AdoptPet { kind: k }, Some(l.pick("Теперь у тебя есть питомец! Он ходит за тобой. E рядом с ним — «сидеть».", "You have a pet now! It follows you. Press E next to it to make it stay."))),
+                    _ => (CampaignCommand::PetToggle, None),
                 };
-                if let Some(cmd) = cmd {
-                    let adopt = matches!(cmd, CampaignCommand::AdoptPet { .. });
-                    if camp.0.apply(c.idx, cmd).is_ok() {
-                        play.write(Play("click"));
+                if let Ok(ev) = camp.0.apply(c.idx, cmd) {
+                    play.write(Play("click"));
+                    if let Some(m) = msg {
+                        ui.toasts.push((m.into(), C_GOOD, 4.0));
+                    }
+                    if act == EAct::Toggle {
                         let follow = camp.0.state().pet.as_ref().is_some_and(|p| p.follow);
-                        let msg = if adopt {
-                            l.pick("Теперь у тебя есть питомец! Он ходит за тобой. E рядом с ним — «сидеть».", "You have a pet now! It follows you. Press E next to it to make it stay.")
-                        } else if follow {
-                            l.pick("Питомец идёт за тобой", "Your pet follows you")
-                        } else {
-                            l.pick("Питомец сидит и ждёт", "Your pet stays here")
-                        };
-                        ui.toasts.push((msg.into(), C_GOOD, 3.5));
+                        ui.toasts.push((if follow { l.pick("Питомец идёт за тобой", "Your pet follows you") } else { l.pick("Питомец сидит и ждёт", "Your pet stays here") }.into(), C_GOOD, 2.5));
+                    }
+                    // "feed the pet": open the job right away
+                    for e in ev {
+                        if let CampaignEvent::TaskOffered { uid, .. } = e {
+                            if camp.0.apply(c.idx, CampaignCommand::OpenTask { uid }).is_ok() {
+                                ui.open = Some((c.idx, uid));
+                            }
+                        }
                     }
                 }
+                continue;
             }
-            continue;
+            None => continue,
         };
         match camp.0.apply(c.idx, CampaignCommand::OpenTask { uid }) {
             Ok(ev) => {
@@ -461,7 +473,8 @@ fn report(evs: &[CampaignEvent], ui: &mut ShipUi, camp: &Campaign, l: Lang, play
 
 // ---------------------------------------------------------------- drawing
 
-fn draw_crew(camp: Res<Camp>, mut q: Query<(&Crew, &mut Transform, &mut Sprite, &Children), Without<CrewPrompt>>, mut layers: Query<&mut Sprite, (Without<Crew>, Without<CrewPrompt>)>, mut prompts: Query<(&CrewPrompt, &mut Transform, &mut Text2d), Without<Crew>>, ui: Res<ShipUi>, prof: Res<Prof>) {
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
+fn draw_crew(camp: Res<Camp>, mut q: Query<(&Crew, &mut Transform, &mut Sprite, &Children), (Without<CrewPrompt>, Without<npc::Npc>)>, mut layers: Query<&mut Sprite, (Without<Crew>, Without<CrewPrompt>, Without<npc::Npc>)>, mut prompts: Query<(&CrewPrompt, &mut Transform, &mut Text2d), (Without<Crew>, Without<npc::Npc>)>, ui: Res<ShipUi>, prof: Res<Prof>, npcs: Query<&npc::Npc>, pets: Query<&pet::PetBody>) {
     let l = prof.lang();
     for (c, mut tr, mut s, children) in &mut q {
         let frame = if c.anim > 0.0 { (c.anim as usize) % 4 } else { 0 };
@@ -484,31 +497,49 @@ fn draw_crew(camp: Res<Camp>, mut q: Query<(&Crew, &mut Transform, &mut Sprite, 
             }
             ptr.translation = Vec3::new(p.x, p.y + 82.0, 5.0);
             let show = !ui.open.is_some_and(|o| o.0 == c.idx);
-            text.0 = match nearest_task(&camp.0, c.pos).filter(|_| show) {
-                Some((uid, _)) => {
-                    let t = camp.0.state().tasks.iter().find(|t| t.uid == uid);
-                    let name = t.and_then(|t| camp.0.content().task(&t.id)).map(|d| d.title.get(l).to_string()).unwrap_or_default();
-                    let key = if c.idx == 1 { "Shift" } else { "E" };
-                    format!("[{key}] {name}")
-                }
-                None => pet_prompt(&camp.0, c.pos, l).filter(|_| show).unwrap_or_default(),
-            };
+            text.0 = if show { what_e(&camp.0, c.pos, &npcs, &pets, l).map(|x| x.1).unwrap_or_default() } else { String::new() };
+            if c.idx == 1 && !text.0.is_empty() {
+                text.0 = text.0.replacen("[E]", "[Shift]", 1);
+            }
         }
     }
 }
 
-/// What E does with the pet here (adopt one / sit / follow), if anything.
-fn pet_prompt(camp: &Campaign, pos: Vec2, l: Lang) -> Option<String> {
+#[derive(Clone, Copy, PartialEq, Debug)]
+enum EAct {
+    Task(u32),
+    Talk(u8),
+    Feed,
+    Adopt(u8),
+    Toggle,
+}
+
+/// What E does here, and the prompt for it: a job first, then talking to the crew, feeding the
+/// pet at its corner, adopting a pet, telling your pet to stay / follow.
+fn what_e(camp: &Campaign, pos: Vec2, npcs: &Query<&npc::Npc>, pets: &Query<&pet::PetBody>, l: Lang) -> Option<(EAct, String)> {
     let st = camp.state();
+    let c = camp.content();
+    if let Some((uid, _)) = nearest_task(camp, pos) {
+        let name = st.tasks.iter().find(|t| t.uid == uid).and_then(|t| c.task(&t.id)).map(|d| d.title.get(l).to_string()).unwrap_or_default();
+        return Some((EAct::Task(uid), format!("[E] {name}")));
+    }
+    if let Some(n) = npc::near(npcs, pos) {
+        let name = c.npcs.get(n as usize).map(|x| x.name.get(l).to_string()).unwrap_or_default();
+        return Some((EAct::Talk(n), format!("[E] {} {name}", l.pick("Поговорить:", "Talk:"))));
+    }
+    let reach = ja_core::campaign::PET_REACH;
     match &st.pet {
-        None => camp.pet_spots().iter().position(|s| pos.distance(Vec2::new(s.0, s.1)) < ja_core::campaign::PET_REACH).map(|k| {
+        None => camp.pet_spots().iter().position(|s| pos.distance(Vec2::new(s.0, s.1)) < reach).map(|k| {
             let (_, ru, en) = ja_core::minigame::PETS[k];
-            format!("[E] {} {}", l.pick("Взять питомца:", "Adopt:"), l.pick(ru, en))
+            (EAct::Adopt(k as u8), format!("[E] {} {}", l.pick("Взять питомца:", "Adopt:"), l.pick(ru, en)))
         }),
         Some(p) => {
-            let at = if p.follow { None } else { Some(Vec2::new(p.at.0, p.at.1)) };
-            let near = at.map(|a| pos.distance(a) < ja_core::campaign::PET_REACH).unwrap_or(true);
-            near.then(|| if p.follow { format!("[E] {}", l.pick("Питомец: сидеть", "Pet: stay")) } else { format!("[E] {}", l.pick("Питомец: за мной!", "Pet: follow me!")) })
+            let bowl = camp.console_pos("habitat", "petbed").map(|b| pos.distance(Vec2::new(b.0, b.1)) < ja_core::campaign::REACH).unwrap_or(false);
+            if bowl && !st.tasks.iter().any(|t| t.id == "pet_feed") {
+                return Some((EAct::Feed, format!("[E] {}", l.pick("Покормить питомца", "Feed the pet"))));
+            }
+            let at = pet::pet_pos(pets, p.kind).unwrap_or(Vec2::new(p.at.0, p.at.1));
+            (pos.distance(at) < reach + 0.4).then(|| (EAct::Toggle, if p.follow { format!("[E] {}", l.pick("Питомец: сидеть", "Pet: stay")) } else { format!("[E] {}", l.pick("Питомец: за мной!", "Pet: follow me!")) }))
         }
     }
 }
@@ -681,65 +712,6 @@ fn task_timer(camp: Res<Camp>, ui: Res<ShipUi>, mut q: Query<&mut Text, With<Tas
         let s = format!("{:.0}", x.max(0.0));
         if t.0 != s {
             t.0 = s;
-        }
-    }
-}
-
-#[derive(Component)]
-struct PetSprite(u8);
-
-/// The ship's pet. Before anyone adopts it, three pets wait in the living quarters; afterwards the
-/// chosen one floats after its owner (weightless!) or sits where it was told. A hungry pet looks grey.
-fn pet(mut commands: Commands, camp: Res<Camp>, art: Res<Art>, time: Res<Time>, crew: Query<&Crew>, mut q: Query<(Entity, &PetSprite, &mut Transform, &mut Sprite)>) {
-    let st = camp.0.state();
-    let t = time.elapsed_secs();
-    let dt = time.delta_secs();
-    // where each visible pet should be (kind, position, tint)
-    let want: Vec<(u8, Vec2, Color)> = match &st.pet {
-        None => camp.0.pet_spots().iter().enumerate().map(|(k, s)| (k as u8, to_px(s.0, s.1) + Vec2::new(0.0, (t * 2.0 + k as f32).sin() * 5.0), Color::WHITE)).collect(),
-        Some(p) => {
-            let at = if p.follow {
-                let owner = crew.iter().find(|c| c.idx == p.owner).map(|c| c.pos).unwrap_or(Vec2::new(5.0, 10.5));
-                to_px(owner.x - 0.9, owner.y + 0.3) + Vec2::new(0.0, (t * 2.2).sin() * 7.0)
-            } else {
-                to_px(p.at.0, p.at.1) + Vec2::new(0.0, (t * 0.8).sin() * 2.0)
-            };
-            vec![(p.kind, at, if p.mood < 50.0 { Color::srgb(0.65, 0.65, 0.75) } else { Color::WHITE })]
-        }
-    };
-    let mut have = vec![];
-    for (e, ps, mut tr, mut s) in &mut q {
-        match want.iter().find(|w| w.0 == ps.0) {
-            Some((_, at, tint)) => {
-                let cur = tr.translation.truncate();
-                let n = cur + (*at - cur) * (4.0 * dt).min(1.0);
-                tr.translation = Vec3::new(n.x, n.y, 2.5);
-                tr.rotation = Quat::from_rotation_z((t * 1.3 + ps.0 as f32).sin() * 0.12);
-                s.color = *tint;
-                have.push(ps.0);
-            }
-            None => commands.entity(e).despawn(),
-        }
-    }
-    for (k, at, _) in want {
-        if !have.contains(&k) {
-            let icon = ja_core::minigame::PETS[k as usize % 3].0;
-            commands.spawn((Sprite { image: art.icon(icon), custom_size: Some(Vec2::splat(SC * 0.95)), ..default() }, Transform::from_xyz(at.x, at.y, 2.5), PetSprite(k), StateScoped(AppState::Ship)));
-        }
-    }
-}
-
-/// A mouse click on your pet: sit / follow (like pressing E next to it).
-fn pet_click(mouse: Res<ButtonInput<MouseButton>>, windows: Query<&Window>, cam: Query<(&Camera, &GlobalTransform), With<MainCam>>, pets: Query<&Transform, With<PetSprite>>, mut camp: ResMut<Camp>, ui: Res<ShipUi>, busy: Res<UiBusy>, net: Res<crate::net::Net>, mut play: EventWriter<Play>) {
-    if !mouse.just_pressed(MouseButton::Left) || ui.open.is_some() || busy.0 || camp.0.state().pet.is_none() {
-        return;
-    }
-    let (Ok(w), Ok((c, gt))) = (windows.single(), cam.single()) else { return };
-    let Some(world) = w.cursor_position().and_then(|p| c.viewport_to_world_2d(gt, p).ok()) else { return };
-    if pets.iter().any(|t| t.translation.truncate().distance(world) < SC * 0.6) {
-        let me = net.local_idx().unwrap_or(0);
-        if camp.0.apply(me, CampaignCommand::PetToggle).is_ok() {
-            play.write(Play("click"));
         }
     }
 }
@@ -1036,7 +1008,10 @@ fn ship_test(
         }
         return;
     }
-    if st.dialog.is_some() {
+    if let Some(d) = &st.dialog {
+        if d.id.starts_with("talk_") {
+            shot(&mut commands, &mut run, "29_ship_talk");
+        }
         shot(&mut commands, &mut run, "20_ship_dialog");
         if run.t > 1.5 {
             acts.write(Act(Action::DialogChoose(0)));
@@ -1085,7 +1060,37 @@ fn ship_test(
         run.t = 0.0;
         return;
     }
-    let Some(task) = problem.or(st.tasks.first()).cloned() else { return };
+    // the pet and the crew: adopt the cat after a few jobs, then talk to Aya, then feed the cat
+    if ui.open.is_none() && st.done.len() >= 3 && st.pet.is_none() {
+        let spot = camp.0.pet_spots()[1];
+        for mut c in &mut crew {
+            if c.idx == 0 {
+                c.pos = Vec2::new(spot.0 + 0.6, spot.1);
+            }
+        }
+        camp.0.set_crew_pos(0, spot.0 + 0.6, spot.1);
+        if camp.0.apply(0, CampaignCommand::AdoptPet { kind: 1 }).is_ok() {
+            info!("SHIP-TEST adopted the cat");
+        }
+        run.t = 0.0;
+        return;
+    }
+    if st.pet.is_some() && run.t > 1.5 && !run.shots.contains(&"30_ship_pet") {
+        shot(&mut commands, &mut run, "30_ship_pet");
+    }
+    if ui.open.is_none() && st.done.len() >= 5 && !st.seen_dialogs.iter().any(|d| d.starts_with("talk_")) {
+        let aya = camp.0.content().npcs.iter().position(|n| n.id == "aya").unwrap_or(1) as u8;
+        if camp.0.apply(0, CampaignCommand::Talk { npc: aya }).is_ok() {
+            info!("SHIP-TEST talking to Aya");
+        }
+        return;
+    }
+    if ui.open.is_none() && st.done.len() >= 7 && st.pet.is_some() && !st.done.iter().any(|d| d == "pet_feed") && !st.tasks.iter().any(|t| t.id == "pet_feed") {
+        if camp.0.apply(0, CampaignCommand::FeedPet).is_ok() {
+            info!("SHIP-TEST feeding the pet");
+        }
+    }
+    let Some(task) = problem.or(st.tasks.iter().find(|t| t.id == "pet_feed")).or(st.tasks.first()).cloned() else { return };
     // walk (teleport) to the console and work there
     if ui.open.is_none() {
         if let Some((x, y)) = camp.0.console_pos(&task.room, &task.console).map(|(x, y)| {
@@ -1121,7 +1126,7 @@ fn ship_test(
         let name: &'static str = Box::leak(format!("mg_{}", task.id).into_boxed_str());
         shot(&mut commands, &mut run, name);
         // JA_MOUSE_TEST: the first jobs are played with the real mouse cursor (mouse_drive)
-        if !(std::env::var_os("JA_MOUSE_TEST").is_some() && MOUSE_TASKS.contains(&task.id.as_str())) {
+        if !(std::env::var_os("JA_MOUSE_TEST").is_some() && mouse_task(&task.id)) {
             for i in m.solution() {
                 acts.write(Act(Action::Mini(task.uid, i)));
             }
@@ -1134,6 +1139,11 @@ fn ship_test(
 }
 
 const MOUSE_TASKS: [&str; 3] = ["go_nogo", "systems_check", "tli_burn"];
+
+/// `JA_MOUSE_TEST=all`: every job is played with the real cursor.
+fn mouse_task(id: &str) -> bool {
+    std::env::var("JA_MOUSE_TEST").is_ok_and(|v| v == "all") || MOUSE_TASKS.contains(&id)
+}
 
 /// `JA_MOUSE_TEST=1` (with `JA_SHIP_TEST`): plays the first mini-games by moving the real cursor
 /// and pressing the real mouse button, so the canvas → `MiniInput` path is checked end to end.
@@ -1152,7 +1162,7 @@ fn mouse_drive(
     let (Some(camp), Some(ui)) = (camp, ui) else { return };
     let Some((_, uid)) = ui.open else { return };
     let Some(task) = camp.0.state().tasks.iter().find(|t| t.uid == uid) else { return };
-    if !MOUSE_TASKS.contains(&task.id.as_str()) {
+    if !mouse_task(&task.id) {
         return;
     }
     let Ok((_, node, gt)) = canvas.single() else { return };
@@ -1178,7 +1188,16 @@ fn mouse_drive(
         q.3 -= time.delta_secs().min(0.1) * speed.0;
         return;
     }
-    let Some(step) = q.1.first().copied() else { return };
+    let Some(step) = q.1.first().copied() else {
+        // all moves sent but the job is still open (a slip, like a real player's): look and try again
+        q.3 -= time.delta_secs();
+        if q.3 < -1.0 {
+            info!("MOUSE-TEST retry {}", task.id);
+            q.0 = 0;
+            q.3 = 0.0;
+        }
+        return;
+    };
     // each pointer move takes two frames: move the cursor, then (next frame) press / release
     match (step, q.2) {
         (M::Wait(t), _) => {

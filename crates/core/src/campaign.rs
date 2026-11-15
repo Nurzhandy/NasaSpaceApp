@@ -117,6 +117,9 @@ pub struct CampaignState {
     /// the ship's pet, once adopted
     #[serde(default)]
     pub pet: Option<Pet>,
+    /// emergencies that already happened this flight (each comes once, solved or not)
+    #[serde(default)]
+    pub problems_seen: Vec<String>,
 }
 
 /// A finished task: what was earned and why the job matters.
@@ -190,6 +193,10 @@ pub enum CampaignCommand {
     AdoptPet { kind: u8 },
     /// the pet sits here / follows me again
     PetToggle,
+    /// fill the pet's bowl now (offers the "feed the pet" job at the pet corner)
+    FeedPet,
+    /// talk to a crew member (index into `Content::npcs`)
+    Talk { npc: u8 },
     /// after game over: back to the start of the day
     RestartDay,
     /// creative mode: skip to the next day
@@ -253,6 +260,7 @@ impl Campaign {
             lesson: None,
             laws: vec![],
             pet: None,
+            problems_seen: vec![],
         };
         let mut c = Campaign { checkpoint: Checkpoint(s.clone()), s, content: content.clone(), rng: Rng::new(cfg.seed), mirror: None, outbox: vec![] };
         let _ = c.start_day(1);
@@ -464,10 +472,11 @@ impl Campaign {
         self.s.calm_t += dt;
         if !creative && self.s.field.is_none() && self.s.calm_t > self.calm_gap() && self.urgent() < self.urgent_limit() {
             let pool: Vec<String> = self.content.day(day).map(|d| d.problems.clone()).unwrap_or_default();
-            let options: Vec<&String> = pool.iter().filter(|p| Some(*p) != self.s.last_problem.as_ref() && !self.s.tasks.iter().any(|t| &&t.id == p) && !self.s.done.contains(p)).collect();
+            let options: Vec<&String> = pool.iter().filter(|p| Some(*p) != self.s.last_problem.as_ref() && !self.s.tasks.iter().any(|t| &&t.id == p) && !self.s.done.contains(p) && !self.s.problems_seen.contains(p)).collect();
             if !options.is_empty() {
                 let id = options[self.rng.below(options.len())].clone();
                 self.s.last_problem = Some(id.clone());
+                self.s.problems_seen.push(id.clone());
                 self.s.calm_t = 0.0;
                 ev.extend(self.offer(&id, false, None));
             }
@@ -613,10 +622,11 @@ impl Campaign {
         self.s.done.push(t.id.clone());
         let mut ev = vec![CampaignEvent::TaskDone { uid, id: t.id.clone(), coins }];
         ev.extend(self.trigger(&Trigger::TaskDone(t.id.clone())));
+        // the physics card that belongs to this very job (if there is one)
+        ev.extend(self.episode_over(&t.id));
         if matches!(t.kind, TaskKind::Problem | TaskKind::Asteroids) {
             self.s.score.solved += 1;
             self.s.calm_t = 0.0;
-            ev.extend(self.episode_over(&t.id));
             // a breather after every solved problem
             let b = [Breather::PhotoEarth, Breather::CallHome, Breather::CrewLine][self.s.breathers as usize % 3];
             self.s.breathers += 1;
@@ -675,6 +685,31 @@ impl Campaign {
                 }
                 self.s.pet = Some(Pet { kind, mood: 100.0, owner: p as u8, follow: true, at: spot });
                 return Ok(vec![CampaignEvent::PetAdopted(kind)]);
+            }
+            CampaignCommand::FeedPet => {
+                if self.s.pet.is_none() || self.s.tasks.iter().any(|t| t.id == "pet_feed") || self.content.task("pet_feed").is_none() {
+                    return Err(CampaignRefusal::NotNow);
+                }
+                return Ok(self.offer("pet_feed", false, None).into_iter().collect());
+            }
+            CampaignCommand::Talk { npc } => {
+                if self.s.dialog.is_some() || self.s.field.is_some() || !matches!(self.s.phase, Phase::Ship { .. }) {
+                    return Err(CampaignRefusal::NotNow);
+                }
+                let id = self.content.npcs.get(npc as usize).map(|n| n.id.clone()).ok_or(CampaignRefusal::NotNow)?;
+                let talks: Vec<&crate::content::Dialog> = self.content.dialogs.iter().filter(|d| d.trigger == Trigger::Talk(id.clone()) && d.require_flag.as_ref().is_none_or(|f| self.s.flags.contains(f))).collect();
+                if talks.is_empty() {
+                    return Err(CampaignRefusal::NotNow);
+                }
+                // new conversations first, then the old ones again in turn
+                let pick = talks.iter().find(|d| !self.s.seen_dialogs.contains(&d.id)).copied().unwrap_or_else(|| {
+                    let n = self.s.seen_dialogs.iter().filter(|s| talks.iter().any(|d| &&d.id == s)).count();
+                    talks[n % talks.len()]
+                });
+                let d = dialog::start(pick);
+                self.s.seen_dialogs.push(pick.id.clone());
+                self.s.dialog = Some(d);
+                return Ok(vec![CampaignEvent::DialogStarted(pick.id.clone())]);
             }
             CampaignCommand::PetToggle => {
                 let p = (player as usize).min(self.s.crew.len().saturating_sub(1));
@@ -971,8 +1006,8 @@ mod tests {
                 shown.push(id.to_string());
             }
         }
-        let free: Vec<String> = c.cards.iter().filter(|k| k.after.is_none()).take(3).map(|k| k.id.clone()).collect();
-        assert_eq!(shown, free);
+        // no card after an episode it has nothing to do with
+        assert!(shown.is_empty(), "{shown:?}");
         let tied = c.cards.iter().find(|k| k.after.is_some()).unwrap();
         assert_eq!(crate::physics::next_card(&c, &[], tied.after.as_ref().unwrap()), Some(tied.id.as_str()));
     }
@@ -1030,5 +1065,25 @@ mod tests {
         assert!(g.state().pet.as_ref().unwrap().follow, "follows again");
         // no story task needs the pet
         assert!(c.days.iter().all(|d| d.scripted.iter().all(|t| !t.starts_with("pet"))));
+    }
+
+    /// Talking to a crew member: new conversations first, then they come round again.
+    #[test]
+    fn crew_talks_are_new_first_then_repeat() {
+        let c = content();
+        let mut g = Campaign::new(ExpeditionConfig::new(1, Level::Junior), &c);
+        while g.state().dialog.is_some() {
+            let _ = g.apply(0, CampaignCommand::DialogSkip);
+        }
+        let aya = c.npcs.iter().position(|n| n.id == "aya").unwrap() as u8;
+        let mut ids = vec![];
+        for _ in 0..4 {
+            g.apply(0, CampaignCommand::Talk { npc: aya }).unwrap();
+            ids.push(g.state().dialog.as_ref().unwrap().id.clone());
+            g.apply(0, CampaignCommand::DialogSkip).unwrap();
+        }
+        assert_eq!(ids[..3].iter().collect::<std::collections::HashSet<_>>().len(), 3, "{ids:?}");
+        assert_eq!(ids[3], ids[0]);
+        assert!(c.npcs.iter().filter(|n| n.on_board).all(|n| !n.chatter.is_empty()));
     }
 }

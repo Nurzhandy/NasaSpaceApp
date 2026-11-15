@@ -1,0 +1,531 @@
+[
+ {
+  "id": "talk_aya_1",
+  "trigger": {
+   "on": "talk",
+   "id": "aya"
+  },
+  "nodes": [
+   {
+    "id": "a",
+    "npc": "aya",
+    "text": {
+     "junior": {
+      "ru": "Привет! Я Ая, бортинженер. Хочешь знать, откуда на корабле берётся воздух?",
+      "kk": null,
+      "en": "Hi! I'm Aya, the flight engineer. Want to know where the ship's air comes from?"
+     }
+    },
+    "choices": [
+     {
+      "text": {
+       "ru": "Да, расскажи!",
+       "kk": null,
+       "en": "Yes, tell me!"
+      },
+      "next": "b"
+     },
+     {
+      "text": {
+       "ru": "Потом, я занят",
+       "kk": null,
+       "en": "Later, I'm busy"
+      }
+     }
+    ]
+   },
+   {
+    "id": "b",
+    "npc": "aya",
+    "text": {
+     "junior": {
+      "ru": "Мы берём воду и пропускаем через неё ток. Вода распадается на водород и кислород — кислородом мы дышим!",
+      "kk": null,
+      "en": "We run electric current through water. It splits into hydrogen and oxygen — and we breathe the oxygen!"
+     }
+    },
+    "next": "c"
+   },
+   {
+    "id": "c",
+    "npc": "aya",
+    "text": {
+     "junior": {
+      "ru": "А углекислый газ, который мы выдыхаем, забирает фильтр. Так что следи за ним!",
+      "kk": null,
+      "en": "And a filter removes the carbon dioxide we breathe out. So keep an eye on it!"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "id": "talk_aya_2",
+  "trigger": {
+   "on": "talk",
+   "id": "aya"
+  },
+  "nodes": [
+   {
+    "id": "a",
+    "npc": "aya",
+    "text": {
+     "junior": {
+      "ru": "Знаешь, почему все вещи у нас на липучках и ремнях?",
+      "kk": null,
+      "en": "Do you know why everything here is on velcro and straps?"
+     }
+    },
+    "choices": [
+     {
+      "text": {
+       "ru": "Чтобы не улетели?",
+       "kk": null,
+       "en": "So they don't float away?"
+      },
+      "next": "b"
+     },
+     {
+      "text": {
+       "ru": "Для красоты",
+       "kk": null,
+       "en": "For looks"
+      },
+      "next": "c"
+     }
+    ]
+   },
+   {
+    "id": "b",
+    "npc": "aya",
+    "text": {
+     "junior": {
+      "ru": "Точно! В невесомости ничего не падает. Отпустил отвёртку — и она уплыла в другой отсек.",
+      "kk": null,
+      "en": "Exactly! In weightlessness nothing falls. Let go of a screwdriver and it drifts to another room."
+     }
+    }
+   },
+   {
+    "id": "c",
+    "npc": "aya",
+    "text": {
+     "junior": {
+      "ru": "Ха-ха, нет! В невесомости ничего не падает — без липучек всё разлетелось бы по кораблю.",
+      "kk": null,
+      "en": "Ha-ha, no! In weightlessness nothing falls — without velcro everything would fly around the ship."
+     }
+    }
+   }
+  ]
+ },
+ {
+  "id": "talk_aya_3",
+  "trigger": {
+   "on": "talk",
+   "id": "aya"
+  },
+  "nodes": [
+   {
+    "id": "a",
+    "npc": "aya",
+    "text": {
+     "junior": {
+      "ru": "Когда я была маленькой, разбирала все будильники в доме. Теперь чиню космический корабль!",
+      "kk": null,
+      "en": "When I was little I took apart every alarm clock at home. Now I fix a spaceship!"
+     }
+    },
+    "choices": [
+     {
+      "text": {
+       "ru": "Круто! Как стать инженером?",
+       "kk": null,
+       "en": "Cool! How do I become an engineer?"
+      },
+      "next": "b"
+     },
+     {
+      "text": {
+       "ru": "Ха, а мама не ругалась?",
+       "kk": null,
+       "en": "Ha, didn't your mum mind?"
+      },
+      "next": "c"
+     }
+    ]
+   },
+   {
+    "id": "b",
+    "npc": "aya",
+    "text": {
+     "junior": {
+      "ru": "Учи математику и физику и не бойся ошибаться. Каждая поломка — это загадка.",
+      "kk": null,
+      "en": "Learn maths and physics and don't be afraid of mistakes. Every breakdown is a puzzle."
+     }
+    }
+   },
+   {
+    "id": "c",
+    "npc": "aya",
+    "text": {
+     "junior": {
+      "ru": "Ругалась! Но потом я научилась собирать их обратно. Это самое главное.",
+      "kk": null,
+      "en": "She did! But then I learned to put them back together. That's what matters."
+     }
+    }
+   }
+  ]
+ },
+ {
+  "id": "talk_timur_1",
+  "trigger": {
+   "on": "talk",
+   "id": "timur"
+  },
+  "nodes": [
+   {
+    "id": "a",
+    "npc": "timur",
+    "text": {
+     "junior": {
+      "ru": "Я Тимур, пилот. Угадай, сколько до Луны?",
+      "kk": null,
+      "en": "I'm Timur, the pilot. Guess how far the Moon is?"
+     }
+    },
+    "choices": [
+     {
+      "text": {
+       "ru": "100 километров",
+       "kk": null,
+       "en": "100 kilometres"
+      },
+      "next": "b"
+     },
+     {
+      "text": {
+       "ru": "384 тысячи километров",
+       "kk": null,
+       "en": "384 thousand kilometres"
+      },
+      "next": "c"
+     }
+    ]
+   },
+   {
+    "id": "b",
+    "npc": "timur",
+    "text": {
+     "junior": {
+      "ru": "Ха, больше! Около 384 000 км — между Землёй и Луной поместятся все планеты Солнечной системы.",
+      "kk": null,
+      "en": "Ha, more! About 384,000 km — all the planets of the Solar System would fit between Earth and the Moon."
+     }
+    }
+   },
+   {
+    "id": "c",
+    "npc": "timur",
+    "text": {
+     "junior": {
+      "ru": "Верно! Свет пролетает это за 1,3 секунды, а мы — за несколько дней.",
+      "kk": null,
+      "en": "Right! Light covers it in 1.3 seconds, and we take a few days."
+     }
+    }
+   }
+  ]
+ },
+ {
+  "id": "talk_timur_2",
+  "trigger": {
+   "on": "talk",
+   "id": "timur"
+  },
+  "nodes": [
+   {
+    "id": "a",
+    "npc": "timur",
+    "text": {
+     "junior": {
+      "ru": "Знаешь, почему мы не держим двигатель включённым всю дорогу?",
+      "kk": null,
+      "en": "Know why we don't keep the engine on the whole way?"
+     }
+    },
+    "choices": [
+     {
+      "text": {
+       "ru": "Топливо кончится?",
+       "kk": null,
+       "en": "We'd run out of fuel?"
+      },
+      "next": "b"
+     },
+     {
+      "text": {
+       "ru": "Чтобы не шумел",
+       "kk": null,
+       "en": "So it's not noisy"
+      },
+      "next": "b"
+     }
+    ]
+   },
+   {
+    "id": "b",
+    "npc": "timur",
+    "text": {
+     "junior": {
+      "ru": "Главное — инерция! Разогнались — и корабль летит сам, ничто его не тормозит. Двигатель нужен только для поворотов и торможения.",
+      "kk": null,
+      "en": "It's inertia! Once we're fast, the ship flies on its own — nothing slows it. The engine is only for turns and braking."
+     }
+    }
+   }
+  ]
+ },
+ {
+  "id": "talk_timur_3",
+  "trigger": {
+   "on": "talk",
+   "id": "timur"
+  },
+  "nodes": [
+   {
+    "id": "a",
+    "npc": "timur",
+    "text": {
+     "junior": {
+      "ru": "Самое страшное в полёте — тишина за Луной. Минут сорок нет связи с Землёй.",
+      "kk": null,
+      "en": "The scariest part is the silence behind the Moon. About forty minutes with no link to Earth."
+     }
+    },
+    "choices": [
+     {
+      "text": {
+       "ru": "Почему нет связи?",
+       "kk": null,
+       "en": "Why no link?"
+      },
+      "next": "b"
+     },
+     {
+      "text": {
+       "ru": "А тебе не страшно?",
+       "kk": null,
+       "en": "Aren't you scared?"
+      },
+      "next": "c"
+     }
+    ]
+   },
+   {
+    "id": "b",
+    "npc": "timur",
+    "text": {
+     "junior": {
+      "ru": "Луна закрывает Землю. Радио летит по прямой и сквозь Луну не проходит.",
+      "kk": null,
+      "en": "The Moon blocks Earth. Radio goes in straight lines and can't pass through the Moon."
+     }
+    }
+   },
+   {
+    "id": "c",
+    "npc": "timur",
+    "text": {
+     "junior": {
+      "ru": "Немножко. Но мы команда, у нас есть план — и всё получится.",
+      "kk": null,
+      "en": "A little. But we're a team, we have a plan — and it'll work out."
+     }
+    }
+   }
+  ]
+ },
+ {
+  "id": "talk_beep_1",
+  "trigger": {
+   "on": "talk",
+   "id": "beep"
+  },
+  "nodes": [
+   {
+    "id": "a",
+    "npc": "beep",
+    "text": {
+     "junior": {
+      "ru": "БИП! Я робот-помощник. Хочешь шутку?",
+      "kk": null,
+      "en": "BEEP! I'm a helper robot. Want a joke?"
+     }
+    },
+    "choices": [
+     {
+      "text": {
+       "ru": "Давай!",
+       "kk": null,
+       "en": "Go on!"
+      },
+      "next": "b"
+     },
+     {
+      "text": {
+       "ru": "Лучше факт",
+       "kk": null,
+       "en": "A fact, please"
+      },
+      "next": "c"
+     }
+    ]
+   },
+   {
+    "id": "b",
+    "npc": "beep",
+    "text": {
+     "junior": {
+      "ru": "Почему астронавт не может поссориться с Луной? Потому что она всегда к нему притягивается! Бип-бип-бип (это смех).",
+      "kk": null,
+      "en": "Why can't an astronaut fall out with the Moon? Because she's always attracted to him! Beep-beep-beep (that's laughing)."
+     }
+    }
+   },
+   {
+    "id": "c",
+    "npc": "beep",
+    "text": {
+     "junior": {
+      "ru": "Факт: на МКС летают настоящие роботы Astrobee. Они кубики размером с корзинку и двигаются с помощью вентиляторов.",
+      "kk": null,
+      "en": "Fact: real Astrobee robots fly on the ISS. They're cubes the size of a basket and move with fans."
+     }
+    }
+   }
+  ]
+ },
+ {
+  "id": "talk_beep_2",
+  "trigger": {
+   "on": "talk",
+   "id": "beep"
+  },
+  "nodes": [
+   {
+    "id": "a",
+    "npc": "beep",
+    "text": {
+     "junior": {
+      "ru": "Сканирование экипажа… Ты выглядишь отлично! А ты пил воду сегодня?",
+      "kk": null,
+      "en": "Scanning crew… You look great! Did you drink water today?"
+     }
+    },
+    "choices": [
+     {
+      "text": {
+       "ru": "Да!",
+       "kk": null,
+       "en": "Yes!"
+      },
+      "next": "b"
+     },
+     {
+      "text": {
+       "ru": "Ой, забыл",
+       "kk": null,
+       "en": "Oops, forgot"
+      },
+      "next": "c"
+     }
+    ]
+   },
+   {
+    "id": "b",
+    "npc": "beep",
+    "text": {
+     "junior": {
+      "ru": "Отлично! В космосе жажду чувствуешь слабее, поэтому пить надо по расписанию.",
+      "kk": null,
+      "en": "Great! In space you feel less thirsty, so you drink on a schedule."
+     }
+    }
+   },
+   {
+    "id": "c",
+    "npc": "beep",
+    "text": {
+     "junior": {
+      "ru": "Тревога! Шучу. Но выпей обязательно: в невесомости жидкость приливает к голове, и жажду трудно заметить.",
+      "kk": null,
+      "en": "Alert! Just kidding. But do drink: in weightlessness fluids move to your head and thirst is hard to notice."
+     }
+    }
+   }
+  ]
+ },
+ {
+  "id": "talk_beep_3",
+  "trigger": {
+   "on": "talk",
+   "id": "beep"
+  },
+  "nodes": [
+   {
+    "id": "a",
+    "npc": "beep",
+    "text": {
+     "junior": {
+      "ru": "Я посчитал: до Луны 384 400 км. Это 9 600 марафонов! Бип.",
+      "kk": null,
+      "en": "I calculated: 384,400 km to the Moon. That's 9,600 marathons! Beep."
+     }
+    },
+    "choices": [
+     {
+      "text": {
+       "ru": "А ты устаёшь?",
+       "kk": null,
+       "en": "Do you get tired?"
+      },
+      "next": "b"
+     },
+     {
+      "text": {
+       "ru": "Посчитай что-нибудь ещё!",
+       "kk": null,
+       "en": "Count something else!"
+      },
+      "next": "c"
+     }
+    ]
+   },
+   {
+    "id": "b",
+    "npc": "beep",
+    "text": {
+     "junior": {
+      "ru": "Роботы не устают, а разряжаются. Мне хватает солнечных панелей — как и кораблю!",
+      "kk": null,
+      "en": "Robots don't get tired, they run low. Solar panels are enough for me — like for the ship!"
+     }
+    }
+   },
+   {
+    "id": "c",
+    "npc": "beep",
+    "text": {
+     "junior": {
+      "ru": "Сердце человека за полёт к Луне делает около 400 000 ударов. Твоё — тоже работает отлично!",
+      "kk": null,
+      "en": "A human heart beats about 400,000 times on the way to the Moon. Yours works great too!"
+     }
+    }
+   }
+  ]
+ }
+]

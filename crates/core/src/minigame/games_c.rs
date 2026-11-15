@@ -8,52 +8,69 @@ fn lcg(s: &mut u64) -> f32 {
     (*s >> 40) as f32 / (1u64 << 24) as f32
 }
 
-// ---------------------------------------------------------------- photo
+// ---------------------------------------------------------------- Earth watch (photo)
 
-const SHUTTER: Btn = Btn(560.0, 340.0, 150.0, 70.0);
-const FRAME_X: f32 = 360.0;
-fn photo_slider(k: usize) -> f32 {
-    330.0 + k as f32 * 44.0
-}
-const PX0: f32 = 130.0;
-const PW: f32 = 380.0;
+const SHUTTER: Btn = Btn(560.0, 350.0, 150.0, 64.0);
+const EARTH_C: (f32, f32) = (300.0, 215.0);
+const EARTH_R: f32 = 175.0;
+/// what can be seen on Earth from orbit: icon, name ru, name en, why scientists want it
+pub const SIGHTS: [(&str, &str, &str); 5] = [("tornado", "Ураган", "Hurricane"), ("ice", "Айсберг", "Iceberg"), ("desert", "Пыльная буря", "Dust storm"), ("sparkles", "Полярное сияние", "Aurora"), ("star", "Огни городов", "City lights")];
 
-/// Earth drifts past the window: set exposure and focus, press the shutter when it's in the frame.
+/// Earth turns below the window; things drift across it. Move the camera ring onto the target from
+/// the list and press "Shoot" (or Space). A wrong target or an empty frame is a wasted photo.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Photo {
-    pub x: f32,
-    pub val: [f32; 2],
-    pub want: [f32; 2],
-    pub held: Option<usize>,
-    pub shots: u8,
-    pub need: u8,
+    /// (kind, x, y): positions on the canvas
+    pub things: Vec<(u8, f32, f32)>,
+    pub speed: Vec<f32>,
+    pub want: Vec<u8>,
+    pub got: Vec<u8>,
+    pub cam: (f32, f32),
+    pub held: bool,
+    pub flash: f32,
 }
 impl Photo {
     pub fn new(hard: bool, rng: &mut Rng) -> Self {
-        Photo { x: 60.0, val: [0.1, 0.9], want: [rng.range(0.3, 0.8), rng.range(0.25, 0.75)], held: None, shots: 0, need: if hard { 2 } else { 1 } }
+        let mut kinds: Vec<u8> = (0..5).collect();
+        shuffle(&mut kinds, rng);
+        let want: Vec<u8> = kinds.iter().copied().take(if hard { 4 } else { 3 }).collect();
+        let mut things = vec![];
+        let mut speed = vec![];
+        for (i, k) in (0..5u8).chain(0..5u8).enumerate() {
+            let lat = -0.56 + (i % 5) as f32 * 0.28 + rng.range(-0.05, 0.05);
+            things.push((k, EARTH_C.0 - EARTH_R + rng.range(0.0, 2.0 * EARTH_R), EARTH_C.1 + lat * EARTH_R * 0.9));
+            speed.push(rng.range(18.0, 30.0) * if hard { 1.6 } else { 1.0 });
+        }
+        Photo { things, speed, want, got: vec![], cam: (EARTH_C.0, EARTH_C.1), held: false, flash: 0.0 }
     }
-    fn tol(hard: bool) -> (f32, f32) {
+    fn r(hard: bool) -> f32 {
         if hard {
-            (0.06, 45.0)
+            34.0
         } else {
-            (0.1, 65.0)
+            44.0
         }
     }
-    fn ready(&self, hard: bool) -> bool {
-        let (t, _) = Self::tol(hard);
-        (self.val[0] - self.want[0]).abs() < t && (self.val[1] - self.want[1]).abs() < t
+    /// The thing in the frame that is still wanted (in order on hard).
+    fn target(&self, hard: bool) -> Option<usize> {
+        let need: Vec<u8> = if hard { self.want.iter().filter(|k| !self.got.contains(k)).take(1).copied().collect() } else { self.want.iter().filter(|k| !self.got.contains(k)).copied().collect() };
+        self.things.iter().position(|t| need.contains(&t.0) && dist(self.cam, (t.1, t.2)) < Self::r(hard) && self.on_disc(t.1, t.2))
+    }
+    fn on_disc(&self, x: f32, y: f32) -> bool {
+        dist((x, y), EARTH_C) < EARTH_R - 10.0
     }
     fn shoot(&mut self, hard: bool) -> Outcome {
-        let (_, fr) = Self::tol(hard);
-        if self.ready(hard) && (self.x - FRAME_X).abs() < fr {
-            self.shots += 1;
-            if self.shots >= self.need {
-                return Outcome::Done;
+        self.flash = 0.3;
+        match self.target(hard) {
+            Some(i) => {
+                let k = self.things[i].0;
+                self.got.push(k);
+                if self.want.iter().all(|w| self.got.contains(w)) {
+                    Outcome::Done
+                } else {
+                    Outcome::Fine
+                }
             }
-            self.x = 40.0;
-            Outcome::Fine
-        } else {
-            Outcome::Mistake
+            None => Outcome::Mistake,
         }
     }
 }
@@ -63,65 +80,93 @@ impl Play for Photo {
             MiniInput::Press(x, y) if SHUTTER.hit(x, y) => self.shoot(hard),
             MiniInput::Space(true) => self.shoot(hard),
             MiniInput::Press(x, y) => {
-                self.held = (0..2).find(|k| (y - photo_slider(*k)).abs() < 18.0 && (x - (PX0 + self.val[*k] * PW)).abs() < 30.0);
-                Outcome::Fine
-            }
-            MiniInput::Drag(x, _) => {
-                if let Some(k) = self.held {
-                    self.val[k] = ((x - PX0) / PW).clamp(0.0, 1.0);
+                self.held = dist((x, y), EARTH_C) < EARTH_R + 40.0;
+                if self.held {
+                    self.cam = (x, y);
                 }
                 Outcome::Fine
             }
+            MiniInput::Drag(x, y) if self.held => {
+                self.cam = (x, y);
+                Outcome::Fine
+            }
             MiniInput::Release(..) => {
-                self.held = None;
+                self.held = false;
                 Outcome::Fine
             }
             _ => Outcome::Fine,
         }
     }
-    fn tick(&mut self, dt: f32, hard: bool) -> Outcome {
-        self.x += dt * if hard { 110.0 } else { 70.0 };
-        if self.x > 700.0 {
-            self.x = 20.0;
+    fn tick(&mut self, dt: f32, _hard: bool) -> Outcome {
+        self.flash = (self.flash - dt).max(0.0);
+        for (i, t) in self.things.iter_mut().enumerate() {
+            t.1 += self.speed[i] * dt;
+            // Earth turns: things leave on the right and come back on the left
+            let half = (EARTH_R * EARTH_R - (t.2 - EARTH_C.1).powi(2)).max(0.0).sqrt();
+            if t.1 > EARTH_C.0 + half + 20.0 {
+                t.1 = EARTH_C.0 - half - 20.0;
+            }
         }
         Outcome::Fine
     }
     fn progress(&self) -> f32 {
-        self.shots as f32 / self.need as f32
+        self.got.len() as f32 / self.want.len() as f32
     }
     fn bot(&self, hard: bool) -> Vec<MiniInput> {
-        let mut o = vec![];
-        if let Some(k) = (0..2).find(|k| (self.val[*k] - self.want[*k]).abs() >= Self::tol(hard).0 * 0.5) {
-            drag_to(&mut o, (PX0 + self.val[k] * PW, photo_slider(k)), (PX0 + self.want[k] * PW, photo_slider(k)));
-        } else if (self.x - FRAME_X).abs() < 8.0 {
-            click(&mut o, SHUTTER.mid());
-        } else {
-            o.push(MiniInput::Wait(0.03));
+        let need: Vec<u8> = self.want.iter().filter(|k| !self.got.contains(k)).copied().collect();
+        let next = if hard { need.first().copied() } else { None };
+        // the wanted thing that is well inside the disc
+        let pick = self.things.iter().enumerate().filter(|(_, t)| next.map_or(need.contains(&t.0), |n| t.0 == n) && dist((t.1, t.2), EARTH_C) < EARTH_R - 30.0).map(|(i, _)| i).next();
+        match pick {
+            Some(i) => {
+                let t = self.things[i];
+                let lead = (t.1 + self.speed[i] * 0.06, t.2);
+                vec![MiniInput::Press(lead.0, lead.1), MiniInput::Release(lead.0, lead.1), MiniInput::Press(SHUTTER.mid().0, SHUTTER.mid().1), MiniInput::Release(0.0, 0.0)]
+            }
+            None => vec![MiniInput::Wait(0.1)],
         }
-        o
     }
     fn draw(&self, p: &mut Pen, hard: bool) {
-        p.hint("Настрой выдержку и резкость, жми «Снимок», когда Земля в рамке", "Set exposure and focus, press “Shoot” when Earth is in the frame");
-        p.rect(20.0, 40.0, 680.0, 250.0, 0x05061a);
-        let (t, fr) = Self::tol(hard);
-        let blur = ((self.val[1] - self.want[1]).abs() / t).min(4.0);
-        let bright = (self.val[0] - self.want[0]) / t;
-        for k in 0..(blur as usize + 1) {
-            p.circle_a(self.x + k as f32 * 6.0, 165.0, 60.0 + k as f32 * 5.0, 0x3a8bff, if k == 0 { 1.0 } else { 0.25 });
+        p.hint(
+            if hard { "Наведи камеру на цели строго по списку и жми «Снимок» (или Пробел), когда цель в кольце" } else { "Наведи камеру (тяни кольцо) на цель из списка и жми «Снимок», когда цель в кольце" },
+            if hard { "Aim at the targets strictly in list order and press “Shoot” (or Space) when it's in the ring" } else { "Drag the camera ring onto a target from the list and press “Shoot” when it's inside" },
+        );
+        p.rect(0.0, 40.0, 600.0, 390.0, 0x03040f);
+        p.circle_a(EARTH_C.0, EARTH_C.1, EARTH_R + 8.0, 0x5ac8ff, 0.35);
+        p.circle(EARTH_C.0, EARTH_C.1, EARTH_R, 0x1f5fa8);
+        // continents (simple blobs) and clouds
+        for (dx, dy, r, c) in [(-60.0, -40.0, 60.0, 0x3a9a4a), (50.0, 30.0, 70.0, 0x4fbf6a), (-20.0, 90.0, 40.0, 0xc8a46a), (90.0, -80.0, 35.0, 0x3a9a4a), (-110.0, 60.0, 30.0, 0x4fbf6a)] {
+            p.circle(EARTH_C.0 + dx, EARTH_C.1 + dy, r, c);
         }
-        p.icon("earth", self.x, 165.0, 120.0);
-        if bright.abs() > 1.0 {
-            p.circle_a(self.x, 165.0, 70.0, if bright > 0.0 { 0xffffff } else { 0x000000 }, (bright.abs() * 0.2).min(0.8));
+        p.circle_a(EARTH_C.0 - 30.0, EARTH_C.1 - 120.0, 40.0, 0xffffff, 0.5);
+        p.circle_a(EARTH_C.0 + 70.0, EARTH_C.1 + 110.0, 30.0, 0xffffff, 0.45);
+        // the night side
+        p.circle_a(EARTH_C.0 + 70.0, EARTH_C.1, EARTH_R * 0.8, 0x000010, 0.25);
+        for t in &self.things {
+            if self.on_disc(t.1, t.2) {
+                p.icon(SIGHTS[t.0 as usize].0, t.1, t.2, 34.0);
+            }
         }
-        p.ring(FRAME_X, 165.0, 60.0 + fr, 0xffd35a, 3.0);
-        for k in 0..2 {
-            let y = photo_slider(k);
-            p.text(14.0, y - 11.0, ["Выдержка", "Резкость"][k], ["Exposure", "Focus"][k], 18.0, 0xffffff);
-            p.rect(PX0, y - 5.0, PW, 10.0, 0x2a3048);
-            p.circle(PX0 + self.val[k] * PW, y, 15.0, 0xffd35a);
+        let ok = self.target(hard).is_some();
+        p.ring(self.cam.0, self.cam.1, Self::r(hard), if ok { 0x5aff8a } else { 0xffffff }, 4.0);
+        p.line(self.cam.0 - 12.0, self.cam.1, self.cam.0 + 12.0, self.cam.1, 2.0, 0xffffff);
+        p.line(self.cam.0, self.cam.1 - 12.0, self.cam.0, self.cam.1 + 12.0, 2.0, 0xffffff);
+        if self.flash > 0.0 {
+            p.rect_a(0.0, 40.0, 600.0, 390.0, 0xffffff, self.flash * 1.5);
         }
-        p.raw(600.0, 300.0, format!("{} / {}", self.shots, self.need), 24.0, 0x5aff8a, false);
-        p.button(SHUTTER, "Снимок", "Shoot", 0xffd35a, false);
+        // the list
+        p.rect(606.0, 40.0, 114.0, 300.0, 0xf0ead8);
+        p.text(612.0, 46.0, "Снять:", "Shoot:", 16.0, 0x333333);
+        for (n, k) in self.want.iter().enumerate() {
+            let (ic, ru, en) = SIGHTS[*k as usize];
+            let y = 80.0 + n as f32 * 62.0;
+            p.icon(ic, 628.0, y + 12.0, 28.0);
+            p.text(646.0, y, ru, en, 12.0, if self.got.contains(k) { 0x2a8a4a } else { 0x333333 });
+            if self.got.contains(k) {
+                p.text(646.0, y + 18.0, "есть!", "got it!", 12.0, 0x2a8a4a);
+            }
+        }
+        p.button(SHUTTER, "Снимок", "Shoot", if ok { 0x5aff8a } else { 0xffd35a }, false);
     }
 }
 

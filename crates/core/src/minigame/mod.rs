@@ -373,7 +373,7 @@ mod tests {
 
     #[test]
     fn every_minigame_can_be_finished_on_both_levels() {
-        for seed in 0..6 {
+        for seed in 0..20 {
             let mut rng = Rng::new(11 + seed);
             for kind in ALL_KINDS {
                 for hard in [false, true] {

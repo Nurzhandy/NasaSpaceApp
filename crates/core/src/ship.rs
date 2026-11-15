@@ -53,6 +53,10 @@ impl ShipStats {
         self.seal = (self.seal - holes * 1.5 * ds).max(0.0);
         let leak_rate = holes * 4.0 + (100.0 - self.seal) * 0.02;
         self.pressure = (self.pressure - leak_rate * ds).max(0.0);
+        // no holes: life support tops the air up from the tanks (like the ISS does)
+        if holes == 0.0 {
+            self.pressure = (self.pressure + 3.0 * ds).min(PRESSURE_FULL);
+        }
         self.o2 = (self.o2 - (0.6 * drift + holes * 2.0) * ds).max(0.0);
         self.co2 = (self.co2 + 0.9 * drift * ds).min(100.0);
         self.energy = (self.energy + (self.power_in - self.power_out) * ds * 0.25).clamp(0.0, ENERGY_CAP);

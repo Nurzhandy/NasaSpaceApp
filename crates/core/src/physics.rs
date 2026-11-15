@@ -1,5 +1,5 @@
-//! A5 — one physics card after each episode, in the order of `physics_cards.json`.
-//! A card tied to this episode (`after`) comes first; otherwise the next free card.
+//! A5 — a physics card after an episode — only the card tied to that episode (`after`), so the
+//! card always matches what the crew just did. Cards without a task are read in the encyclopedia.
 
 use crate::content::Content;
 
@@ -8,6 +8,5 @@ pub fn next_card<'a>(c: &'a Content, seen: &[String], episode: &str) -> Option<&
     c.cards
         .iter()
         .find(|k| k.after.as_deref() == Some(episode) && unseen(&k.id))
-        .or_else(|| c.cards.iter().find(|k| k.after.is_none() && unseen(&k.id)))
         .map(|k| k.id.as_str())
 }

@@ -152,20 +152,20 @@
    },
    "why": {
     "junior": {
-     "ru": "Каждый килограмм, который летит в космос, стоит топлива. Сухая еда лёгкая, а крошки могут попасть в глаза и приборы.",
+     "ru": "Правильная еда в космосе — это здоровье. Без силы тяжести кости теряют кальций, поэтому астронавтам нужны молоко, рыба и витамин D. Овощи и фрукты дают витамины, а вода — чтобы не было обезвоживания.",
      "kk": null,
-     "en": "Every kilogram sent to space costs fuel. Dry food is light, and crumbs could get into eyes and machines."
+     "en": "Good food in space means good health. Without gravity bones lose calcium, so astronauts need dairy, fish and vitamin D. Fruit and vegetables give vitamins, and water prevents dehydration."
     },
     "advanced": {
-     "ru": "В невесомости ничего не падает вниз: крошка летает, пока не врежется во что-то. Поэтому вместо хлеба — тортильи, а соль и перец — жидкие.",
+     "ru": "Астронавт тратит около 2500–3000 ккал в день. Врачи NASA составляют меню на каждый день: белок для мышц, кальций и витамин D для костей, мало соли (в невесомости соль вредит костям). Еда ещё и поднимает настроение — экипаж обедает вместе.",
      "kk": null,
-     "en": "In weightlessness nothing falls: a crumb floats until it hits something. That's why astronauts eat tortillas and use liquid salt and pepper."
+     "en": "An astronaut burns about 2,500–3,000 kcal a day. NASA doctors plan every day's menu: protein for muscles, calcium and vitamin D for bones, little salt (in weightlessness salt harms bones). Food lifts the mood too — the crew eats together."
     }
    },
    "law": {
-    "ru": "Закон: в невесомости вещи не падают, а летают",
+    "ru": "Правило: в космосе еда — это энергия и крепкие кости (кальций, витамины, вода)",
     "kk": null,
-    "en": "Law: in weightlessness things don't fall, they float"
+    "en": "Rule: in space food is energy and strong bones (calcium, vitamins, water)"
    }
   },
   {
@@ -418,7 +418,7 @@
    "reward": 16,
    "timer": 60,
    "penalty": {
-    "seal": 12
+    "seal": 6
    },
    "fixes": {
     "seal": 6
@@ -576,20 +576,20 @@
    },
    "why": {
     "junior": {
-     "ru": "Счастливый питомец — весёлый экипаж: +2 монеты за каждое задание, пока он сыт.",
+     "ru": "О питомце нужно заботиться: кормить вовремя, держать его уголок в чистоте и гладить. Сытый и довольный питомец радует весь экипаж.",
      "kk": null,
-     "en": "A happy pet means a cheerful crew: +2 coins per task while it's fed."
+     "en": "A pet needs care: feed it on time, keep its corner clean and pet it. A fed, happy pet cheers up the whole crew."
     },
     "advanced": {
-     "ru": "Летающие крошки забивают фильтры и вентиляторы. Чистота на корабле — это безопасность.",
+     "ru": "Летающие крошки забивают фильтры и вентиляторы, поэтому в невесомости мусор ловят пылесосом. А забота о ком-то снимает стресс в долгом полёте.",
      "kk": null,
-     "en": "Floating crumbs clog filters and fans. A clean ship is a safe ship."
+     "en": "Floating crumbs clog filters and fans, so in weightlessness rubbish is caught with a vacuum. Caring for someone eases stress on a long flight."
     }
    },
    "law": {
-    "ru": "Правило: в невесомости мусор ловят, а не подметают",
+    "ru": "Правило: о питомце заботятся каждый день — корм, чистота, ласка",
     "kk": null,
-    "en": "Rule: in weightlessness rubbish is caught, not swept"
+    "en": "Rule: a pet needs care every day — food, a clean corner, kindness"
    }
   },
   {
@@ -814,43 +814,38 @@
    "minigame": "photo",
    "reward": 10,
    "title": {
-    "ru": "Фото Земли",
+    "ru": "Наблюдение Земли",
     "kk": null,
-    "en": "Photo of Earth"
+    "en": "Watching Earth"
    },
    "brief": {
     "junior": {
-     "ru": "Земля проплывает в иллюминаторе. Настрой выдержку и резкость и успей сфотографировать!",
+     "ru": "Учёным на Земле нужны снимки из космоса. Наведи камеру на цели из списка и сделай снимок, когда цель в кольце.",
      "kk": null,
-     "en": "Earth drifts past the window. Set the exposure and focus and catch the shot!"
+     "en": "Scientists on Earth need photos from space. Aim the camera at the targets from the list and shoot when one is in the ring."
     },
     "advanced": {
-     "ru": "Освещённая Солнцем Земля очень яркая на чёрном небе. Неправильная выдержка — и снимок белый или чёрный.",
+     "ru": "С орбиты видно ураганы, лесные пожары, пыльные бури и полярные сияния. Снимки помогают предсказывать погоду и вовремя предупреждать людей.",
      "kk": null,
-     "en": "Sunlit Earth is very bright against the black sky. The wrong exposure makes the photo white or black."
+     "en": "From orbit you can see hurricanes, wildfires, dust storms and auroras. The photos help forecast weather and warn people in time."
     }
-   },
-   "history": {
-    "ru": "история: «Голубой мрамор», 1972",
-    "kk": null,
-    "en": "history: “Blue Marble”, 1972"
    },
    "why": {
     "junior": {
-     "ru": "Фото Земли из космоса показали людям, какая наша планета маленькая и хрупкая.",
+     "ru": "Из космоса видно сразу полпланеты. По снимкам следят за ураганами, тающими льдами и пожарами — и предупреждают людей заранее.",
      "kk": null,
-     "en": "Photos of Earth from space showed people how small and fragile our planet is."
+     "en": "From space you see half the planet at once. Photos track hurricanes, melting ice and fires — and warn people early."
     },
     "advanced": {
-     "ru": "«Голубой мрамор» (Аполлон‑17, 1972) — один из самых известных снимков. Камера ловит свет: выдержка — сколько света, фокус — резкость.",
+     "ru": "Спутники и экипажи МКС каждый день фотографируют Землю: так измеряют, как тают ледники, как растут города и куда движутся ураганы. Это наука о климате.",
      "kk": null,
-     "en": "“Blue Marble” (Apollo 17, 1972) is among the most famous photos. A camera catches light: exposure is how much, focus is how sharp."
+     "en": "Satellites and ISS crews photograph Earth every day: that's how we measure melting glaciers, growing cities and where hurricanes go. It's climate science."
     }
    },
    "law": {
-    "ru": "Факт: Земля светит отражённым светом Солнца",
+    "ru": "Факт: снимки из космоса помогают предсказывать погоду и беречь планету",
     "kk": null,
-    "en": "Fact: Earth shines with reflected sunlight"
+    "en": "Fact: photos from space help forecast weather and protect the planet"
    }
   },
   {

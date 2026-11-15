@@ -1,6 +1,129 @@
 [
-  { "id": "capcom", "icon": "radio", "name": { "ru": "ЦУП", "kk": null, "en": "Mission Control" }, "role": { "ru": "Центр управления полётом, Хьюстон", "kk": null, "en": "Mission Control Center, Houston" } },
-  { "id": "aya", "icon": "teacher", "name": { "ru": "Ая", "kk": null, "en": "Aya" }, "role": { "ru": "Бортинженер", "kk": null, "en": "Flight engineer" } },
-  { "id": "timur", "icon": "astronaut", "name": { "ru": "Тимур", "kk": null, "en": "Timur" }, "role": { "ru": "Пилот", "kk": null, "en": "Pilot" } },
-  { "id": "beep", "icon": "robot", "name": { "ru": "БИП", "kk": null, "en": "BEEP" }, "role": { "ru": "Робот-помощник", "kk": null, "en": "Helper robot" } }
+ {
+  "id": "capcom",
+  "icon": "radio",
+  "name": {
+   "ru": "ЦУП",
+   "kk": null,
+   "en": "Mission Control"
+  },
+  "role": {
+   "ru": "Центр управления полётом, Хьюстон",
+   "kk": null,
+   "en": "Mission Control Center, Houston"
+  },
+  "on_board": false,
+  "chatter": []
+ },
+ {
+  "id": "aya",
+  "icon": "teacher",
+  "name": {
+   "ru": "Ая",
+   "kk": null,
+   "en": "Aya"
+  },
+  "role": {
+   "ru": "Бортинженер",
+   "kk": null,
+   "en": "Flight engineer"
+  },
+  "on_board": true,
+  "chatter": [
+   {
+    "ru": "Так, давление в норме…",
+    "kk": null,
+    "en": "Right, pressure is fine…"
+   },
+   {
+    "ru": "Кто брал мой гаечный ключ?",
+    "kk": null,
+    "en": "Who took my wrench?"
+   },
+   {
+    "ru": "Фильтр CO₂ надо бы проверить.",
+    "kk": null,
+    "en": "I should check the CO₂ filter."
+   },
+   {
+    "ru": "Люблю этот гул вентиляторов!",
+    "kk": null,
+    "en": "I love the hum of the fans!"
+   }
+  ]
+ },
+ {
+  "id": "timur",
+  "icon": "astronaut",
+  "name": {
+   "ru": "Тимур",
+   "kk": null,
+   "en": "Timur"
+  },
+  "role": {
+   "ru": "Пилот",
+   "kk": null,
+   "en": "Pilot"
+  },
+  "on_board": true,
+  "chatter": [
+   {
+    "ru": "Курс держим ровно!",
+    "kk": null,
+    "en": "Holding the course steady!"
+   },
+   {
+    "ru": "Луна уже ближе, чем вчера.",
+    "kk": null,
+    "en": "The Moon is closer than yesterday."
+   },
+   {
+    "ru": "Кто-нибудь видел мои очки?",
+    "kk": null,
+    "en": "Has anyone seen my glasses?"
+   },
+   {
+    "ru": "Обожаю вид из кабины.",
+    "kk": null,
+    "en": "I love the view from the cockpit."
+   }
+  ]
+ },
+ {
+  "id": "beep",
+  "icon": "robot",
+  "name": {
+   "ru": "БИП",
+   "kk": null,
+   "en": "BEEP"
+  },
+  "role": {
+   "ru": "Робот-помощник",
+   "kk": null,
+   "en": "Helper robot"
+  },
+  "on_board": true,
+  "chatter": [
+   {
+    "ru": "Бип-буп! Всё работает!",
+    "kk": null,
+    "en": "Beep-boop! Everything works!"
+   },
+   {
+    "ru": "Сканирую… пыль: 3 крошки.",
+    "kk": null,
+    "en": "Scanning… dust: 3 crumbs."
+   },
+   {
+    "ru": "Батарея 97%. Отлично!",
+    "kk": null,
+    "en": "Battery 97%. Great!"
+   },
+   {
+    "ru": "Я вычислил шутку. Загрузка…",
+    "kk": null,
+    "en": "I computed a joke. Loading…"
+   }
+  ]
+ }
 ]

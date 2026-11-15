@@ -230,52 +230,80 @@ impl Play for Wires {
         o
     }
     fn draw(&self, p: &mut Pen, _hard: bool) {
-        p.hint("Зажми медный кончик провода и тяни в гнездо того же цвета — замкни цепь", "Grab a copper wire end and drag it into the socket of the same colour — close the circuit");
+        p.hint("Зажми медный кончик провода и тяни в клемму того же цвета — замкни цепь", "Grab a copper wire end and drag it into the terminal of the same colour — close the circuit");
         let n = self.left.len();
-        p.rect(20.0, 40.0, 680.0, 380.0, 0x3a4058);
-        p.rect(30.0, 50.0, 660.0, 360.0, 0x2a2f45);
-        for (x, y) in [(40.0, 60.0), (680.0, 60.0), (40.0, 400.0), (680.0, 400.0)] {
-            p.circle(x, y, 6.0, 0x8a93ab);
+        // the open panel: metal frame, back plate, screws, a warning sticker
+        p.rect(20.0, 40.0, 680.0, 380.0, 0x4a5068);
+        p.rect(30.0, 50.0, 660.0, 360.0, 0x23283c);
+        for (x, y) in [(42.0, 62.0), (678.0, 62.0), (42.0, 398.0), (678.0, 398.0)] {
+            p.circle(x, y, 7.0, 0x9aa3b8);
+            p.line(x - 4.0, y, x + 4.0, y, 2.0, 0x4a5068);
         }
-        p.ctext(360.0, 220.0, "ЩИТ ПИТАНИЯ", "POWER PANEL", 16.0, 0x6a7090);
+        p.rect(300.0, 70.0, 120.0, 34.0, 0xffcc33);
+        p.ctext(360.0, 76.0, "220 В", "220 V", 18.0, 0x222222);
         let lit = self.links.iter().all(|l| l.is_some());
-        p.circle(360.0, 260.0, 14.0, if lit { 0x5aff8a } else { 0x5a2a2a });
+        p.circle(360.0, 380.0, 12.0, if lit { 0x5aff8a } else { 0x5a2a2a });
+        p.ctext(360.0, 350.0, if lit { "цепь замкнута" } else { "нет тока" }, if lit { "circuit closed" } else { "no current" }, 14.0, 0x9aa3b8);
+        // the cable bundle coming out of the wall on the left
+        p.rect(30.0, 60.0, 34.0, 340.0, 0x15182a);
+        // terminals on the right: a metal block, a screw, a colour band
         for k in 0..n {
             let y = wy(n, k);
-            let c = WIRE_C[self.left[k] as usize];
-            // the cable coming out of the wall, with a darker stripe
-            p.rect(30.0, y - 10.0, TIP_X - 40.0, 20.0, c);
-            p.rect(30.0, y - 3.0, TIP_X - 40.0, 5.0, darker(c));
-            // the socket block on the right
             let sc = WIRE_C[self.right[k] as usize];
-            p.rect(SOCK_X - 10.0, y - 22.0, 80.0, 44.0, 0x1c2030);
-            p.rect(SOCK_X, y - 16.0, 70.0, 32.0, sc);
-            p.rect(SOCK_X - 6.0, y - 8.0, 20.0, 16.0, 0x0b0e14);
+            p.rect(SOCK_X - 14.0, y - 24.0, 96.0, 48.0, 0x8a93ab);
+            p.rect(SOCK_X - 10.0, y - 20.0, 88.0, 40.0, 0xb8c0d4);
+            p.rect(SOCK_X - 10.0, y - 9.0, 26.0, 18.0, 0x0b0e14);
+            p.circle(SOCK_X + 38.0, y, 11.0, 0x6a7390);
+            p.line(SOCK_X + 31.0, y - 5.0, SOCK_X + 45.0, y + 5.0, 3.0, 0x2a2f45);
+            p.rect(SOCK_X + 56.0, y - 20.0, 22.0, 40.0, sc);
         }
+        // a cable: dark outline, colour, a shine line; it sags a little like a real cord
         let cord = |p: &mut Pen, a: usize, to: (f32, f32)| {
             let c = WIRE_C[self.left[a] as usize];
-            let from = (TIP_X - 10.0, wy(n, a));
-            p.line(from.0, from.1, to.0, to.1, 18.0, c);
-            p.line(from.0, from.1 - 2.0, to.0, to.1 - 2.0, 5.0, darker(c));
+            let from = (60.0, wy(n, a));
+            let mid = ((from.0 + to.0) / 2.0, from.1.max(to.1) + 30.0);
+            let pts: Vec<(f32, f32)> = (0..=16)
+                .map(|i| {
+                    let t = i as f32 / 16.0;
+                    let u = 1.0 - t;
+                    (u * u * from.0 + 2.0 * u * t * mid.0 + t * t * to.0, u * u * from.1 + 2.0 * u * t * mid.1 + t * t * to.1)
+                })
+                .collect();
+            for w in pts.windows(2) {
+                p.line(w[0].0, w[0].1, w[1].0, w[1].1, 20.0, darker(darker(c)));
+            }
+            for w in pts.windows(2) {
+                p.line(w[0].0, w[0].1, w[1].0, w[1].1, 15.0, c);
+            }
+            for w in pts.windows(2) {
+                p.line(w[0].0, w[0].1 - 4.0, w[1].0, w[1].1 - 4.0, 3.0, 0xffffff);
+            }
+            to
+        };
+        let end = |p: &mut Pen, at: (f32, f32), c: u32| {
+            // a metal ferrule, then bare copper strands fanning out
+            p.rect(at.0 - 6.0, at.1 - 8.0, 16.0, 16.0, 0xc8ccd8);
+            p.rect(at.0 - 6.0, at.1 - 8.0, 16.0, 4.0, 0xeef0f6);
+            for (dy, len) in [(-5.0, 14.0), (-2.0, 17.0), (1.0, 18.0), (4.0, 15.0)] {
+                p.line(at.0 + 10.0, at.1 + dy * 0.6, at.0 + 10.0 + len, at.1 + dy, 2.5, 0xd98a3a);
+            }
+            p.circle(at.0 - 10.0, at.1, 8.0, c);
         };
         for (a, l) in self.links.iter().enumerate() {
             if let Some(j) = l {
-                cord(p, a, (SOCK_X, wy(n, *j)));
+                let to = cord(p, a, (SOCK_X - 6.0, wy(n, *j)));
+                p.rect(to.0 - 12.0, to.1 - 8.0, 16.0, 16.0, 0xc8ccd8);
             }
-        }
-        if let Some(a) = self.held {
-            cord(p, a, self.cur);
         }
         for k in 0..n {
             if self.links[k].is_none() && self.held != Some(k) {
-                // bare copper strands at the loose end
-                let y = wy(n, k);
-                p.rect(TIP_X - 10.0, y - 7.0, 26.0, 14.0, 0xd98a3a);
-                p.rect(TIP_X + 14.0, y - 4.0, 8.0, 8.0, 0xf0b060);
+                let at = cord(p, k, (TIP_X - 14.0, wy(n, k)));
+                end(p, at, WIRE_C[self.left[k] as usize]);
             }
         }
-        if self.held.is_some() {
-            p.rect(self.cur.0 - 4.0, self.cur.1 - 7.0, 26.0, 14.0, 0xd98a3a);
+        if let Some(a) = self.held {
+            let at = cord(p, a, (self.cur.0 - 16.0, self.cur.1));
+            end(p, at, WIRE_C[self.left[a] as usize]);
         }
     }
 }

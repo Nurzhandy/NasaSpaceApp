@@ -54,6 +54,12 @@ pub struct Npc {
     pub name: Text,
     pub role: Text,
     pub icon: String,
+    /// walks around the ship (crew on board, not Mission Control)
+    #[serde(default)]
+    pub on_board: bool,
+    /// short lines said in passing (speech bubbles)
+    #[serde(default)]
+    pub chatter: Vec<Text>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -230,6 +236,8 @@ pub enum Trigger {
     TaskDone(String),
     /// right after a task failed (its timer ran out)
     TaskFailed(String),
+    /// a crew member was talked to (walk up and press E); the id is the NPC's
+    Talk(String),
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
